@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import {
   FileText, CheckCircle2, Clock, Download, Search, Calendar, Users, Eye, XCircle,
   RefreshCw, Settings, Zap, ArrowUp, ArrowDown, TrendingUp
 } from 'lucide-react';
 
 export default function AcknowledgedCopies() {
+  return (
+    <Suspense fallback={<div>Loading copies...</div>}>
+      <AcknowledgedCopiesContent />
+    </Suspense>
+  );
+}
+
+function AcknowledgedCopiesContent() {
   const [documents, setDocuments] = useState([
     {
       id: 1,
