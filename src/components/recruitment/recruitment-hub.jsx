@@ -1,0 +1,990 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+    Briefcase, Users, UserPlus, FileCheck,
+    Search, Plus, Filter, MoreVertical,
+    Clock, MapPin, Building2, TrendingUp,
+    ChevronRight, ArrowUpRight, Loader2,
+    Calendar, CheckCircle2, XCircle, AlertCircle,
+    Layers, Star, Target
+} from "lucide-react";
+import { format } from "date-fns";
+import toast from "react-hot-toast";
+
+export default function RecruitmentHub() {
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState("jobs");
+    const [jobs, setJobs] = useState([]);
+    const [candidates, setCandidates] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showJobModal, setShowJobModal] = useState(false);
+    const [showCandidateModal, setShowCandidateModal] = useState(false);
+    const [showOfferModal, setShowOfferModal] = useState(false);
+    const [offerModalData, setOfferModalData] = useState(null); // For pre-filling from candidate pipeline
+    const [pipelineFilter, setPipelineFilter] = useState(null); // { jobId, jobTitle }
+    const [selectedCandidate, setSelectedCandidate] = useState(null);
+    const [stats, setStats] = useState({
+        totalJobs: 0,
+        activePositions: 0,
+        totalCandidates: 0,
+        hiresThisMonth: 0
+    });
+
+    useEffect(() => {
+        fetchRecruitmentData();
+    }, []);
+
+    const fetchRecruitmentData = async () => {
+        try {
+            setLoading(true);
+            const [jobsRes, candidatesRes] = await Promise.all([
+                fetch('/api/recruitment/jobs'),
+                fetch('/api/recruitment/candidates')
+            ]);
+
+            const jobsData = await jobsRes.json();
+            const candidatesData = await candidatesRes.json();
+
+            setJobs(jobsData.jobs || []);
+            setCandidates(candidatesData.candidates || []);
+
+            // Calculate basic stats
+            setStats({
+                totalJobs: jobsData.jobs?.length || 0,
+                activePositions: jobsData.jobs?.filter(j => j.status === 'Open').length || 0,
+                totalCandidates: candidatesData.candidates?.length || 0,
+                hiresThisMonth: candidatesData.candidates?.filter(c => c.status === 'Hired').length || 0
+            });
+        } catch (error) {
+            toast.error("Failed to load recruitment data");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                <p className="text-slate-500 font-medium animate-pulse">Assembling recruitment data...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-10 space-y-12 animate-in fade-in duration-1000">
+            {/* Ultra-Premium Header */}
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
+                <div className="space-y-5">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+                            <Layers className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-600">Enterprise Talent Acquisition</span>
+                    </div>
+                    <h1 className="text-6xl font-black text-slate-900 tracking-tighter leading-none">
+                        Recruitment <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600">Intelligence.</span>
+                    </h1>
+                    <p className="text-slate-500 font-medium max-w-2xl text-xl leading-relaxed">
+                        Orchestrate your global talent pipeline with precision metrics and automated workflow synchronization.
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                    <button
+                        onClick={() => router.push('/recruitment/ats')}
+                        className="bg-white border-2 border-slate-100 text-slate-900 px-8 h-18 rounded-[28px] text-[13px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-100 transition-all flex items-center gap-3 shadow-xl shadow-slate-200/50 group"
+                    >
+                        <Users className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" /> ATS Board
+                    </button>
+                    <button
+                        onClick={() => router.push('/recruitment/interviews')}
+                        className="bg-white border-2 border-slate-100 text-slate-900 px-8 h-18 rounded-[28px] text-[13px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-100 transition-all flex items-center gap-3 shadow-xl shadow-slate-200/50 group"
+                    >
+                        <Calendar className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" /> Interviews
+                    </button>
+                    <button
+                        onClick={() => setShowJobModal(true)}
+                        className="bg-slate-900 text-white px-10 h-18 rounded-[28px] text-[13px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-3 shadow-2xl shadow-slate-300 group"
+                    >
+                        <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" /> Create Opening
+                    </button>
+                </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[
+                    { label: "Pipeline Depth", value: stats.totalJobs, icon: Briefcase, color: "indigo", bg: "bg-indigo-50", text: "text-indigo-600" },
+                    { label: "Active Channels", value: stats.activePositions, icon: Target, color: "emerald", bg: "bg-emerald-50", text: "text-emerald-600" },
+                    { label: "Funnel Velocity", value: stats.totalCandidates, icon: Users, color: "blue", bg: "bg-blue-50", text: "text-blue-600" },
+                    { label: "Conversion Rate", value: stats.hiresThisMonth, icon: Star, color: "purple", bg: "bg-purple-50", text: "text-purple-600" }
+                ].map((stat, i) => (
+                    <div key={i} className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] group hover:shadow-3xl hover:shadow-indigo-500/10 transition-all duration-700 relative overflow-hidden">
+                        <div className={`absolute top-0 right-0 w-40 h-40 ${stat.bg} opacity-30 rounded-full -mr-20 -mt-20 transition-transform group-hover:scale-150 duration-1000`}></div>
+                        <div className="relative z-10 flex flex-col gap-6">
+                            <div className={`w-16 h-16 ${stat.bg} rounded-[24px] flex items-center justify-center shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-all duration-700`}>
+                                <stat.icon className={`w-8 h-8 ${stat.text} group-hover:text-white transition-colors duration-700`} />
+                            </div>
+                            <div>
+                                <p className="text-slate-400 text-[12px] font-black uppercase tracking-[0.25em]">{stat.label}</p>
+                                <h3 className="text-4xl font-black text-slate-900 mt-2 tracking-tighter">{stat.value}</h3>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Main Navigation Tabs */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex border-b border-slate-100 p-2 gap-2 bg-slate-50/50">
+                    {[
+                        { id: "jobs", label: "Job Board", icon: Briefcase },
+                        { id: "candidates", label: "Candidate Pipeline", icon: Users },
+                        { id: "offers", label: "Offer Management", icon: FileCheck },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === tab.id
+                                ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+                                : "text-slate-500 hover:bg-white hover:text-indigo-600"
+                                }`}
+                        >
+                            <tab.icon className="w-4 h-4" /> {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="p-8">
+                    {activeTab === "jobs" && (
+                        <JobBoard
+                            jobs={jobs}
+                            onRefresh={fetchRecruitmentData}
+                            onViewPipeline={(jobId, jobTitle) => {
+                                setPipelineFilter({ jobId, jobTitle });
+                                setActiveTab("candidates");
+                            }}
+                        />
+                    )}
+                    {activeTab === "candidates" && (
+                        <CandidatePipeline
+                            candidates={pipelineFilter
+                                ? candidates.filter(c => c.jobRequisition?._id === pipelineFilter.jobId)
+                                : candidates
+                            }
+                            activeFilter={pipelineFilter}
+                            onClearFilter={() => setPipelineFilter(null)}
+                            onRefresh={fetchRecruitmentData}
+                            onSelectCandidate={(c) => setSelectedCandidate(c)}
+                        />
+                    )}
+                    {activeTab === "offers" && (
+                        <OfferManagement
+                            onRefresh={fetchRecruitmentData}
+                            onCreateOffer={() => {
+                                setOfferModalData(null);
+                                setShowOfferModal(true);
+                            }}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* Modals will be added here */}
+            {showJobModal && (
+                <JobRequisitionModal
+                    onClose={() => setShowJobModal(false)}
+                    onSuccess={() => {
+                        setShowJobModal(false);
+                        fetchRecruitmentData();
+                    }}
+                />
+            )}
+
+            {showCandidateModal && (
+                <AddCandidateModal
+                    jobs={jobs}
+                    onClose={() => setShowCandidateModal(false)}
+                    onSuccess={() => {
+                        setShowCandidateModal(false);
+                        fetchRecruitmentData();
+                    }}
+                />
+            )}
+
+            {showOfferModal && (
+                <CreateOfferModal
+                    candidates={candidates}
+                    initialData={offerModalData}
+                    onClose={() => setShowOfferModal(false)}
+                    onSuccess={() => {
+                        setShowOfferModal(false);
+                        fetchRecruitmentData(); // Refresh to see new offer
+                    }}
+                />
+            )}
+
+            {selectedCandidate && (
+                <CandidateDetailModal
+                    candidate={selectedCandidate}
+                    onClose={() => setSelectedCandidate(null)}
+                    onRefresh={() => {
+                        setSelectedCandidate(null);
+                        fetchRecruitmentData();
+                    }}
+                    onGenerateOffer={(candidate) => {
+                        setSelectedCandidate(null);
+                        setOfferModalData({ candidateId: candidate._id, name: candidate.name, jobTitle: candidate.jobRequisition?.title });
+                        setShowOfferModal(true);
+                        setActiveTab("offers");
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+function JobBoard({ jobs, onRefresh, onViewPipeline }) {
+    if (jobs.length === 0) {
+        return (
+            <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <Briefcase className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-bold">No active job requisitions found.</p>
+                <p className="text-slate-400 text-xs mt-1 italic">Click 'Create Requisition' to start hiring.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {jobs.map((job) => (
+                <div key={job._id} className="p-6 bg-white border border-slate-100 rounded-3xl hover:shadow-xl hover:shadow-indigo-100/30 transition-all group border-l-4 border-l-indigo-500">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${job.status === 'Open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                {job.status}
+                            </span>
+                            <h4 className="text-lg font-black text-slate-900 mt-2">{job.title}</h4>
+                        </div>
+                        <button className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"><MoreVertical className="w-4 h-4" /></button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-500" /> {job.department}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <MapPin className="w-3.5 h-3.5 text-indigo-500" /> {job.location}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-indigo-500" /> {job.type}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <AlertCircle className={`w-3.5 h-3.5 ${job.priority === 'Urgent' ? 'text-rose-500' : 'text-amber-500'
+                                }`} /> {job.priority} Priority
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex -space-x-2">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-black overflow-hidden">
+                                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="Applicant" className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 flex items-center justify-center text-[10px] font-black text-indigo-600 italic">+5</div>
+                        </div>
+                        <button
+                            onClick={() => onViewPipeline(job._id, job.title)}
+                            className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest flex items-center gap-1"
+                        >
+                            Review Pipeline <ArrowUpRight className="w-3 h-3" />
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function CandidatePipeline({ candidates, onRefresh, onSelectCandidate, activeFilter, onClearFilter }) {
+    // Stage-wise grouping
+    const stages = [
+        "Applied", "Screening", "Technical Interview", "Managerial Interview", "HR Interview", "Offer Sent"
+    ];
+
+    if (candidates.length === 0 && !activeFilter) {
+        return (
+            <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <p className="text-slate-500 font-bold">No candidates tracked yet.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                        placeholder="Search by name, email, or skill..."
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:bg-slate-50 transition-all"><Filter className="w-4 h-4" /></button>
+                </div>
+            </div>
+
+            {activeFilter && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex justify-between items-center animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                            <Briefcase className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-indigo-600 font-black uppercase tracking-wider">Filtered by Position</p>
+                            <p className="text-sm font-bold text-indigo-900">{activeFilter.jobTitle}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClearFilter}
+                        className="px-4 py-2 bg-white text-indigo-600 rounded-xl text-xs font-black shadow-sm hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
+                    >
+                        <XCircle className="w-3.5 h-3.5" /> Clear Filter
+                    </button>
+                </div>
+            )}
+
+            <div className="overflow-x-auto pb-4">
+                <table className="w-full">
+                    <thead>
+                        <tr className="text-left border-b border-slate-100">
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Candidate</th>
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Position</th>
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Status</th>
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Applied</th>
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {candidates.map((cand) => (
+                            <tr key={cand._id} className="group hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-600 text-sm">
+                                            {cand.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-slate-900">{cand.name}</p>
+                                            <p className="text-[10px] text-slate-400 font-medium">{cand.email}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="py-4 px-4">
+                                    <p className="text-xs font-bold text-slate-700">{cand.jobRequisition?.title || "Unknown Position"}</p>
+                                    <p className="text-[10px] text-slate-400">{cand.jobRequisition?.department}</p>
+                                </td>
+                                <td className="py-4 px-4">
+                                    <span className="px-2 py-1 bg-white border border-indigo-100 rounded-lg text-[10px] font-black text-indigo-600 uppercase">
+                                        {cand.status}
+                                    </span>
+                                </td>
+                                <td className="py-4 px-4 text-xs text-slate-500 font-medium">
+                                    {format(new Date(cand.appliedDate), 'MMM dd, yyyy')}
+                                </td>
+                                <td className="py-4 px-4 text-right">
+                                    <button
+                                        onClick={() => onSelectCandidate(cand)}
+                                        className="p-2 hover:bg-white rounded-xl text-slate-400 transition-all shadow-sm border border-transparent hover:border-slate-100"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function AddCandidateModal({ jobs, onClose, onSuccess }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        jobRequisition: '',
+        source: 'Website',
+        notes: ''
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            setSubmitting(true);
+            const res = await fetch('/api/recruitment/candidates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            if (!res.ok) throw new Error("Failed to add candidate");
+            toast.success("Candidate added to pipeline!");
+            onSuccess();
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 className="text-xl font-black text-slate-900">Add New Candidate</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-400">&times;</button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Full Name</label>
+                            <input
+                                required
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="John Doe"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                            <input
+                                required
+                                type="email"
+                                value={formData.email}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="john@example.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Phone</label>
+                            <input
+                                value={formData.phone}
+                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="+91 9876543210"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Applied For</label>
+                            <select
+                                required
+                                value={formData.jobRequisition}
+                                onChange={e => setFormData({ ...formData, jobRequisition: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                            >
+                                <option value="">Select Position</option>
+                                {jobs.map(j => <option key={j._id} value={j._id}>{j.title} ({j.department})</option>)}
+                            </select>
+                        </div>
+                    </div>
+                </form>
+                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+                    <button onClick={onClose} className="flex-1 py-3 px-6 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all">Cancel</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting || !formData.jobRequisition}
+                        className="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Candidate"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }) {
+    const [submitting, setSubmitting] = useState(false);
+    const stages = [
+        'Applied', 'Screening', 'Technical Interview', 'Managerial Interview', 'HR Interview', 'Offer Sent', 'Hired', 'Rejected'
+    ];
+
+    const updateStatus = async (newStatus) => {
+        try {
+            setSubmitting(true);
+            const res = await fetch('/api/recruitment/candidates', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: candidate._id, status: newStatus })
+            });
+
+            if (!res.ok) throw new Error("Failed to update status");
+            toast.success(`Candidate moved to ${newStatus}`);
+            onRefresh();
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300 grid grid-cols-1 md:grid-cols-3">
+                {/* Left Profile Sidebar */}
+                <div className="p-8 bg-slate-50 border-r border-slate-100 flex flex-col items-center">
+                    <div className="w-24 h-24 bg-indigo-600 rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-indigo-100 mb-6">
+                        {candidate.name.charAt(0)}
+                    </div>
+                    <h2 className="text-xl font-black text-slate-900 text-center">{candidate.name}</h2>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{candidate.jobRequisition?.title}</p>
+
+                    <div className="w-full mt-8 space-y-4">
+                        <div className="flex items-center gap-3 text-slate-600">
+                            <Clock className="w-4 h-4 text-indigo-500" />
+                            <span className="text-xs font-medium">Applied {format(new Date(candidate.appliedDate), 'MMM d, yyyy')}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-600">
+                            <TrendingUp className="w-4 h-4 text-indigo-500" />
+                            <span className="text-xs font-medium">{candidate.source}</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-auto w-full pt-8 space-y-2">
+                        <button className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">View Resume</button>
+                        <button className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all" onClick={() => updateStatus('Rejected')}>Reject</button>
+                    </div>
+                </div>
+
+                {/* Right Pipeline Content */}
+                <div className="md:col-span-2 p-8 flex flex-col">
+                    <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Recruitment Pipeline</h3>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">&times;</button>
+                    </div>
+
+                    <div className="space-y-6 flex-1">
+                        <div className="flex flex-wrap gap-2">
+                            {stages.map((stage) => (
+                                <button
+                                    key={stage}
+                                    disabled={submitting}
+                                    onClick={() => updateStatus(stage)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${candidate.status === stage
+                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                                        : "bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                                        }`}
+                                >
+                                    {stage}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Interviews & Feedback</h4>
+                            <div className="text-center py-8">
+                                <p className="text-slate-400 text-xs italic font-medium">No interview feedback recorded yet.</p>
+                                <button className="mt-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">+ Schedule Interview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {candidate.status === 'HR Interview' && (
+                        <div className="mt-8 pt-8 border-t border-slate-100">
+                            <button
+                                onClick={() => onGenerateOffer(candidate)}
+                                className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                <FileCheck className="w-4 h-4" /> Finalize & Generate Offer
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function OfferManagement({ onRefresh, onCreateOffer }) {
+    const [offers, setOffers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchOffers = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch('/api/recruitment/offers');
+                const data = await res.json();
+                setOffers(data.offers || []);
+            } catch (error) {
+                toast.error("Failed to load offers");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchOffers();
+    }, [onRefresh]); // Re-fetch when onRefresh (parent update) happens
+
+    if (loading) return <div className="text-center py-10"><Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-500" /></div>;
+
+    if (offers.length === 0) {
+        return (
+            <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <FileCheck className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-bold">No offers generated yet.</p>
+                <button onClick={onCreateOffer} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all">
+                    Generate First Offer
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="font-black text-slate-800">Recent Offers</h3>
+                <button onClick={onCreateOffer} className="px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2">
+                    <Plus className="w-3 h-3" /> New Offer
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                {offers.map((offer) => (
+                    <div key={offer._id} className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black ${offer.status === 'Accepted' ? 'bg-emerald-100 text-emerald-600' :
+                                offer.status === 'Sent' ? 'bg-indigo-100 text-indigo-600' :
+                                    'bg-slate-100 text-slate-500'
+                                }`}>
+                                {offer.candidate?.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-900">{offer.candidate?.name}</h4>
+                                <p className="text-xs text-slate-500">{offer.jobTitle} • {offer.salary?.currency} {offer.salary?.amount?.toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="div flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                            <div className="text-right">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Joining</p>
+                                <p className="text-xs font-bold text-slate-700">{format(new Date(offer.joiningDate), 'MMM d, yyyy')}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${offer.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' :
+                                offer.status === 'Sent' ? 'bg-blue-50 text-blue-600' :
+                                    'bg-slate-100 text-slate-500'
+                                }`}>
+                                {offer.status}
+                            </span>
+                            <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400">
+                                <MoreVertical className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        candidate: initialData?.candidateId || '',
+        jobTitle: initialData?.jobTitle || '',
+        amount: 0,
+        joiningDate: '',
+        expiryDate: '',
+        status: 'Sent'
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            setSubmitting(true);
+            const payload = {
+                candidate: formData.candidate,
+                jobTitle: formData.jobTitle,
+                salary: {
+                    amount: formData.amount,
+                    currency: 'INR',
+                    frequency: 'Yearly'
+                },
+                joiningDate: formData.joiningDate,
+                expiryDate: formData.expiryDate,
+                status: 'Sent' // Auto-send for now
+            };
+
+            const res = await fetch('/api/recruitment/offers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Failed to create offer");
+
+            // Also update candidate status to 'Offer Sent'
+            if (formData.candidate) {
+                await fetch('/api/recruitment/candidates', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: formData.candidate, status: 'Offer Sent' })
+                });
+            }
+
+            toast.success("Offer Letter Generated & Sent!");
+            onSuccess();
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 className="text-xl font-black text-slate-900">Generate Offer Letter</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-400">&times;</button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Candidate</label>
+                            {initialData?.name ? (
+                                <div className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-600 font-bold">
+                                    {initialData.name}
+                                </div>
+                            ) : (
+                                <select
+                                    required
+                                    value={formData.candidate}
+                                    onChange={e => setFormData({ ...formData, candidate: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                                >
+                                    <option value="">Select Candidate</option>
+                                    {candidates.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Title</label>
+                            <input
+                                required
+                                value={formData.jobTitle}
+                                onChange={e => setFormData({ ...formData, jobTitle: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-bold"
+                                placeholder="e.g. Senior Developer"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Annual Salary (CTC)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                                    <input
+                                        type="number"
+                                        required
+                                        value={formData.amount}
+                                        onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
+                                        className="w-full pl-8 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-mono"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Joining Date</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={formData.joiningDate}
+                                    onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Offer Expiry Date</label>
+                            <input
+                                type="date"
+                                required
+                                value={formData.expiryDate}
+                                onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                            />
+                        </div>
+                    </div>
+                </form>
+
+                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+                    <button onClick={onClose} className="flex-1 py-3 px-6 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all">Cancel</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate & Send Offer"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function JobRequisitionModal({ onClose, onSuccess }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        title: '',
+        department: '',
+        location: '',
+        type: 'Full-time',
+        priority: 'Medium',
+        description: '',
+        requirements: ''
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            setSubmitting(true);
+            const res = await fetch('/api/recruitment/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
+                    requirements: formData.requirements.split(',').map(r => r.trim()).filter(Boolean)
+                })
+            });
+
+            if (!res.ok) throw new Error("Failed to create job");
+            toast.success("Job requisition active!");
+            onSuccess();
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 className="text-xl font-black text-slate-900">New Job Requisition</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-400">&times;</button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Title</label>
+                            <input
+                                required
+                                value={formData.title}
+                                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="Head of Engineering"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Department</label>
+                            <input
+                                required
+                                value={formData.department}
+                                onChange={e => setFormData({ ...formData, department: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="Technology"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Location</label>
+                            <input
+                                required
+                                value={formData.location}
+                                onChange={e => setFormData({ ...formData, location: e.target.value })}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                                placeholder="Remote / Mumbai"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                                >
+                                    <option>Full-time</option>
+                                    <option>Contract</option>
+                                    <option>Part-time</option>
+                                    <option>Internship</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Priority</label>
+                                <select
+                                    value={formData.priority}
+                                    onChange={e => setFormData({ ...formData, priority: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                                >
+                                    <option>Low</option>
+                                    <option>Medium</option>
+                                    <option>High</option>
+                                    <option>Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Requirements (comma separated)</label>
+                        <input
+                            value={formData.requirements}
+                            onChange={e => setFormData({ ...formData, requirements: e.target.value })}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                            placeholder="Next.js, Tailwind CSS, 5+ yrs exp..."
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Description</label>
+                        <textarea
+                            required
+                            rows={4}
+                            value={formData.description}
+                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                            placeholder="Detailed role description..."
+                        ></textarea>
+                    </div>
+                </form>
+                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+                    <button onClick={onClose} className="flex-1 py-3 px-6 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all">Discard</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post Opening"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
