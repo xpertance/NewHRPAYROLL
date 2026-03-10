@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
     Calendar,
     Plus,
@@ -25,6 +25,14 @@ const Card = ({ children, className = "" }) => (
 );
 
 export default function AdminHolidaysPage() {
+    return (
+        <Suspense fallback={<div>Loading holidays...</div>}>
+            <AdminHolidaysContent />
+        </Suspense>
+    );
+}
+
+function AdminHolidaysContent() {
     const { user } = useSession();
     const [holidays, setHolidays] = useState([]);
     const [loading, setLoading] = useState(true);
