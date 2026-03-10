@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 
 async function setup() {
     await mongoose.connect(process.env.MONGODB_URI);
