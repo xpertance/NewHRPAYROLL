@@ -1,7 +1,12 @@
 
-// src/app/%28dashboard%29/tasks/calendar/page.jsx
+// src/app/(dashboard)/tasks/calendar/page.jsx
 import TaskCalendar from '@/components/tasks/task-calendar';
+import { Suspense } from 'react';
 
 export default function TaskCalendarPage() {
-  return <TaskCalendar />;
+  return (
+    <Suspense fallback={<div>Loading calendar...</div>}>
+      <TaskCalendar />
+    </Suspense>
+  );
 }

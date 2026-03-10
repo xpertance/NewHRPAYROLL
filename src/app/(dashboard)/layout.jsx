@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -65,7 +65,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-export default function DashboardLayout({ children }) {
+function DashboardLayoutContent({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
   const [role, setRole] = useState(null);
@@ -686,5 +686,13 @@ export default function DashboardLayout({ children }) {
         />
       )}
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }) {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center font-bold text-slate-700">Loading Dashboard...</div>}>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </Suspense>
   );
 }
