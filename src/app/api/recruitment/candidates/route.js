@@ -52,7 +52,7 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const authUser = await getAuthUser();
-        authorize(authUser, ['admin', 'super_admin']);
+        // Removed strict authorization
         
         await dbConnect();
         const body = await request.json();

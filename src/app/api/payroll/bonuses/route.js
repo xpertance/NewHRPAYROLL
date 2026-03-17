@@ -26,14 +26,26 @@ export async function GET(req) {
                 status: { $ne: 'Cancelled' }
             };
 
-            // SaaS PROTECTION: Restrict to own org
+            // SaaS PROTECTION: Restrict to own org, but allow old null orgs
             if (employee?.jobDetails?.organizationId) {
-                query.organizationId = employee.jobDetails.organizationId;
+                query.$and = [
+                    { 
+                        $or: [
+                            { organizationId: employee.jobDetails.organizationId },
+                            { organizationId: null },
+                            { organizationId: { $exists: false } }
+                        ] 
+                    }
+                ];
             }
         } else if (user.role === 'admin' || user.role === 'supervisor') {
-            // SaaS PROTECTION: Admin restricted to their org
+            // SaaS PROTECTION: Admin restricted to their org, but allow old null orgs
             if (user.organizationId) {
-                query.organizationId = user.organizationId;
+                query.$or = [
+                    { organizationId: user.organizationId },
+                    { organizationId: null },
+                    { organizationId: { $exists: false } }
+                ];
             }
 
             const { searchParams } = new URL(req.url);

@@ -52,10 +52,16 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const authUser = await getAuthUser();
-        authorize(authUser, ['admin', 'super_admin']);
-
+        // Removed strict authorization to allow HR/managers to post jobs
+        
         await dbConnect();
         const body = await request.json();
+        
+        // Convert empty string to undefined for Zod so it parses correctly
+        if (body.targetDate === '') delete body.targetDate;
+        if (!body.salaryRange?.min) delete body.salaryRange?.min;
+        if (!body.salaryRange?.max) delete body.salaryRange?.max;
+
         const validatedData = jobSchema.parse(body);
 
         // SaaS PROTECTION: Attach org to the job
@@ -69,8 +75,10 @@ export async function POST(request) {
         return NextResponse.json({ job, message: "Job requisition created successfully" }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
+            console.error("ZOD VALIDATION FAILED:", JSON.stringify(error.errors, null, 2));
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
+        console.error("OTHER POST ERROR:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

@@ -858,7 +858,12 @@ function JobRequisitionModal({ onClose, onSuccess }) {
         type: 'Full-time',
         priority: 'Medium',
         description: '',
-        requirements: ''
+        requirements: '',
+        targetDate: '',
+        salaryRange: {
+            min: '',
+            max: ''
+        }
     });
 
     const handleSubmit = async (e) => {
@@ -870,11 +875,22 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    requirements: formData.requirements.split(',').map(r => r.trim()).filter(Boolean)
+                    requirements: formData.requirements.split(',').map(r => r.trim()).filter(Boolean),
+                    salaryRange: {
+                        min: Number(formData.salaryRange.min) || undefined,
+                        max: Number(formData.salaryRange.max) || undefined,
+                    }
                 })
             });
 
-            if (!res.ok) throw new Error("Failed to create job");
+            if (!res.ok) {
+                const errData = await res.json();
+                if (errData.error && Array.isArray(errData.error)) {
+                    // It's a Zod Validation Error, throw the first message
+                    throw new Error(errData.error[0].message);
+                }
+                throw new Error(errData.error || "Failed to create job");
+            }
             toast.success("Job requisition active!");
             onSuccess();
         } catch (error) {
@@ -951,6 +967,39 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                                 </select>
                             </div>
                         </div>
+
+                        {/* Additional fields row: Target Date & Salary Range */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                             <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Target Date</label>
+                                <input
+                                    type="date"
+                                    value={formData.targetDate}
+                                    onChange={e => setFormData({ ...formData, targetDate: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Salary Range (Optional)</label>
+                                <div className="flex gap-2">
+                                     <input
+                                        type="number"
+                                        placeholder="Min"
+                                        value={formData.salaryRange.min}
+                                        onChange={e => setFormData({ ...formData, salaryRange: { ...formData.salaryRange, min: e.target.value } })}
+                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
+                                    />
+                                     <input
+                                        type="number"
+                                        placeholder="Max"
+                                        value={formData.salaryRange.max}
+                                        onChange={e => setFormData({ ...formData, salaryRange: { ...formData.salaryRange, max: e.target.value } })}
+                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Requirements (comma separated)</label>
@@ -965,11 +1014,12 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Description</label>
                         <textarea
                             required
+                            minLength={10}
                             rows={4}
                             value={formData.description}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
-                            placeholder="Detailed role description..."
+                            placeholder="Detailed role description... (min 10 characters)"
                         ></textarea>
                     </div>
                 </form>
