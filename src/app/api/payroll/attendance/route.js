@@ -6,6 +6,7 @@ import Notification from "@/lib/db/models/notifications/NotificationConfig";
 import Employee from "@/lib/db/models/payroll/Employee";
 import OfficeLocation from "@/lib/db/models/crm/organization/OfficeLocation";
 import { sendAttendanceThresholdNotification } from "@/utils/notifications";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // Function to check and notify attendance thresholds
 async function checkAttendanceThresholds(date) {
@@ -30,7 +31,7 @@ async function checkAttendanceThresholds(date) {
 
     const attendanceRecords = await Attendance.find({
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $in: ['Present', 'On Leave'] } // Count present and on leave as active
+      status: { $in: ['Present', 'Leave'] } // Count present and on leave as active
     }).populate({
       path: 'employee',
       select: 'jobDetails',
@@ -166,6 +167,7 @@ async function checkAttendanceThresholds(date) {
 
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -180,6 +182,24 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
 
     let filter = {};
+
+    // SaaS PROTECTION: Restrict data by organization
+    if (authUser.role === "admin" || authUser.role === "supervisor") {
+      // Find all employee IDs in this organization
+      const orgEmployees = await Employee.find({ 
+        "jobDetails.organizationId": authUser.organizationId 
+      }).distinct("_id");
+      
+      filter.employee = { $in: orgEmployees };
+    } else if (authUser.role === "employee" || authUser.role === "attendance_only") {
+      // Employees can only see their own attendance
+      filter.employee = authUser.id;
+    } else if (authUser.role === "super_admin" && organizationId) {
+       const orgEmployees = await Employee.find({ 
+        "jobDetails.organizationId": organizationId 
+      }).distinct("_id");
+      filter.employee = { $in: orgEmployees };
+    }
 
     // Date filtering - support both single date and date range
     if (date) {
@@ -206,7 +226,14 @@ export async function GET(request) {
 
     // Employee filtering
     if (employeeId) {
-      filter.employee = employeeId;
+      if (filter.employee && filter.employee.$in) {
+        const isAllowed = filter.employee.$in.some(id => id.toString() === employeeId);
+        filter.employee = isAllowed ? employeeId : { $in: [] };
+      } else if (filter.employee && filter.employee.toString() !== employeeId.toString()) {
+        filter.employee = { $in: [] };
+      } else {
+        filter.employee = employeeId;
+      }
     }
 
     // Status filtering
@@ -230,13 +257,8 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit);
 
-    // Filter by organization if provided (after population)
-    if (organizationId) {
-      attendance = attendance.filter((record) => {
-        const empOrgId = record.employee?.jobDetails?.organizationId?._id?.toString();
-        return empOrgId === organizationId;
-      });
-    }
+    // Filter logic integrated into MongoDB query above for security and performance
+
 
     const total = await Attendance.countDocuments(filter);
 
@@ -260,6 +282,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const body = await request.json();
@@ -285,6 +308,17 @@ export async function POST(request) {
         { success: false, error: "Employee, date, and status are required" },
         { status: 400 }
       );
+    }
+
+    // SaaS PROTECTION: Validate employee ownership
+    const empRecordForAuth = await Employee.findById(employee);
+    if (!empRecordForAuth) {
+      return NextResponse.json({ success: false, error: "Employee not found" }, { status: 404 });
+    }
+    if (authUser.role === "admin" && empRecordForAuth.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+      return NextResponse.json({ success: false, error: "Forbidden: Employee belongs to another organization" }, { status: 403 });
+    } else if ((authUser.role === "employee" || authUser.role === "attendance_only") && authUser.id !== employee.toString()) {
+      return NextResponse.json({ success: false, error: "Forbidden: You can only log your own attendance" }, { status: 403 });
     }
 
     // Check for existing attendance on the same date
@@ -421,6 +455,7 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const body = await request.json();
@@ -434,6 +469,18 @@ export async function PUT(request) {
       notes,
       location,
     } = body;
+
+    // SaaS PROTECTION: Validate employee ownership
+    if (employee) {
+      const empRecordForAuth = await Employee.findById(employee);
+      if (empRecordForAuth) {
+        if (authUser.role === "admin" && empRecordForAuth.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+          return NextResponse.json({ success: false, error: "Forbidden: Employee belongs to another organization" }, { status: 403 });
+        } else if ((authUser.role === "employee" || authUser.role === "attendance_only") && authUser.id !== employee.toString()) {
+          return NextResponse.json({ success: false, error: "Forbidden: You can only update your own attendance" }, { status: 403 });
+        }
+      }
+    }
 
     if (!employee || !date) {
       return NextResponse.json(
@@ -550,6 +597,8 @@ export async function PUT(request) {
 
 export async function DELETE(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
     await dbConnect();
 
     const { searchParams } = new URL(request.url);

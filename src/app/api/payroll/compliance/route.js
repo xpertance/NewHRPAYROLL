@@ -2,10 +2,14 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import ComplianceReport from '@/lib/db/models/payroll/ComplianceReport';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 // GET all compliance reports
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+    
     await dbConnect();
     
     const { searchParams } = new URL(request.url);
@@ -17,6 +21,11 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
     
     let filter = {};
+
+    // SaaS PROTECTION: Admin restricted to their org
+    if (authUser.role === "admin" && authUser.organizationId) {
+        filter.organizationId = authUser.organizationId;
+    }
     
     if (reportType) filter.reportType = reportType;
     if (status) filter.overallStatus = status;
@@ -45,17 +54,21 @@ export async function GET(request) {
 // CREATE new compliance report
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+    
     await dbConnect();
     
     const body = await request.json();
     
-    // Generate unique report ID
-    const count = await ComplianceReport.countDocuments();
-    const reportId = `COMP${String(count + 1).padStart(6, '0')}`;
+    // Generate unique report ID without race conditions
+    const uniqueSuffix = Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const reportId = `COMP-${uniqueSuffix}`;
     
     const complianceReport = await ComplianceReport.create({
       ...body,
-      reportId
+      reportId,
+      organizationId: authUser.role === 'admin' ? authUser.organizationId : body.organizationId
     });
     
     

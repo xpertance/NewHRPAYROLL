@@ -47,7 +47,12 @@ const jobRequisitionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
-    targetDate: Date
+    targetDate: Date,
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null
+    }
 }, {
     timestamps: true
 });

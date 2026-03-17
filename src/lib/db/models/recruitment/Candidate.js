@@ -56,6 +56,11 @@ const candidateSchema = new mongoose.Schema({
     appliedDate: {
         type: Date,
         default: Date.now
+    },
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null
     }
 }, {
     timestamps: true

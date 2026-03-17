@@ -5,9 +5,11 @@ import Organization from "@/lib/db/models/crm/organization/Organization";
 import cloudinary from "@/lib/cloudinary";
 import User from "@/lib/db/models/User";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -20,6 +22,11 @@ export async function GET(request) {
     const filter = {};
 
     if (status && status !== "all") filter.status = status;
+
+    // SaaS PROTECTION: Restrict admin to their own org
+    if (authUser.role === "admin" && authUser.organizationId) {
+      filter._id = authUser.organizationId;
+    }
 
     if (search) {
       filter.$or = [
@@ -53,6 +60,10 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    // Only super_admin can create new top-level Organizations in this SaaS setup
+    authorize(authUser, ["super_admin"]);
+
     await dbConnect();
 
     const formData = await request.formData();
@@ -70,7 +81,7 @@ export async function POST(request) {
     const file = formData.get("logo");
 
     // generate orgId
-    const lastOrg = await Organization.findOne().sort({ orgId: -1 });
+    const lastOrg = await Organization.findOne().sort({ createdAt: -1 });
     let newOrgId = "ORG001";
 
     if (lastOrg?.orgId) {

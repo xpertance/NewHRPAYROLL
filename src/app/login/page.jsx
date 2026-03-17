@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "@/context/SessionContext";
 import { useLanguage } from "@/context/LanguageContext";
+import Link from "next/link";
 import {
   Eye,
   EyeOff,
@@ -271,13 +272,12 @@ const LoginPage = () => {
                 <span className="text-sm text-slate-600 group-hover:text-slate-800">{t("rememberMe")}</span>
               </label>
 
-              <button
-                type="button"
-                onClick={() => toast.success(t('resetPasswordLinkSent'))}
+              <Link
+                href="/forgot-password"
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
               >
                 {t("forgotPassword")}
-              </button>
+              </Link>
             </div>
 
             {/* Submit Button */}

@@ -6,13 +6,16 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const secret = new TextEncoder().encode(JWT_SECRET);
 
 // Public routes
-const publicRoutes = ['/login', '/auth/register'];
+const publicRoutes = ['/login', '/auth/register', '/register'];
 
 // Role-based protected routes
 const protectedRoutes = [
-  { path: '/dashboard', roles: ['admin', 'employee', 'supervisor', 'attendance_only'] },
-  { path: '/dashboard/payroll', roles: ['admin'] },
-  { path: '/dashboard/tasks', roles: ['employee'] },
+  { path: '/super-admin', roles: ['super_admin'] },
+  { path: '/dashboard', roles: ['super_admin', 'admin', 'employee', 'supervisor', 'attendance_only'] },
+  { path: '/dashboard/payroll', roles: ['admin', 'super_admin'] },
+  { path: '/dashboard/crm', roles: ['admin', 'super_admin', 'employee'] },
+  { path: '/dashboard/tasks', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
+  { path: '/dashboard/projects', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
 ];
 
 export async function middleware(req) {

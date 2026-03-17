@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import JobRequisition from '@/lib/db/models/recruitment/JobRequisition';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 import { z } from 'zod';
 
 const jobSchema = z.object({
@@ -21,12 +22,23 @@ const jobSchema = z.object({
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const department = searchParams.get('department');
 
         let query = {};
+
+        // SaaS PROTECTION: Scope to org
+        if (authUser.role === 'admin') {
+            query.organizationId = authUser.organizationId;
+        } else if (authUser.role === 'super_admin') {
+            const orgId = searchParams.get('organizationId');
+            if (orgId) query.organizationId = orgId;
+        }
+
         if (status) query.status = status;
         if (department) query.department = department;
 
@@ -39,11 +51,21 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ['admin', 'super_admin']);
+
         await dbConnect();
         const body = await request.json();
         const validatedData = jobSchema.parse(body);
 
-        const job = await JobRequisition.create(validatedData);
+        // SaaS PROTECTION: Attach org to the job
+        const orgId = authUser.role === 'admin' ? authUser.organizationId : body.organizationId;
+
+        const job = await JobRequisition.create({
+            ...validatedData,
+            organizationId: orgId,
+            createdBy: authUser.id
+        });
         return NextResponse.json({ job, message: "Job requisition created successfully" }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {

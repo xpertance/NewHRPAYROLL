@@ -177,6 +177,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         // Employee ID, Password, and Role are now optional
         if (!formData.jobDetails.organizationId) currentStepErrors["jobDetails.organizationId"] = "Organization is required";
         if (!formData.jobDetails.departmentId) currentStepErrors["jobDetails.departmentId"] = "Department is required";
+        if (!formData.jobDetails.designation?.trim()) currentStepErrors["jobDetails.designation"] = "Designation is required";
         break;
 
       case 1: // Personal Details
@@ -384,7 +385,6 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       categoryId: "",
       teamLead: "",
       designation: "",
-      designation: "",
       workLocation: "",
       assignedOfficeId: "", // NEW
       biometricDeviceId: "", // NEW
@@ -504,6 +504,11 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       }));
 
       setOrganizations(organizationOptions);
+
+      // Auto-select if there's only one organization (e.g., for regular admins)
+      if (organizationOptions.length === 1) {
+        handleSelectChange("jobDetails.organizationId", organizationOptions[0].value);
+      }
     } catch (error) {
       console.error("Error fetching organizations:", error);
       setOrganizations([]);
@@ -988,15 +993,16 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }
 
+    // BREAK RACE CONDITION: Handle compliance fields explicitly OUTSIDE of the main setFormData loop
+    // because handleComplianceChange has its own complex functional state updates.
+    if (field === "pfApplicable" || field === "esicApplicable") {
+      handleComplianceChange(field, value);
+      return;
+    }
+
     setFormData((prev) => {
       // Handle simple non-nested fields (like pfApplicable, gratuityApplicable etc)
       if (!field.startsWith("jobDetails.")) {
-        // Special logic for compliance fields
-        if (field === "pfApplicable" || field === "esicApplicable") {
-          handleComplianceChange(field, value);
-          return prev; // handleComplianceChange handles the state update
-        }
-
         if (field === "probationDuration") {
           const duration = parseInt(value, 10) || 0;
           return {
@@ -1899,29 +1905,31 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                       <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           {/* 1. Organization Dropdown */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-slate-700">
-                              Organization <span className="text-red-500">*</span>
-                            </label>
-                            {fetchLoading ? (
-                              <div className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-100 animate-pulse">
-                                Loading...
-                              </div>
-                            ) : (
-                              <SimpleSelect
-                                value={formData.jobDetails.organizationId}
-                                onChange={(e) =>
-                                  handleSelectChange(
-                                    "jobDetails.organizationId",
-                                    e.target.value
-                                  )
-                                }
-                                options={organizations}
-                                placeholder="Select organization"
-                                error={errors["jobDetails.organizationId"]}
-                              />
-                            )}
-                          </div>
+                          {organizations.length > 1 && (
+                            <div className="space-y-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Organization <span className="text-red-500">*</span>
+                              </label>
+                              {fetchLoading ? (
+                                <div className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-100 animate-pulse">
+                                  Loading...
+                                </div>
+                              ) : (
+                                <SimpleSelect
+                                  value={formData.jobDetails.organizationId}
+                                  onChange={(e) =>
+                                    handleSelectChange(
+                                      "jobDetails.organizationId",
+                                      e.target.value
+                                    )
+                                  }
+                                  options={organizations}
+                                  placeholder="Select organization"
+                                  error={errors["jobDetails.organizationId"]}
+                                />
+                              )}
+                            </div>
+                          )}
 
                           {/* 2. Business Unit Dropdown */}
                           <div className="space-y-2">
@@ -2095,15 +2103,25 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
                           <div className="space-y-2">
                             <label className="block text-sm font-semibold text-slate-700">
-                              Designation
+                              Designation <span className="text-red-500">*</span>
                             </label>
                             <input
                               name="jobDetails.designation"
                               value={formData.jobDetails.designation || ""}
                               onChange={handleChange}
                               placeholder="Software Engineer"
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                              className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
+                                errors["jobDetails.designation"]
+                                  ? "border-red-300 bg-red-50"
+                                  : "border-slate-300"
+                              }`}
                             />
+                            {errors["jobDetails.designation"] && (
+                              <div className="flex items-center space-x-1 text-red-600 text-xs">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>{errors["jobDetails.designation"]}</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="space-y-2">

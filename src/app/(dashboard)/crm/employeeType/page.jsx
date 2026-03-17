@@ -890,6 +890,10 @@ export default function EmployeeTypesPage() {
 
   // Load departments when organization changes
   useEffect(() => {
+    if (organizations.length === 1 && !selectedOrganization) {
+      setSelectedOrganization(organizations[0].name);
+    }
+    
     if (selectedOrganization) {
       const selectedOrg = organizations.find(org => org.name === selectedOrganization);
       if (selectedOrg) {
@@ -1245,23 +1249,25 @@ export default function EmployeeTypesPage() {
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
-              <div>
-                <select
-                  value={selectedOrganization}
-                  onChange={(e) => {
-                    setSelectedOrganization(e.target.value);
-                    setSelectedDepartment("");
-                  }}
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
-                >
-                  <option value="">All Organizations</option>
-                  {organizations.map((org) => (
-                    <option key={org._id} value={org.name}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {organizations.length > 1 && (
+                <div>
+                  <select
+                    value={selectedOrganization}
+                    onChange={(e) => {
+                      setSelectedOrganization(e.target.value);
+                      setSelectedDepartment("");
+                    }}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizations.map((org) => (
+                      <option key={org._id} value={org.name}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <select
                   value={selectedDepartment}

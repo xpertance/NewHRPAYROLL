@@ -3,10 +3,12 @@ import dbConnect from "@/lib/db/connect";
 import Payslip from "@/lib/db/models/payroll/Payslip";
 import Employee from "@/lib/db/models/payroll/Employee";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // GET all payslips
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -21,11 +23,20 @@ export async function GET(request) {
 
     let filter = {};
 
+    // SaaS PROTECTION: Restrict data by organization
+    if (authUser.role === "admin" || authUser.role === "supervisor") {
+      filter.organizationId = authUser.organizationId;
+    } else if (authUser.role === "employee") {
+      filter.employee = authUser.id;
+    } else if (authUser.role === "super_admin" && (employeeId || employee)) {
+       filter.employee = employeeId || employee;
+    }
+
     if (month) filter.month = parseInt(month);
     if (year) filter.year = parseInt(year);
     if (status) filter.status = status;
-    if (employeeId) filter.employee = employeeId;
-    if (employee) filter.employee = employee;
+    if (employeeId && authUser.role !== "employee") filter.employee = employeeId;
+    if (employee && authUser.role !== "employee") filter.employee = employee;
 
     const payslips = await Payslip.find(filter)
       .populate("employee", "employeeId personalDetails.firstName personalDetails.lastName jobDetails.department")
@@ -86,6 +97,9 @@ export async function GET_CHECK(request) {
 // CREATE new payslip
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+
     await dbConnect();
 
     const body = await request.json();
@@ -114,16 +128,33 @@ export async function POST(request) {
       );
     }
 
-    // Fetch employee data to get employee type
-    const employee = await Employee.findById(body.employee);
-    const employeeType = employee?.employeeType || null;
+    // Fetch employee data to validate ownership and get type
+    const employeeRecord = await Employee.findById(body.employee);
+    if (!employeeRecord) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+    
+    // SaaS PROTECTION: Admin must use their assigned organizationId
+    const targetOrgId = authUser.role === "admin" ? authUser.organizationId : body.organizationId;
 
-    // Generate unique payslip ID
-    const count = await Payslip.countDocuments();
-    const payslipId = `PSL${String(count + 1).padStart(6, "0")}`;
+    if (authUser.role === "admin" && employeeRecord.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+       return NextResponse.json({ error: "Forbidden: Employee belongs to another organization" }, { status: 403 });
+    }
+
+    const employeeType = employeeRecord.employeeType || null;
+
+    // Generate unique payslip ID without race conditions
+    const uniqueSuffix = Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const payslipId = `PSL-${uniqueSuffix}`;
+
+    if (!targetOrgId) {
+       return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
+    }
 
     const payslip = await Payslip.create({
       ...body,
+      organizationId: targetOrgId,
+      generatedBy: authUser.id,
       payslipId,
       employeeType,
     });

@@ -1,5 +1,6 @@
 
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db/connect';
 import Employee from '@/lib/db/models/payroll/Employee';
 import User from '@/lib/db/models/User';
@@ -81,6 +82,11 @@ export async function GET(request, { params }) {
   try {
     await dbConnect();
     const { id } = await params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
+    }
+
     const employee = await Employee.findById(id)
       .populate('jobDetails.reportingManager', 'personalDetails.firstName personalDetails.lastName employeeId')
       .populate('jobDetails.departmentId', 'departmentName')
@@ -113,6 +119,10 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     console.log("📥 Updating employee with data:", JSON.stringify(body, null, 2));
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
+    }
+
     // Check if employee exists
     const existingEmployee = await Employee.findById(id);
     if (!existingEmployee) {
@@ -123,7 +133,7 @@ export async function PUT(request, { params }) {
     if (body.personalDetails?.email && body.personalDetails.email !== existingEmployee.personalDetails.email) {
       const existingEmail = await Employee.findOne({
         'personalDetails.email': body.personalDetails.email,
-        _id: { $ne: params.id }
+        _id: { $ne: id }  // ← correctly use destructured `id`, not `params.id`
       });
 
       if (existingEmail) {
@@ -225,15 +235,16 @@ export async function PUT(request, { params }) {
 
     console.log("📝 Final update data:", JSON.stringify(updateData, null, 2));
 
-    const employee = await Employee.findByIdAndUpdate(
-      id,
-      updateData,
-      {
-        new: true,
-        runValidators: true,
-        context: 'query'
-      }
-    )
+    const employeeToUpdate = await Employee.findById(id);
+    if (!employeeToUpdate) {
+      return NextResponse.json({ error: 'Employee not found after update' }, { status: 404 });
+    }
+
+    // Use .set() and .save() to ensure pre-save hooks (like salary calculation) are triggered
+    employeeToUpdate.set(updateData);
+    await employeeToUpdate.save();
+
+    const employee = await Employee.findById(id)
       .populate('jobDetails.reportingManager', 'personalDetails.firstName personalDetails.lastName employeeId')
       .populate('jobDetails.departmentId', 'departmentName')
       .populate('jobDetails.organizationId', 'name')
@@ -244,10 +255,10 @@ export async function PUT(request, { params }) {
       .populate('attendanceApproval.shift2Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
       .populate('jobDetails.employeeTypeId', 'employeeType')
       .populate('jobDetails.categoryId', 'employeeCategory')
-      .populate('jobDetails.defaultShift', 'name startTime endTime color')
+      .populate('jobDetails.defaultShift', 'name startTime endTime color');
 
     if (!employee) {
-      return NextResponse.json({ error: 'Employee not found after update' }, { status: 404 });
+      return NextResponse.json({ error: 'Employee not found after update populate' }, { status: 404 });
     }
 
     console.log("✅ Employee updated successfully:", employee.employeeId);
@@ -301,6 +312,10 @@ export async function PATCH(request, { params }) {
     const { id } = await params;
     const body = await request.json();
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
+    }
+
     if (!body.status) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
@@ -351,6 +366,10 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const isPermanent = searchParams.get('permanent') === 'true';
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
+    }
 
     // Permanent Delete
     if (isPermanent) {

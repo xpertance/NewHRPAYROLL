@@ -6,18 +6,24 @@ import Task from '@/lib/db/models/tasks/Task';
 import User from '@/lib/db/models/User';
 import mongoose from 'mongoose';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET(request) {
   try {
-    console.log('🚀 Tasks API: Starting...');
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin", "employee", "supervisor"]);
     
     // Connect to database
-    console.log('🔧 Testing database connection...');
     await dbConnect();
-    console.log('✅ Database connected successfully');
 
-    // Fetch all tasks from the database
-    const tasks = await Task.find()
+    // SaaS PROTECTION: Restrict by organization
+    let query = {};
+    if (authUser.role === "admin" || authUser.role === "supervisor") {
+      query.organizationId = authUser.organizationId;
+    }
+
+    // Fetch all tasks from the database matching the org
+    const tasks = await Task.find(query)
       .populate('assignedTo', 'name email') // Populate assignedTo with user details (e.g., name, email)
       .populate('assignedBy', 'name email') // Populate assignedBy with user details
       .populate('project', 'name') // Populate project with name (if applicable)
@@ -48,18 +54,19 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    console.log('🚀 Task POST API: Starting creation...');
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin", "employee", "supervisor"]);
     
     await dbConnect();
-    console.log('✅ Database connected for creation');
     
     const body = await request.json();
-    console.log('📝 Incoming body:', body);
     
     // CRITICAL: Remove _id to let MongoDB generate a unique one (fixes E11000 duplicate key)
     const { _id,assignedBy, ...cleanBody } = body;
-    if (_id) {
-      console.log('🗑️ Stripped existing _id from body to avoid duplicate');
+
+    // Auto-assign organizationId from the authenticated user
+    if (authUser.role === "admin" && authUser.organizationId) {
+        cleanBody.organizationId = authUser.organizationId;
     }
     
     // Add timestamps if not present

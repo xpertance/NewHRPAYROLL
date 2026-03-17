@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema(
     {
+        organizationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Organization",
+            required: true,
+            index: true
+        },
         name: { type: String, required: true, trim: true },
         client: { type: String, required: true, trim: true },
         description: { type: String },

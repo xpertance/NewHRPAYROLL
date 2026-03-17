@@ -31,6 +31,12 @@ const commentSchema = new mongoose.Schema(
 
 const taskSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true
+    },
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
     assignedTo: {

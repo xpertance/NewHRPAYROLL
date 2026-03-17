@@ -3,16 +3,25 @@ import dbConnect from '@/lib/db/connect';
 import PayrollRun from '@/lib/db/models/payroll/PayrollRun';
 import Organization from '@/lib/db/models/crm/organization/Organization';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const orgId = searchParams.get('orgId');
         const year = searchParams.get('year');
 
         let filter = {};
-        if (orgId) filter.organizationId = orgId;
+        
+        // SaaS PROTECTION: Admin restricted to their org
+        if (authUser.role === "admin") {
+            filter.organizationId = authUser.organizationId;
+        } else if (orgId) {
+            filter.organizationId = orgId;
+        }
+        
         if (year) filter.year = parseInt(year);
 
         const runs = await PayrollRun.find(filter)
@@ -28,9 +37,18 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         await dbConnect();
         const body = await request.json();
-        const { month, year, orgId, generatedBy } = body;
+        let { month, year, orgId, generatedBy } = body;
+
+        // SaaS PROTECTION: Admin must use their org
+        if (authUser.role === "admin") {
+            orgId = authUser.organizationId;
+            generatedBy = authUser.id;
+        }
 
         if (!month || !year || !orgId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

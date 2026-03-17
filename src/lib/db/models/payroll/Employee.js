@@ -456,12 +456,10 @@ const employeeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      default: DEFAULT_USER_ID,
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: DEFAULT_USER_ID,
     },
     sessionToken: {
       type: String,
@@ -610,13 +608,6 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
         autoCalculated: true
       });
     }
-    if (monthlyTDS > 0) {
-      calculatedDeductions.push({
-        name: 'Income Tax (TDS)',
-        calculatedAmount: monthlyTDS,
-        autoCalculated: true
-      });
-    }
   }
 
   // 5. Gratuity (Provision) - Employer Contribution
@@ -656,8 +647,6 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
     deductions: calculatedDeductions,
     totalEarnings,
     totalDeductions,
-    netSalary,
-    salaryType: structure.salaryType,
     netSalary,
     salaryType: structure.salaryType,
     lopAmount

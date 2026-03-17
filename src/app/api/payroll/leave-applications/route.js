@@ -3,10 +3,12 @@ import dbConnect from "@/lib/db/connect";
 import LeaveApplication from "@/lib/db/models/payroll/LeaveApplication";
 import Employee from "@/lib/db/models/payroll/Employee";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // GET leave applications
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
 
         const { searchParams } = new URL(request.url);
@@ -14,7 +16,18 @@ export async function GET(request) {
         const status = searchParams.get("status");
 
         let filter = {};
-        if (employeeId) filter.employee = employeeId;
+        
+        // SaaS PROTECTION: Restrict by organization
+        if (authUser.role === "admin" || authUser.role === "supervisor") {
+            const orgEmployees = await Employee.find({ 
+                "jobDetails.organizationId": authUser.organizationId 
+            }).distinct("_id");
+            filter.employee = { $in: orgEmployees };
+        } else if (authUser.role === "employee") {
+            filter.employee = authUser.id;
+        }
+
+        if (employeeId && authUser.role !== "employee") filter.employee = employeeId;
         if (status) filter.status = status;
 
         const applications = await LeaveApplication.find(filter)
@@ -32,6 +45,7 @@ export async function GET(request) {
 // SUBMIT a new leave application
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
 
         const body = await request.json();

@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Project from '@/lib/db/models/tasks/Project';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin", "employee", "supervisor"]);
         await dbConnect();
 
         const { searchParams } = new URL(request.url);
@@ -12,6 +15,10 @@ export async function GET(request) {
         const memberId = searchParams.get('memberId');
 
         let query = {};
+        // SaaS PROTECTION: Restrict by organization
+        if (authUser.role === "admin" || authUser.role === "supervisor") {
+            query.organizationId = authUser.organizationId;
+        }
         if (status) query.status = status;
         if (memberId) query.members = memberId;
 
@@ -28,8 +35,15 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
+
+        // Auto-assign organizationId from the authenticated user
+        if (authUser.role === "admin" && authUser.organizationId) {
+            body.organizationId = authUser.organizationId;
+        }
 
         const project = await Project.create(body);
 

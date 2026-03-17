@@ -934,53 +934,53 @@ export default function PayslipList() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* NEW: Organization Grouping Toggle */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Layers className={`w-5 h-5 ${groupByOrganization ? 'text-blue-600' : 'text-slate-600'}`} />
-              <div>
-                <h3 className="font-semibold text-slate-900">Group by Organization</h3>
-                <p className="text-sm text-slate-600 mt-0.5">
-                  {groupByOrganization
-                    ? "Payslips are grouped by their organizations"
-                    : "Showing all payslips in a unified list"
-                  }
-                </p>
+              {/* NEW: Organization Grouping Toggle */}
+        {organizations.length > 1 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Layers className={`w-5 h-5 ${groupByOrganization ? 'text-blue-600' : 'text-slate-600'}`} />
+                <div>
+                  <h3 className="font-semibold text-slate-900">Group by Organization</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    {groupByOrganization
+                      ? "Payslips are grouped by their organizations"
+                      : "Showing all payslips in a unified list"
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {groupByOrganization && groupedPayslips && (
+                  <>
+                    <button
+                      onClick={expandAllOrgs}
+                      className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      Expand All
+                    </button>
+                    <button
+                      onClick={collapseAllOrgs}
+                      className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      Collapse All
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setGroupByOrganization(!groupByOrganization)}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${groupByOrganization ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${groupByOrganization ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                  />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {groupByOrganization && groupedPayslips && (
-                <>
-                  <button
-                    onClick={expandAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-                  >
-                    Expand All
-                  </button>
-                  <button
-                    onClick={collapseAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-                  >
-                    Collapse All
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setGroupByOrganization(!groupByOrganization)}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${groupByOrganization ? 'bg-blue-600' : 'bg-slate-300'
-                  }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${groupByOrganization ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                />
-              </button>
-            </div>
           </div>
-        </div>
+        )}    </div>
 
         {/* Controls Panel */}
         <div className="bg-white rounded-xl border-2 border-slate-200 shadow-sm">
@@ -1033,19 +1033,21 @@ export default function PayslipList() {
                 </div>
               </div>
 
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
-                <select
-                  value={organizationFilter}
-                  onChange={(e) => setOrganizationFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                >
-                  <option value="">All Organizations</option>
-                  {organizations.map(org => (
-                    <option key={org} value={org}>{org}</option>
-                  ))}
-                </select>
-              </div>
+              {organizations.length > 1 && (
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
+                  <select
+                    value={organizationFilter}
+                    onChange={(e) => setOrganizationFilter(e.target.value)}
+                    className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizations.map(org => (
+                      <option key={org} value={org}>{org}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Month</label>
@@ -1310,7 +1312,9 @@ export default function PayslipList() {
                       <tr>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Payslip ID</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Employee</th>
-                        <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
+                        {organizations.length > 1 && (
+                          <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
+                        )}
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Pay Period</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Net Salary</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
@@ -1340,9 +1344,11 @@ export default function PayslipList() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-6 text-slate-900 text-sm">
-                            {payslip.organizationName || 'N/A'}
-                          </td>
+                          {organizations.length > 1 && (
+                            <td className="py-4 px-6 text-slate-900 text-sm">
+                              {payslip.organizationName || 'N/A'}
+                            </td>
+                          )}
                           <td className="py-4 px-6">
                             <div className="flex items-center space-x-2">
                               <Calendar className="w-4 h-4 text-slate-400" />

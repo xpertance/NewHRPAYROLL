@@ -4,38 +4,16 @@ import Bonus from "@/lib/db/models/payroll/Bonus";
 import Department from "@/lib/db/models/crm/Department/department";
 import Employee from "@/lib/db/models/payroll/Employee";
 import Notification from "@/lib/db/models/notifications/NotificationConfig";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getUserFromRequest(req) {
-    const token = req.cookies.get("authToken")?.value || req.cookies.get("employee_token")?.value;
-    if (!token) return null;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        return decoded;
-    } catch (error) {
-        return null;
-    }
-}
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function GET(req) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-    if (!user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const user = await getAuthUser();
+        await dbConnect();
+
         let query = {};
 
         if (user.role === 'employee') {
-            // Complex query for employees:
-            // 1. Target Audience is 'All'
-            // 2. Target Audience is 'Individual' and Employee ID is in employees list
-            // 3. Target Audience is 'Department' and Employee's department matches
-
-            // First, get full employee details to know their department
             const employee = await Employee.findById(user.id);
             const deptId = employee?.jobDetails?.departmentId;
 
@@ -45,11 +23,24 @@ export async function GET(req) {
                     { targetAudience: 'Individual', employees: user.id },
                     { targetAudience: 'Department', department: deptId }
                 ],
-                status: { $ne: 'Cancelled' } // Usually don't show cancelled
+                status: { $ne: 'Cancelled' }
             };
+
+            // SaaS PROTECTION: Restrict to own org
+            if (employee?.jobDetails?.organizationId) {
+                query.organizationId = employee.jobDetails.organizationId;
+            }
+        } else if (user.role === 'admin' || user.role === 'supervisor') {
+            // SaaS PROTECTION: Admin restricted to their org
+            if (user.organizationId) {
+                query.organizationId = user.organizationId;
+            }
+
+            const { searchParams } = new URL(req.url);
+            const status = searchParams.get("status");
+            if (status) query.status = status;
         } else {
-            // Admin/Supervisor can see all (or filter)
-            // Optional: Filter by status via query params
+            // super_admin - no org restriction
             const { searchParams } = new URL(req.url);
             const status = searchParams.get("status");
             if (status) query.status = status;
@@ -71,13 +62,11 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-    if (!user || user.role === 'employee') { // Usually employees don't create bonuses
-        return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
-
     try {
+        const user = await getAuthUser();
+        authorize(user, ["admin", "super_admin"]);
+
+        await dbConnect();
         const body = await req.json();
         const {
             title,
@@ -92,8 +81,6 @@ export async function POST(req) {
             paymentDate
         } = body;
 
-        console.log("Creating bonus with audience:", targetAudience);
-
         // Validation
         if (!title || !amount || !paymentDate) {
             return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
@@ -107,6 +94,9 @@ export async function POST(req) {
             return NextResponse.json({ message: "Please select a department" }, { status: 400 });
         }
 
+        // SaaS PROTECTION: Admin must use their org
+        const orgId = user.role === 'admin' ? user.organizationId : body.organizationId;
+
         const newBonus = await Bonus.create({
             title,
             description,
@@ -119,26 +109,30 @@ export async function POST(req) {
             department: targetAudience === 'Department' ? department : null,
             paymentDate,
             status: "Pending",
-            createdBy: user.id
+            createdBy: user.id,
+            organizationId: orgId
         });
 
         // --- Notification Logic ---
         let targetEmployeeIds = [];
+        let empFilter = {};
+
+        // SaaS PROTECTION: Notifications only for org employees
+        if (user.role === 'admin' && user.organizationId) {
+            empFilter['jobDetails.organizationId'] = user.organizationId;
+        }
 
         if (targetAudience === 'Individual') {
             targetEmployeeIds = employees;
         } else if (targetAudience === 'Department') {
-            const departmentEmployees = await Employee.find({ 'jobDetails.departmentId': department }).select('_id');
+            const departmentEmployees = await Employee.find({ 'jobDetails.departmentId': department, ...empFilter }).select('_id');
             targetEmployeeIds = departmentEmployees.map(e => e._id);
         } else if (targetAudience === 'All') {
-            console.log("Fetching all employees for notification...");
-            const allEmployees = await Employee.find({}).select('_id');
+            const allEmployees = await Employee.find(empFilter).select('_id');
             targetEmployeeIds = allEmployees.map(e => e._id);
-            console.log(`Found ${targetEmployeeIds.length} employees.`);
         }
 
         if (targetEmployeeIds.length > 0) {
-            console.log("Creating notifications for", targetEmployeeIds.length, "employees.");
             const notifications = targetEmployeeIds.map(empId => ({
                 type: 'bonus',
                 title: `New Bonus: ${title}`,
@@ -154,14 +148,10 @@ export async function POST(req) {
 
             try {
                 await Notification.insertMany(notifications);
-                console.log("Notifications inserted successfully.");
             } catch (notifError) {
                 console.error("Error inserting notifications:", notifError);
             }
-        } else {
-            console.log("No result for target audience, skipping notifications.");
         }
-        // --------------------------
 
         return NextResponse.json({ message: "Bonus created successfully", bonus: newBonus });
 

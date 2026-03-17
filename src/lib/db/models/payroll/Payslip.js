@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 
-const DEFAULT_USER_ID = new mongoose.Types.ObjectId("66e2f79f3b8d2e1f1a9d9c33");
-
 const earningSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -49,6 +47,11 @@ const payslipSchema = new mongoose.Schema(
     employee: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
+      required: true,
+    },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
       required: true,
     },
     payslipId: {
@@ -148,7 +151,6 @@ const payslipSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      default: DEFAULT_USER_ID,
     },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -230,7 +232,6 @@ const payslipSchema = new mongoose.Schema(
 
 // Compound index for unique payslip per employee, month, year
 payslipSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
-payslipSchema.index({ status: 1 });
+// payslipSchema.index({ status: 1 });
 
-delete mongoose.models.Payslip;
 export default mongoose.models.Payslip || mongoose.model("Payslip", payslipSchema);

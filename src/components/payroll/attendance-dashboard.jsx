@@ -883,76 +883,78 @@ export default function AttendanceDashboard() {
         </div>
 
         {/* Organization Grouping Toggle */}
-        <div
-          className={`bg-white rounded-xl border-2 transition-all ${groupByOrganization
-            ? "border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50"
-            : "border-slate-200"
-            } shadow-sm mb-8`}
-        >
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${groupByOrganization ? "bg-indigo-500" : "bg-slate-100"
-                    }`}
-                >
-                  <Layers
-                    className={`w-5 h-5 ${groupByOrganization ? "text-white" : "text-slate-500"
+        {organizations.length > 1 && (
+          <div
+            className={`bg-white rounded-xl border-2 transition-all ${groupByOrganization
+              ? "border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50"
+              : "border-slate-200"
+              } shadow-sm mb-8`}
+          >
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${groupByOrganization ? "bg-indigo-500" : "bg-slate-100"
                       }`}
-                  />
+                  >
+                    <Layers
+                      className={`w-5 h-5 ${groupByOrganization ? "text-white" : "text-slate-500"
+                        }`}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Organization-wise Grouping
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {groupByOrganization
+                        ? "Attendance is grouped by organization"
+                        : "Click to group attendance by organization"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Organization-wise Grouping
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {groupByOrganization
-                      ? "Attendance is grouped by organization"
-                      : "Click to group attendance by organization"}
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center space-x-3">
-                {groupByOrganization && (
-                  <>
-                    <button
-                      onClick={
-                        viewMode === "monthly"
-                          ? expandAllEmployees
-                          : expandAllOrganizations
-                      }
-                      className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors border border-indigo-200"
-                    >
-                      Expand All
-                    </button>
-                    <button
-                      onClick={
-                        viewMode === "monthly"
-                          ? collapseAllEmployees
-                          : collapseAllOrganizations
-                      }
-                      className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
-                    >
-                      Collapse All
-                    </button>
-                  </>
-                )}
+                <div className="flex items-center space-x-3">
+                  {groupByOrganization && (
+                    <>
+                      <button
+                        onClick={
+                          viewMode === "monthly"
+                            ? expandAllEmployees
+                            : expandAllOrganizations
+                        }
+                        className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors border border-indigo-200"
+                      >
+                        Expand All
+                      </button>
+                      <button
+                        onClick={
+                          viewMode === "monthly"
+                            ? collapseAllEmployees
+                            : collapseAllOrganizations
+                        }
+                        className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+                      >
+                        Collapse All
+                      </button>
+                    </>
+                  )}
 
-                <button
-                  onClick={handleGroupToggle}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${groupByOrganization ? "bg-indigo-500" : "bg-slate-300"
-                    }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${groupByOrganization ? "translate-x-6" : "translate-x-1"
+                  <button
+                    onClick={handleGroupToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${groupByOrganization ? "bg-indigo-500" : "bg-slate-300"
                       }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${groupByOrganization ? "translate-x-6" : "translate-x-1"
+                        }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
@@ -965,23 +967,25 @@ export default function AttendanceDashboard() {
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               {/* Organization Filter */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Organization
-                </label>
-                <select
-                  value={selectedOrganization}
-                  onChange={(e) => setSelectedOrganization(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                >
-                  <option value="">All Organizations</option>
-                  {organizations.map((org) => (
-                    <option key={org.value} value={org.value}>
-                      {org.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {organizations.length > 1 && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Organization
+                  </label>
+                  <select
+                    value={selectedOrganization}
+                    onChange={(e) => setSelectedOrganization(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizations.map((org) => (
+                      <option key={org.value} value={org.value}>
+                        {org.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Date/Month Picker */}
               {viewMode === "daily" ? (
