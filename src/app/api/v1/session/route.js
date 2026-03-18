@@ -4,44 +4,20 @@ import jwt from 'jsonwebtoken';
 import dbConnect from "@/lib/db/connect";
 import Employee from "@/lib/db/models/payroll/Employee";
 import User from "@/lib/db/models/User";
-import Department from "@/lib/db/models/crm/Department/department"; // Removed .js extension
+import Department from "@/lib/db/models/crm/Department/department";
 
 const JWT_SECRET = process.env.JWT_SECRET;
-
-console.log("Loading /api/auth/session route module - Initializing imports");
-console.log("DEBUG: Process platform:", process.platform, "Node version:", process.version);
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-  const requestId = Math.random().toString(36).substring(7);
   try {
-    console.log(`[${requestId}] --- Session API Hit ---`, {
-      time: new Date().toISOString(),
-      url: req.url,
-      method: req.method,
-      cookies: req.cookies.getAll().map(c => c.name)
-    });
-
-    if (!JWT_SECRET) {
-      console.error(`[${requestId}] JWT_SECRET is not set`);
-      return NextResponse.json({ message: 'Server configuration error: JWT_SECRET missing' }, { status: 500 });
-    }
-
-    try {
-      console.log(`[${requestId}] Connecting to database...`);
-      await dbConnect();
-      console.log(`[${requestId}] Database connected`);
-    } catch (dbError) {
-      console.error(`[${requestId}] Database connection failed during session check:`, dbError);
-      return NextResponse.json({ message: 'Database connection failed' }, { status: 503 });
-    }
+    await dbConnect();
 
     // Get the authToken or employee_token cookie
     const token = req.cookies.get('authToken')?.value || req.cookies.get('employee_token')?.value;
 
     if (!token) {
-      console.log(`[${requestId}] No token found in cookies - No active session`);
       return NextResponse.json({ user: null, message: 'No active session found' }, { status: 200 });
     }
 
@@ -49,94 +25,46 @@ export async function GET(req) {
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
-      console.log(`[${requestId}] Token verified for role: ${decoded.role}`);
     } catch (error) {
-      console.error(`[${requestId}] Invalid or expired token:`, error.message);
       return NextResponse.json({ user: null, message: 'Invalid or expired session' }, { status: 200 });
     }
 
-    // Extract role and department from token
-    const { id, role, department } = decoded;
+    const { id, role } = decoded;
 
-    // Determine the actual role and department
-    const userRole = role || 'employee'; // Default to employee if role not present
-    let userDepartment = department;
+    // 1. Check User Collection (Admins, Super Admins, etc.)
+    const user = await User.findOne({ _id: id, sessionToken: token }).lean();
 
-    // If department is not in token, try to get it from designation or other fields
-    if (!userDepartment && decoded.designation) {
-      // You might need to map designations to departments
-      userDepartment = decoded.designation.toLowerCase();
-    }
-
-    // Handle admin user
-    if (userRole === 'admin') {
-      const user = await User.findOne({ _id: id, sessionToken: token }).lean();
-
-      if (!user) {
-        return NextResponse.json({ user: null, message: 'User session not found or invalid' }, { status: 200 });
-      }
-
-      // Check if user is admin
-      const isAdminUser = (user.role && user.role.toLowerCase() === 'admin') ||
-        (user.department && user.department.toLowerCase() === 'admin');
-      if (!isAdminUser) {
-        return NextResponse.json({ message: 'Unauthorized for admin access' }, { status: 403 });
-      }
+    if (user) {
+      const isSuperAdmin = user.role === 'super_admin';
+      const isAdmin = user.role === 'admin' || user.department?.toLowerCase() === 'admin';
 
       return NextResponse.json({
         user: {
           id: user._id.toString(),
           name: user.name,
-          role: 'admin',
+          role: isSuperAdmin ? 'super_admin' : (isAdmin ? 'admin' : user.role),
           email: user.email,
-          department: 'admin',
+          department: user.department || 'admin',
+          organizationId: user.organizationId ? user.organizationId.toString() : null,
+          companyName: user.companyName
         },
       });
     }
 
-    // Handle supervisor user
-    if (userRole === 'supervisor') {
-      const employee = await Employee.findOne({ _id: id, sessionToken: token }).lean();
+    // 2. Check Employee Collection (Employees, Supervisors)
+    const employee = await Employee.findOne({ _id: id, sessionToken: token }).lean();
 
-      if (!employee) {
-        return NextResponse.json({ user: null, message: 'Supervisor session not found' }, { status: 200 });
-      }
-
-      return NextResponse.json({
-        user: {
-          id: employee._id.toString(),
-          email: employee.personalDetails.email,
-          role: 'supervisor',
-          department: employee.jobDetails.department,
-          designation: employee.jobDetails.designation,
-          personalDetails: {
-            firstName: employee.personalDetails.firstName,
-            lastName: employee.personalDetails.lastName,
-          },
-        },
-      });
-    }
-
-    // Handle employee user
-    if (userRole === 'employee') {
-      const employee = await Employee.findOne({ _id: id, sessionToken: token }).lean();
-
-      if (!employee) {
-        return NextResponse.json({ user: null, message: 'Employee session not found or invalid' }, { status: 200 });
-      }
-
-      // Get department from jobDetails
-      const empDeptName = employee.jobDetails?.department?.toString().trim() || '';
-
+    if (employee) {
+      const isSupervisor = employee.jobDetails?.designation?.match(/supervisor|manager|lead|head/i) || employee.jobDetails?.isSupervisor;
+      
       // Fetch department permissions
       let permissions = [];
+      const empDeptName = employee.jobDetails?.department?.toString().trim() || '';
       if (empDeptName) {
-        // Safe check if Department model is available
         try {
           const departmentData = await Department.findOne({
             departmentName: { $regex: new RegExp(`^${empDeptName}$`, 'i') }
           }).lean();
-
           if (departmentData && departmentData.permissions) {
             permissions = departmentData.permissions;
           }
@@ -149,41 +77,20 @@ export async function GET(req) {
         user: {
           id: employee._id.toString(),
           email: employee.personalDetails.email,
-          role: 'employee',
+          name: `${employee.personalDetails.firstName} ${employee.personalDetails.lastName}`,
+          role: isSupervisor ? 'supervisor' : 'employee',
           department: employee.jobDetails.department,
+          designation: employee.jobDetails.designation,
+          organizationId: employee.jobDetails.organizationId ? employee.jobDetails.organizationId.toString() : null,
           permissions: permissions,
-          personalDetails: {
-            firstName: employee.personalDetails.firstName,
-            lastName: employee.personalDetails.lastName,
-          },
+          personalDetails: employee.personalDetails
         },
       });
     }
 
-    // Handle attendance_only user
-    if (userRole === 'attendance_only') {
-      const employee = await Employee.findOne({ _id: id, sessionToken: token }).lean();
-
-      if (!employee) {
-        return NextResponse.json({ user: null, message: 'Session not found or invalid' }, { status: 200 });
-      }
-
-      return NextResponse.json({
-        user: {
-          id: employee._id.toString(),
-          employeeId: employee.employeeId,
-          role: 'attendance_only',
-          permissions: ['attendance'],
-        },
-      });
-    }
-
-    return NextResponse.json({ message: 'Invalid role or department' }, { status: 400 });
+    return NextResponse.json({ user: null, message: 'Session data not found' }, { status: 200 });
   } catch (error) {
-    console.error(`[${requestId}] Session fetch error:`, error);
-    return NextResponse.json({
-      message: 'Server error: ' + error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    console.error("Session fetch error:", error);
+    return NextResponse.json({ message: 'Server error' }, { status: 500 });
   }
 }

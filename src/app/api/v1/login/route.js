@@ -72,7 +72,7 @@ export async function POST(req) {
       return NextResponse.json({ message: 'All fields are required' }, { status: 400 });
     }
 
-    // --- ADMIN LOGIN ---
+    // --- ADMIN / SUPER ADMIN LOGIN ---
     if (role === 'admin') {
       const emailOrUsername = username.toLowerCase();
 
@@ -86,22 +86,34 @@ export async function POST(req) {
 
       if (!user) {
         console.log('Admin user not found:', emailOrUsername);
-        return NextResponse.json({ message: 'User not registerd' }, { status: 401 });
+        return NextResponse.json({ message: 'User not registered' }, { status: 401 });
       }
 
-      console.log('Admin user found:', user.email);
+      console.log('Admin user found:', user.email, 'Role:', user.role);
 
-      const isAdminUser = (user.role && user.role.toLowerCase() === 'admin') ||
+      // Allow both admin and super_admin to login via the admin form
+      const isAllowedRole = user.role === 'admin' || user.role === 'super_admin' ||
         (user.department && user.department.toLowerCase() === 'admin');
 
-      if (!isAdminUser) {
-        console.log('User found but not admin:', emailOrUsername, 'Role:', user.role);
+      if (!isAllowedRole) {
+        console.log('User found but not admin/super_admin:', emailOrUsername, 'Role:', user.role);
         return NextResponse.json({ message: 'Unauthorized as admin' }, { status: 403 });
       }
 
       if (!user.password) {
         console.error('Admin user has no password set:', emailOrUsername);
         return NextResponse.json({ message: 'Account has no password set' }, { status: 500 });
+      }
+
+      // SaaS: Check if account is active/approved
+      if (user.isActive === false) {
+        if (user.status === 'pending') {
+          return NextResponse.json({ message: 'Your account is pending approval. We will contact you soon.' }, { status: 403 });
+        }
+        if (user.status === 'rejected') {
+          return NextResponse.json({ message: 'Your registration was not approved.' }, { status: 403 });
+        }
+        return NextResponse.json({ message: 'Your account is currently inactive. Please contact support.' }, { status: 403 });
       }
 
       const isMatch = await bcrypt.compare(password, user.password);
@@ -111,8 +123,16 @@ export async function POST(req) {
       }
       console.log('Admin password matched');
 
+      // Use the ACTUAL role from DB (admin or super_admin)
+      const actualRole = user.role || 'admin';
+
       const token = jwt.sign(
-        { id: user._id.toString(), role: 'admin', department: 'admin' },
+        { 
+          id: user._id.toString(), 
+          role: actualRole, 
+          department: user.department || 'admin',
+          organizationId: user.organizationId ? user.organizationId.toString() : null
+        },
         JWT_SECRET,
         { expiresIn: TOKEN_MAX_AGE }
       );
@@ -126,8 +146,11 @@ export async function POST(req) {
         user: {
           id: user._id.toString(),
           email: user.email,
-          role: 'admin',
-          department: 'admin'
+          name: user.name,
+          role: actualRole,
+          department: user.department || 'admin',
+          organizationId: user.organizationId ? user.organizationId.toString() : null,
+          companyName: user.companyName
         }
       });
 
@@ -139,18 +162,18 @@ export async function POST(req) {
         maxAge: TOKEN_MAX_AGE
       });
 
-      console.log('Admin login success:', user.email);
+      console.log(`${actualRole} login success:`, user.email);
 
       await logActivity({
         action: "login",
         entity: "User",
         entityId: user._id,
-        description: `Admin logged in: ${user.email}`,
+        description: `${actualRole} logged in: ${user.email}`,
         performedBy: {
           userId: user._id,
           name: user.name || "Admin",
           email: user.email,
-          role: 'admin'
+          role: actualRole
         },
         req: req
       });
@@ -276,10 +299,15 @@ export async function POST(req) {
         return NextResponse.json({ message: 'Invalid email or password' }, { status: 401 });
       }
 
+      // Check if account is active
+      if (user.isActive === false) {
+        return NextResponse.json({ message: 'Account is currently inactive' }, { status: 403 });
+      }
+
       const token = jwt.sign(
         {
           id: user._id.toString(),
-          role: 'supervisor',
+          role: user.role || 'supervisor',
           department: user.department || 'management',
           designation: user.designation || 'Supervisor'
         },

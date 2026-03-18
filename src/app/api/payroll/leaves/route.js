@@ -5,10 +5,12 @@ import Leave from "@/lib/db/models/payroll/Leave";
 import Employee from "@/lib/db/models/payroll/Employee";
 import User from "@/lib/db/models/User";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // GET all leaves with filters
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -26,6 +28,16 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
 
     let filter = {};
+
+    // SaaS PROTECTION: Restrict by organization
+    if (authUser.role === "admin" || authUser.role === "supervisor") {
+        const orgEmployees = await Employee.find({ 
+            "jobDetails.organizationId": authUser.organizationId 
+        }).distinct("_id");
+        filter.employeeId = { $in: orgEmployees };
+    } else if (authUser.role === "employee") {
+        filter.employeeId = authUser.id;
+    }
 
     let supervisorFilter = {};
     if (supervisorUserId && supervisorUserId !== 'undefined') {
@@ -114,30 +126,7 @@ export async function GET(request) {
       filter.status = status;
     }
 
-    // Filter by employee
-    if (employeeId) {
-       if (filter.employeeId) {
-           // If supervisor filter is already active ($in: supervisees), we must AND it logic.
-           // However, simple object assignment overwrites.
-           // We need to use $and if both exist, or check intersection.
-           // Simplest: Check if requested employeeId is in the allowed list (if supervisor filter exists).
-           const allowedIds = filter.employeeId.$in;
-           if (allowedIds) {
-               // Check if requested employeeId is in allowedIds
-                const isAllowed = allowedIds.some(id => id.toString() === employeeId);
-                if (isAllowed) {
-                    filter.employeeId = employeeId;
-                } else {
-                    // Not allowed, return empty
-                    filter.employeeId = { $in: [] };
-                }
-           } else {
-               filter.employeeId = employeeId;
-           }
-       } else {
-          filter.employeeId = employeeId;
-       }
-    }
+
 
     // Search by employee name or code
     if (search) {
@@ -174,6 +163,9 @@ export async function GET(request) {
 // CREATE or UPDATE leave record
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+    
     await dbConnect();
 
     const body = await request.json();
@@ -213,6 +205,14 @@ export async function POST(request) {
       organizationId: employee.jobDetails?.organizationId,
       department: employee.jobDetails?.department,
     });
+    
+    // SaaS PROTECTION: Admin must use their assigned organizationId or edit users within their org
+    if (authUser.role === "admin") {
+      const empOrgId = employee.jobDetails?.organizationId?.toString();
+      if (empOrgId !== authUser.organizationId) {
+        return NextResponse.json({ error: "Forbidden: Cannot apply leave for employee in another organization" }, { status: 403 });
+      }
+    }
 
     // Check if leave record already exists for this month
     let leaveRecord = await Leave.findOne({
@@ -228,7 +228,7 @@ export async function POST(request) {
       employeeName: `${employee.personalDetails.firstName} ${employee.personalDetails.lastName}`,
       organizationId: employee.jobDetails?.organizationId || null,
       organizationType: employee.organizationType || "Unknown",
-      department: employee.jobDetails?.department || "Unknown",
+      department: employee.jobDetails?.departmentId?.toString() || "Unknown",
       month: parseInt(month),
       year: parseInt(year),
       leaves: leaves || [],

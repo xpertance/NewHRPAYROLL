@@ -1,4 +1,4 @@
-import dbConnect from "@/lib/dbConnect";
+import dbConnect from "@/lib/db/connect";
 import FnFSettlement from "@/lib/db/models/FnFSettlement";
 import ExitRequest from "@/lib/db/models/ExitRequest";
 import Employee from "@/lib/db/models/payroll/Employee";
@@ -11,9 +11,13 @@ import {
     calculateProratedEarnings
 } from "@/lib/utils/fnfCalculations";
 import { NextResponse } from "next/server";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         await dbConnect();
         const body = await request.json();
         const { exitRequestId, action } = body;
@@ -30,6 +34,14 @@ export async function POST(request) {
         const employee = await Employee.findById(exitRequest.employee._id);
         if (!employee) {
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+        }
+
+        // SaaS PROTECTION: Admin restricted to their org
+        if (authUser.role === "admin") {
+            const empOrgId = employee.jobDetails?.organizationId?.toString();
+            if (empOrgId !== authUser.organizationId) {
+                return NextResponse.json({ error: "Forbidden: Not your organization" }, { status: 403 });
+            }
         }
 
         // Check if FnF already exists
@@ -141,6 +153,7 @@ export async function POST(request) {
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const exitRequestId = searchParams.get("exitRequestId");

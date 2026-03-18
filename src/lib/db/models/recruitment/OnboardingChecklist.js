@@ -38,7 +38,12 @@ const onboardingChecklistSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    completedAt: Date
+    completedAt: Date,
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null
+    }
 }, {
     timestamps: true
 });

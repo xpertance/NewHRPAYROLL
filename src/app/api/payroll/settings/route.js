@@ -2,23 +2,29 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import PayrollConfig from '@/lib/db/models/payroll/PayrollConfig';
 import Organization from '@/lib/db/models/crm/organization/Organization';
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
-        const orgId = searchParams.get('orgId');
+        let orgId = searchParams.get('orgId');
+
+        // SaaS PROTECTION: Admin restricted to their org
+        if (authUser.role === "admin" || authUser.role === "supervisor") {
+            orgId = authUser.organizationId;
+        }
 
         if (!orgId) {
-            // Default to first organization's config if no orgId provided
-            const firstOrg = await Organization.findOne();
-            if (!firstOrg) return NextResponse.json({ error: "No organizations found" }, { status: 404 });
-
-            let config = await PayrollConfig.findOne({ company: firstOrg._id });
-            if (!config) {
-                config = await PayrollConfig.create({ company: firstOrg._id });
+            // If super_admin and no orgId, default to first org or return error
+            if (authUser.role === "super_admin") {
+                const firstOrg = await Organization.findOne();
+                if (!firstOrg) return NextResponse.json({ error: "No organizations found" }, { status: 404 });
+                orgId = firstOrg._id;
+            } else {
+                return NextResponse.json({ error: "Organization ID required" }, { status: 400 });
             }
-            return NextResponse.json(config);
         }
 
         let config = await PayrollConfig.findOne({ company: orgId });
@@ -33,9 +39,22 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         await dbConnect();
         const body = await request.json();
-        const { company } = body;
+        let { company } = body;
+
+        // SaaS PROTECTION: Admin must use their assigned organizationId
+        if (authUser.role === "admin") {
+            company = authUser.organizationId;
+            body.company = company;
+        }
+
+        if (!company) {
+             return NextResponse.json({ error: "Company ID is required" }, { status: 400 });
+        }
 
         let config = await PayrollConfig.findOneAndUpdate(
             { company },

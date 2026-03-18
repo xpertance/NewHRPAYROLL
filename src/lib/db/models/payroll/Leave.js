@@ -1,8 +1,6 @@
 // src/lib/db/models/payroll/Leave.js
 import mongoose from "mongoose";
 
-const DEFAULT_USER_ID = new mongoose.Types.ObjectId("66e2f79f3b8d2e1f1a9d9c33");
-
 // Individual leave entry schema
 const leaveEntrySchema = new mongoose.Schema({
   date: {
@@ -21,7 +19,6 @@ const leaveEntrySchema = new mongoose.Schema({
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    default: DEFAULT_USER_ID,
   },
   approvedAt: {
     type: Date,
@@ -137,12 +134,10 @@ const leaveSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: DEFAULT_USER_ID,
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: DEFAULT_USER_ID,
     },
   },
   {

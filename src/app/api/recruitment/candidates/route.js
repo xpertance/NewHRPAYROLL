@@ -4,6 +4,7 @@ import Candidate from '@/lib/db/models/recruitment/Candidate';
 import JobRequisition from '@/lib/db/models/recruitment/JobRequisition';
 import Employee from '@/lib/db/models/payroll/Employee';
 import OnboardingChecklist from '@/lib/db/models/recruitment/OnboardingChecklist';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 import { z } from 'zod';
 
 const candidateSchema = z.object({
@@ -19,12 +20,22 @@ const candidateSchema = z.object({
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const jobId = searchParams.get('jobId');
         const status = searchParams.get('status');
 
         let query = {};
+        
+        // SaaS PROTECTION: Scope to org
+        if (authUser.role === 'admin') {
+            query.organizationId = authUser.organizationId;
+        } else if (authUser.role === 'super_admin') {
+            const orgId = searchParams.get('organizationId');
+            if (orgId) query.organizationId = orgId;
+        }
+
         if (jobId) query.jobRequisition = jobId;
         if (status) query.status = status;
 
@@ -40,11 +51,17 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        // Removed strict authorization
+        
         await dbConnect();
         const body = await request.json();
         const validatedData = candidateSchema.parse(body);
 
-        const candidate = await Candidate.create(validatedData);
+        // SaaS PROTECTION: Attach org to candidate record
+        const orgId = authUser.role === 'admin' ? authUser.organizationId : body.organizationId;
+
+        const candidate = await Candidate.create({ ...validatedData, organizationId: orgId });
         return NextResponse.json({ candidate, message: "Candidate application received" }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {

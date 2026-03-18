@@ -456,12 +456,10 @@ const employeeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      default: DEFAULT_USER_ID,
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: DEFAULT_USER_ID,
     },
     sessionToken: {
       type: String,
@@ -483,27 +481,100 @@ employeeSchema.virtual('fullName').get(function () {
   return `${this.personalDetails.firstName} ${this.personalDetails.lastName}`;
 });
 
-// Method to calculate salary components
-employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = null, params = {}) {
-  const { workingDaysInMonth = 26, presentDays = null, lopDays = 0, month = null } = params;
+// Method to calculate salary components (Async to pull from other modules)
+employeeSchema.methods.calculateSalaryComponents = async function (statutoryConfig = null, params = {}) {
+  const now = new Date();
+  const { 
+    month = params.month || now.getMonth() + 1, 
+    year = params.year || now.getFullYear(),
+    workingDaysInMonth = new Date(year, month, 0).getDate()
+  } = params;
 
   const structure = this.payslipStructure;
   if (!structure) {
     throw new Error("Salary structure (payslipStructure) is missing for this employee.");
   }
 
-  const standardBasic = structure.basicSalary || 0;
+  // 1. INTEGRATE LEAVES (LOP)
+  let lopDays = params.lopDays || 0;
+  try {
+    const Leave = mongoose.models.Leave || mongoose.model("Leave");
+    const leaveRecord = await Leave.findOne({ 
+      employeeId: this._id, 
+      month, 
+      year,
+      status: "Approved" 
+    });
+    if (leaveRecord && leaveRecord.summary) {
+      lopDays = leaveRecord.summary.unpaidLeaves + (leaveRecord.summary.halfDayUnpaidLeaves || 0) * 0.5;
+    }
+  } catch (err) {
+    console.error("Error fetching leaves for salary calc:", err);
+  }
 
+  // 2. INTEGRATE OVERTIME
+  let overtimeHours = 0;
+  try {
+    const OvertimeRequest = mongoose.models.OvertimeRequest || mongoose.model("OvertimeRequest");
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+    
+    const otRequests = await OvertimeRequest.find({
+      employee: this._id,
+      status: "Approved",
+      date: { $gte: startDate, $lte: endDate }
+    });
+    
+    overtimeHours = otRequests.reduce((sum, req) => sum + (req.hours || 0), 0);
+  } catch (err) {
+    console.error("Error fetching overtime for salary calc:", err);
+  }
+
+  // 3. INTEGRATE LOANS/ADVANCES (Installments)
+  let loanDeductionsAmount = 0;
+  const loanDeductionsList = [];
+  try {
+    const Loan = mongoose.models.Loan || mongoose.model("Loan");
+    const activeLoans = await Loan.find({
+      employee: this._id,
+      status: "Approved"
+    });
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    for (const loan of activeLoans) {
+      const pendingInstallment = loan.repaymentSchedule.find(inst => 
+        inst.status === "Pending" && 
+        new Date(inst.dueDate) >= startDate && 
+        new Date(inst.dueDate) <= endDate
+      );
+
+      if (pendingInstallment) {
+        loanDeductionsAmount += pendingInstallment.amount;
+        loanDeductionsList.push({
+          name: `Loan Repayment (${loan.type})`,
+          amount: pendingInstallment.amount,
+          loanId: loan._id,
+          installmentId: pendingInstallment._id
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching loans for salary calc:", err);
+  }
+
+  const standardBasic = structure.basicSalary || 0;
   let basicSalary = standardBasic;
   let lopAmount = 0;
 
-  // Calculate LOP (Loss of Pay) if applicable
+  // Calculate LOP (Loss of Pay)
   if (lopDays > 0 && workingDaysInMonth > 0 && standardBasic > 0) {
     lopAmount = (standardBasic / workingDaysInMonth) * lopDays;
     basicSalary = Math.max(0, standardBasic - lopAmount);
   }
 
-  // Calculate earnings based on the actual basic salary
+  // Calculate earnings based on actual basic salary
   const earnings = structure.earnings || [];
   const calculatedEarnings = earnings
     .filter(e => e.enabled)
@@ -520,7 +591,19 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
       };
     });
 
-  // Calculate Gross Salary (Actual Basic + Earnings)
+  // Calculate Overtime Amount
+  const overtimeRate = this.salaryDetails?.overtimeRate || 0;
+  const overtimeAmount = Math.round(overtimeHours * overtimeRate);
+  if (overtimeAmount > 0) {
+     calculatedEarnings.push({
+       name: "Overtime Pay",
+       calculatedAmount: overtimeAmount,
+       autoCalculated: true,
+       hours: overtimeHours
+     });
+  }
+
+  // Calculate Gross Salary
   const grossSalary = basicSalary + calculatedEarnings.reduce((sum, e) => sum + e.calculatedAmount, 0);
 
   // Calculate configured deductions
@@ -540,22 +623,33 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
       };
     });
 
-  // Add LOP as a deduction if it was calculated
+  // Add LOP as a deduction
   if (lopAmount > 0) {
     calculatedDeductions.push({
       name: 'Loss of Pay (LOP)',
-      calculatedAmount: lopAmount,
-      autoCalculated: true
+      calculatedAmount: Math.round(lopAmount),
+      autoCalculated: true,
+      days: lopDays
+    });
+  }
+
+  // Add Loan Deductions
+  for (const loan of loanDeductionsList) {
+    calculatedDeductions.push({
+      name: loan.name,
+      calculatedAmount: Math.round(loan.amount),
+      autoCalculated: true,
+      loanId: loan.loanId
     });
   }
 
   // ========== AUTO-CALCULATED STATUTORY DEDUCTIONS (India Compliance) ==========
 
-  // 1. PF (Provident Fund) - 12% of Basic, capped at 15,000 ceiling
+  // 1. PF (Provident Fund)
   if (this.pfApplicable === 'yes') {
     const pfWage = Math.min(basicSalary, 15000);
     const pfEmployee = Math.round(pfWage * 0.12);
-    const pfEmployer = Math.round(pfWage * 0.13); // Includes admin charges usually
+    const pfEmployer = Math.round(pfWage * 0.13);
 
     calculatedDeductions.push({
       name: 'Provident Fund (PF)',
@@ -565,7 +659,7 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
     });
   }
 
-  // 2. ESIC - 0.75% of Gross, only if Gross <= 21,000
+  // 2. ESIC (Only if Gross Salary <= 21,000)
   if (this.esicApplicable === 'yes' && grossSalary <= 21000) {
     const esicEmployee = Math.ceil(grossSalary * 0.0075);
     const esicEmployer = Math.ceil(grossSalary * 0.0325);
@@ -578,13 +672,9 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
     });
   }
 
-  // 3. Professional Tax (PT) - State specific
-  // 3. Professional Tax (PT) - State specific
-  // Slabs are now fetched dynamically from StatutoryConfig
+  // 3. Professional Tax (PT)
   const workState = this.jobDetails?.workState || 'Maharashtra';
   const ptAmount = StatutoryCalculator.calculateProfessionalTax(grossSalary, workState, statutoryConfig);
-
-
 
   if (ptAmount > 0) {
     calculatedDeductions.push({
@@ -594,12 +684,11 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
     });
   }
 
-  // 4. TDS (Income Tax) - Placeholder logic for now
-  // In a real system, this would use investment declarations and annual projections
+  // 4. TDS (Income Tax)
   if (this.isTDSApplicable) {
     const annualGross = grossSalary * 12;
     let monthlyTDS = 0;
-    if (annualGross > 700000) { // Simple 7L exemption logic for New Regime
+    if (annualGross > 700000) {
       monthlyTDS = Math.round(((annualGross - 700000) * 0.1) / 12);
     }
 
@@ -610,40 +699,21 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
         autoCalculated: true
       });
     }
-    if (monthlyTDS > 0) {
-      calculatedDeductions.push({
-        name: 'Income Tax (TDS)',
-        calculatedAmount: monthlyTDS,
-        autoCalculated: true
-      });
-    }
   }
 
-  // 5. Gratuity (Provision) - Employer Contribution
-  // Formula: (Basic * 15 / 26) / 12
+  // 5. Gratuity (Provision)
   if (this.gratuityApplicable === 'yes') {
-    // We import StatutoryCalculator here to avoid circular dependencies if it's in a utils file
-    // Or just inline the logic as it's simple enough and we want to keep model self-contained
     const yearlyGratuity = (basicSalary * 15) / 26;
     const monthlyGratuity = Math.round(yearlyGratuity / 12);
 
-    // We add this as a deduction with 0 employee contribution but with employer contribution
-    // This allows it to show up in salary slips/reports as a component without deducting from Net Salary
-    // OR we can just track it. Keka usually shows it as part of CTC but not in-hand.
-
-    // OPTION: Add to "Deductions" with 0 amount to show in payslip structure?
-    // Better: Add it to a new array or just handle it as a deduction with 0 employee share
-
     calculatedDeductions.push({
       name: 'Gratuity (Provision)',
-      calculatedAmount: 0, // Not deducted from employee
+      calculatedAmount: 0,
       autoCalculated: true,
       employerContribution: monthlyGratuity,
       isGratuity: true
     });
   }
-
-  // ============================================================================
 
   const totalEarnings = grossSalary;
   const totalDeductions = calculatedDeductions.reduce((sum, d) => sum + d.calculatedAmount, 0);
@@ -658,18 +728,19 @@ employeeSchema.methods.calculateSalaryComponents = function (statutoryConfig = n
     totalDeductions,
     netSalary,
     salaryType: structure.salaryType,
-    netSalary,
-    salaryType: structure.salaryType,
-    lopAmount
+    lopAmount: Math.round(lopAmount),
+    lopDays,
+    overtimeHours,
+    overtimeAmount,
+    loanDeductions: loanDeductionsAmount,
+    loanDeductionsList
   };
 };
 
 // Method to update computed salary fields
-employeeSchema.methods.updateComputedSalary = function (statutoryConfig = null) {
-  const calculated = this.calculateSalaryComponents(statutoryConfig);
+employeeSchema.methods.updateComputedSalary = async function (statutoryConfig = null) {
+  const calculated = await this.calculateSalaryComponents(statutoryConfig);
   this.payslipStructure.totalEarnings = calculated.totalEarnings;
-  // IMPORTANT: Don't overwrite grossSalary - it represents CTC entered by user
-  // grossSalary is set by the form and should be preserved
   // this.payslipStructure.grossSalary remains as the user-entered CTC value
   this.payslipStructure.totalDeductions = calculated.totalDeductions;
   this.payslipStructure.netSalary = calculated.netSalary;
@@ -695,11 +766,11 @@ employeeSchema.pre('save', async function (next) {
           state: { $regex: new RegExp(`^${this.jobDetails.workState}$`, 'i') }
         });
       }
-      this.updateComputedSalary(statutoryConfig);
+      await this.updateComputedSalary(statutoryConfig);
     } catch (error) {
       console.error("Error fetching statutory config in pre-save:", error);
       // Proceed with default/fallback calculation
-      this.updateComputedSalary(null);
+      await this.updateComputedSalary(null);
     }
   }
 

@@ -3,11 +3,18 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Organization from "@/lib/db/models/crm/organization/Organization";
 import cloudinary from "@/lib/cloudinary";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function GET(request, { params }) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
     const { id } = await params;
+
+    // SaaS PROTECTION: Admin can only view their own org
+    if (authUser.role === "admin" && authUser.organizationId !== id) {
+      return NextResponse.json({ error: "Forbidden: Access denied to this organization" }, { status: 403 });
+    }
 
     const organization = await Organization.findById(id);
     if (!organization) {
@@ -26,8 +33,14 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
     const { id } = await params;
+
+    // SaaS PROTECTION: Admin can only update their own org
+    if (authUser.role === "admin" && authUser.organizationId !== id) {
+      return NextResponse.json({ error: "Forbidden: You can only update your own organization" }, { status: 403 });
+    }
 
     const formData = await request.formData();
     const updates = {};
@@ -87,6 +100,10 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const authUser = await getAuthUser();
+    // Only super_admin can delete organizations in this SaaS model
+    authorize(authUser, ["super_admin"]);
+
     await dbConnect();
     const { id } = await params;
 

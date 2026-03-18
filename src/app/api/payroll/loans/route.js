@@ -1,47 +1,30 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Loan from "@/lib/db/models/payroll/Loan";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-// Helper to get user from token
-async function getUserFromRequest(req) {
-    const token =
-        req.cookies.get("authToken")?.value ||
-        req.cookies.get("employee_token")?.value;
-
-    if (!token) return null;
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        return decoded;
-    } catch (error) {
-        return null;
-    }
-}
+import Employee from "@/lib/db/models/payroll/Employee";
+import { getAuthUser } from "@/lib/auth-util";
 
 export async function GET(req) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-
-    if (!user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const user = await getAuthUser();
+        await dbConnect();
         let query = {};
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get("status");
+        const employeeId = searchParams.get("employeeId");
 
-        if (user.role === "employee") {
-            query = { employee: user.id };
-        } else if (user.role === "admin") {
-            const { searchParams } = new URL(req.url);
-            const status = searchParams.get("status");
-            const employeeId = searchParams.get("employeeId");
-
-            if (status) query.status = status;
-            if (employeeId) query.employee = employeeId;
+        // SaaS PROTECTION: Restrict by organization
+        if (user.role === "admin" || user.role === "supervisor") {
+            const orgEmployees = await Employee.find({ 
+                "jobDetails.organizationId": user.organizationId 
+            }).distinct("_id");
+            query.employee = { $in: orgEmployees };
+        } else if (user.role === "employee") {
+            query.employee = user.id;
         }
+
+        if (status) query.status = status;
+        if (employeeId && user.role !== "employee") query.employee = employeeId;
 
         const rawLoans = await Loan.find(query)
             .populate({
@@ -108,16 +91,11 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-
-    if (!user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const user = await getAuthUser();
+        await dbConnect();
         const body = await req.json();
-        const { amount, reason, type, installments } = body;
+        const { amount, reason, type, installments, employeeId } = body;
 
         if (!amount || !reason || amount <= 0) {
             return NextResponse.json(
@@ -126,10 +104,26 @@ export async function POST(req) {
             );
         }
 
-        const onModel = user.role === "admin" ? "User" : "Employee";
+        // Determine target employee
+        let targetEmployeeId = user.id;
+        let onModel = user.role === "employee" ? "Employee" : "User";
+
+        if ((user.role === "admin" || user.role === "super_admin") && employeeId) {
+            // Admin is creating a loan for a specific employee
+            const targetEmployee = await Employee.findById(employeeId);
+            if (!targetEmployee) {
+                return NextResponse.json({ message: "Employee not found" }, { status: 404 });
+            }
+            // SaaS PROTECTION: Admin can only create loans for employees in their org
+            if (user.role === "admin" && targetEmployee.jobDetails?.organizationId?.toString() !== user.organizationId) {
+                return NextResponse.json({ message: "Forbidden: Employee not in your organization" }, { status: 403 });
+            }
+            targetEmployeeId = employeeId;
+            onModel = "Employee";
+        }
 
         const newLoan = await Loan.create({
-            employee: user.id,
+            employee: targetEmployeeId,
             onModel,
             amount,
             reason,

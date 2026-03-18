@@ -32,7 +32,12 @@ const offerLetterSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
-    signedAt: Date
+    signedAt: Date,
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null
+    }
 }, {
     timestamps: true
 });

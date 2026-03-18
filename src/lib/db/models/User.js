@@ -1,4 +1,10 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+
+// Force fresh model on hot reload
+if (mongoose.models.User) {
+  delete mongoose.models.User;
+}
 
 const userSchema = new mongoose.Schema(
   {
@@ -10,6 +16,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
@@ -17,10 +25,50 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "manager", "employee", "supervisor"],
-      default: "employee",
+      enum: ["super_admin", "admin", "manager", "employee", "supervisor", "attendance_only"],
+      default: "admin",
     },
-    //sample
+    status: {
+      type: String,
+      enum: ["pending", "active", "rejected", "suspended"],
+      default: "active",
+    },
+    // SaaS: which organization this admin manages
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null,
+    },
+    companyName: {
+      type: String,
+      default: "",
+    },
+    phone: {
+      type: String,
+      default: "",
+    },
+    industry: {
+      type: String,
+      default: "",
+    },
+    companySize: {
+      type: String,
+      default: "",
+    },
+    // Subscription plan
+    plan: {
+      type: String,
+      enum: ["trial", "starter", "growth", "enterprise"],
+      default: "trial",
+    },
+    planExpiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14-day trial
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     department: String,
     position: String,
     employeeId: {
@@ -35,11 +83,25 @@ const userSchema = new mongoose.Schema(
     sessionToken: {
       type: String,
     },
+    forgotPasswordToken: {
+      type: String,
+      default: null,
+    },
+    forgotPasswordExpires: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
-delete mongoose.models.User;
-// Check if the model already exists before creating it
-export default mongoose.models.User || mongoose.model("User", userSchema);
+
+// Hash password before save
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
+
+export default mongoose.model("User", userSchema);

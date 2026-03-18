@@ -15,6 +15,7 @@ import Team from '@/lib/db/models/crm/organization/Team';
 import CostCenter from '@/lib/db/models/finance/CostCenter';
 import WorkingShift from '@/lib/db/models/payroll/WorkingShift';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 // Helper function to convert empty strings to null for ObjectId fields
 const cleanObjectIdFields = (data) => {
   const cleaned = { ...data };
@@ -145,6 +146,7 @@ const validateEmployeeData = (data) => {
 // GET all employees with organization filtering
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -210,11 +212,13 @@ export async function GET(request) {
       }
     }
 
-    if (organizationId) {
+    if (authUser.role === 'admin' && authUser.organizationId) {
+      filter['jobDetails.organizationId'] = authUser.organizationId;
+    } else if (organizationId) {
       filter['jobDetails.organizationId'] = organizationId;
     }
     if (department) {
-      filter['jobDetails.department'] = department;
+      filter['jobDetails.departmentId'] = department;
     }
     if (status) {
       filter.status = status;
@@ -363,6 +367,9 @@ async function checkDocumentRequirements(employee) {
 // CREATE new employee
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ['admin', 'super_admin']);
+
     await dbConnect();
 
     const body = await request.json();
@@ -380,8 +387,6 @@ export async function POST(request) {
 
     // Clean empty string ObjectId fields
     const cleanedBody = cleanObjectIdFields(body);
-
-    console.log("Body Recieved from Frontend", cleanedBody)
 
     // Check if email already exists (skip for attendance_only users without email)
     if (cleanedBody.personalDetails?.email) {
@@ -415,30 +420,27 @@ export async function POST(request) {
     let employeeId = cleanedBody.employeeId;
 
     if (!employeeId) {
-      const lastEmployee = await Employee.findOne().sort({ employeeId: -1 });
+      // Sort by createdAt descending -— alphabetical sort on employeeId breaks at EMP9 vs EMP10
+      const lastEmployee = await Employee.findOne().sort({ createdAt: -1 });
       let newEmployeeId = "EMP001";
 
       if (lastEmployee && lastEmployee.employeeId) {
-        const lastIdNumber = parseInt(lastEmployee.employeeId.replace('EMP', '')) || 0;
-        newEmployeeId = `EMP${String(lastIdNumber + 1).padStart(3, '0')}`;
+        const lastIdNumber = parseInt(lastEmployee.employeeId.replace(/\D/g, "")) || 0;
+        newEmployeeId = `EMP${String(lastIdNumber + 1).padStart(3, "0")}`;
       }
 
-      const existingEmployee = await Employee.findOne({
-        employeeId: newEmployeeId
-      });
-
-      if (existingEmployee) {
-        const allEmployees = await Employee.find({}, 'employeeId').sort({ employeeId: 1 });
+      // Safety check: if generated ID already exists (race condition), find next available gap
+      const existingWithId = await Employee.findOne({ employeeId: newEmployeeId });
+      if (existingWithId) {
+        const allEmployees = await Employee.find({}, "employeeId");
+        const usedNumbers = allEmployees
+          .map((e) => parseInt((e.employeeId || "").replace(/\D/g, "")) || 0)
+          .sort((a, b) => a - b);
         let nextId = 1;
-
-        for (const emp of allEmployees) {
-          const empNumber = parseInt(emp.employeeId.replace('EMP', '')) || 0;
-          if (empNumber >= nextId) {
-            nextId = empNumber + 1;
-          }
+        for (const num of usedNumbers) {
+          if (num === nextId) nextId++;
         }
-
-        newEmployeeId = `EMP${String(nextId).padStart(3, '0')}`;
+        newEmployeeId = `EMP${String(nextId).padStart(3, "0")}`;
       }
 
       employeeId = newEmployeeId;
@@ -599,6 +601,16 @@ export async function POST(request) {
     return NextResponse.json(employee, { status: 201 });
   } catch (error) {
     console.error('❌ Error in POST /api/payroll/employees:', error);
+    
+    // Handle Mongoose validation errors gracefully to display on frontend
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return NextResponse.json({
+        error: messages.join(', '),
+        validationErrors: error.errors
+      }, { status: 400 });
+    }
+
     return NextResponse.json({
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
