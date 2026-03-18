@@ -14,7 +14,13 @@ export async function GET(request, { params }) {
             .populate('generatedBy', 'name');
 
         if (!run) return NextResponse.json({ error: "Payroll run not found" }, { status: 404 });
-        return NextResponse.json(run);
+
+        // Fetch all payslips for this run
+        const payslips = await Payslip.find({ payrollRunId: run._id })
+            .populate('employee', 'employeeId personalDetails.firstName personalDetails.lastName jobDetails.department')
+            .lean();
+
+        return NextResponse.json({ run, payslips });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

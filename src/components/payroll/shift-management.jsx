@@ -86,12 +86,25 @@ export default function ShiftManagement() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Basic Validation
+        if (!formData.name.trim()) {
+            toast.error("Shift name is required");
+            return;
+        }
+        if (formData.workingDays.length === 0) {
+            toast.error("Select at least one working day");
+            return;
+        }
+
         try {
             const url = '/api/payroll/shifts';
             const method = editingShift ? 'PUT' : 'POST';
+            
+            // Note: organizationId is now handled by the backend from the JWT session
             const body = editingShift
                 ? { ...formData, _id: editingShift._id }
-                : { ...formData, organizationId: "66e2f79f3b8d2e1f1a9d9c33" }; // Placeholder org ID
+                : { ...formData }; 
 
             const response = await fetch(url, {
                 method,
@@ -243,7 +256,7 @@ export default function ShiftManagement() {
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
                             <div className="space-y-2">
-                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Shift Name</label>
+                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Shift Name <span className="text-rose-500">*</span></label>
                                 <input
                                     type="text"
                                     value={formData.name}
@@ -256,7 +269,7 @@ export default function ShiftManagement() {
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Start Time</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Start Time <span className="text-rose-500">*</span></label>
                                     <input
                                         type="time"
                                         value={formData.startTime}
@@ -266,7 +279,7 @@ export default function ShiftManagement() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">End Time</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">End Time <span className="text-rose-500">*</span></label>
                                     <input
                                         type="time"
                                         value={formData.endTime}
@@ -289,7 +302,7 @@ export default function ShiftManagement() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Working Days</label>
+                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Working Days <span className="text-rose-500">*</span></label>
                                 <div className="flex flex-wrap gap-2">
                                     {daysOfWeek.map(day => (
                                         <button

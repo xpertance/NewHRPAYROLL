@@ -804,19 +804,21 @@ export default function EmployeeList() {
               </div>
 
               {/* NEW: Organization Filter */}
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
-                <select
-                  value={organizationFilter}
-                  onChange={(e) => setOrganizationFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                >
-                  <option value="">All Organizations</option>
-                  {organizations.map(org => (
-                    <option key={org} value={org}>{org}</option>
-                  ))}
-                </select>
-              </div>
+              {organizations.length > 1 && (
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
+                  <select
+                    value={organizationFilter}
+                    onChange={(e) => setOrganizationFilter(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizations.map(org => (
+                      <option key={org} value={org}>{org}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Department</label>

@@ -1,57 +1,66 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Loan from "@/lib/db/models/payroll/Loan";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
-async function getUserFromRequest(req) {
-    const token = req.cookies.get("authToken")?.value || req.cookies.get("employee_token")?.value;
-    if (!token) return null;
-    try {
-        return jwt.verify(token, JWT_SECRET);
-    } catch (error) {
-        return null;
-    }
-}
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function PUT(req, { params }) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-    if (!user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const authUser = await getAuthUser();
+        await dbConnect();
+        
         const { id } = await params;
         const body = await req.json();
-        const { status, repayment } = body;
+        const { status, rejectionReason } = body;
 
         const loan = await Loan.findById(id);
         if (!loan) {
             return NextResponse.json({ message: "Loan not found" }, { status: 404 });
         }
 
+        // SaaS PROTECTION: Admin restricted to their org
+        if (authUser.role === "admin") {
+            // We need to check the employee's org. Loan model usually has employee ref.
+            // For brevity, we'll check if the loan was already marked for this org or populate employee.
+            await loan.populate("employee", "jobDetails");
+            if (loan.employee?.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+                return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+            }
+        }
+
         // Admin Operations: Approve/Reject
-        if (user.role === "admin") {
+        if (authUser.role === "admin" || authUser.role === "super_admin") {
             if (status) {
                 loan.status = status;
                 if (status === "Approved") {
-                    loan.approvedBy = user.id;
+                    loan.approvedBy = authUser.id;
                     loan.approvalDate = new Date();
-                    // Generate simple repayment schedule?
-                    // Future: Implement schedule generation based on installments
+                    
+                    // --- AUTOMATIC REPAYMENT SCHEDULE GENERATION ---
+                    if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
+                        const schedule = [];
+                        const installmentAmount = Math.round(loan.amount / (loan.installments || 1));
+                        const startDate = new Date();
+                        
+                        for (let i = 1; i <= (loan.installments || 1); i++) {
+                            const dueDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 10); // 10th of each following month
+                            schedule.push({
+                                dueDate,
+                                amount: i === loan.installments ? (loan.amount - (installmentAmount * (i - 1))) : installmentAmount,
+                                status: "Pending"
+                            });
+                        }
+                        loan.repaymentSchedule = schedule;
+                    }
                 } else if (status === "Rejected") {
-                    loan.rejectionReason = body.rejectionReason;
+                    loan.rejectionReason = rejectionReason;
                 }
             }
         } else {
-            // Employees cannot update status directly usually
             return NextResponse.json({ message: "Unauthorized to update status" }, { status: 403 });
         }
 
         await loan.save();
-
-        return NextResponse.json({ message: "Loan updated", loan });
+        return NextResponse.json({ message: "Loan updated successfully", loan });
     } catch (error) {
         console.error("Error updating loan:", error);
         return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
@@ -59,13 +68,10 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-    await dbConnect();
-    const user = await getUserFromRequest(req);
-    if (!user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const authUser = await getAuthUser();
+        await dbConnect();
+
         const { id } = await params;
         const loan = await Loan.findById(id);
         if (!loan) {
@@ -77,15 +83,21 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ message: "Cannot delete processed loan" }, { status: 400 });
         }
 
-        // Start delete
-        if (user.role === 'admin' || (user.role === 'employee' && loan.employee.toString() === user.id)) {
-            await Loan.findByIdAndDelete(id);
-            return NextResponse.json({ message: "Loan request deleted" });
+        // SaaS PROTECTION
+        if (authUser.role === 'admin') {
+            await loan.populate("employee", "jobDetails");
+            if (loan.employee?.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+                return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+            }
+        } else if (authUser.role === 'employee' && loan.employee.toString() !== authUser.id) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
 
-        return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+        await Loan.findByIdAndDelete(id);
+        return NextResponse.json({ message: "Loan request deleted" });
 
     } catch (error) {
+        console.error("Error deleting loan:", error);
         return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
 }

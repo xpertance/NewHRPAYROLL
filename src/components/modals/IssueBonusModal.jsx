@@ -55,18 +55,18 @@ const IssueBonusModal = ({ isOpen, onClose, onSave }) => {
             // I'll wrap this in a try-catch and handle errors gracefully.
 
             const [empResponse, deptResponse] = await Promise.all([
-                fetch("/api/employees"), // Standard Next.js CRUD often uses plural
-                fetch("/api/departments")
+                fetch("/api/payroll/employees?limit=1000&status=Active"), 
+                fetch("/api/crm/departments?limit=100")
             ]);
 
             // Handling 404s if routes differ
             if (empResponse.ok) {
                 const data = await empResponse.json();
-                setEmployees(data.employees || []);
+                setEmployees(data.employees || data || []);
             }
             if (deptResponse.ok) {
                 const data = await deptResponse.json();
-                setDepartments(data.departments || []);
+                setDepartments(data.data || data.departments || []);
             }
 
         } catch (error) {

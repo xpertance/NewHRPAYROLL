@@ -4,10 +4,12 @@ import dbConnect from '@/lib/db/connect';
 import TaxCalculation from '@/lib/db/models/payroll/TaxCalculation';
 import Employee from '@/lib/db/models/payroll/Employee';
 import User from '@/lib/db/models/User';
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // GET all tax calculations
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
     
     const { searchParams } = new URL(request.url);
@@ -20,10 +22,28 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
     
     let filter = {};
-    
+
+    // SaaS PROTECTION: Restrict by organization
+    if (authUser.role === "admin" || authUser.role === "supervisor") {
+        const orgEmployees = await Employee.find({ 
+            "jobDetails.organizationId": authUser.organizationId 
+        }).distinct("_id");
+        filter.employee = { $in: orgEmployees };
+    } else if (authUser.role === "employee") {
+        filter.employee = authUser.id;
+    }
+
     if (financialYear) filter.financialYear = financialYear;
     if (status) filter.status = status;
-    if (employeeId) filter.employee = employeeId;
+    
+    if (employeeId && authUser.role !== "employee") {
+      if (filter.employee && filter.employee.$in) {
+        const isAllowed = filter.employee.$in.some(id => id.toString() === employeeId);
+        filter.employee = isAllowed ? employeeId : { $in: [] };
+      } else {
+        filter.employee = employeeId;
+      }
+    }
     
     const taxCalculations = await TaxCalculation.find(filter)
       .populate({
@@ -73,9 +93,20 @@ export async function GET(request) {
 // CREATE new tax calculation
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+
     await dbConnect();
     
     const body = await request.json();
+
+    // Verify employee belongs to admin's organization
+    if (authUser.role === "admin") {
+      const employee = await Employee.findById(body.employee);
+      if (!employee || employee.jobDetails?.organizationId?.toString() !== authUser.organizationId) {
+        return NextResponse.json({ error: "Forbidden: Employee not in your organization" }, { status: 403 });
+      }
+    }
     
     // Map the new form structure to the expected TaxCalculation model
     const taxCalculationData = {
@@ -131,8 +162,7 @@ export async function POST(request) {
         calculatedValues: body.calculatedValues
       },
       
-      // For development, ensure we have a calculatedBy value
-      calculatedBy: body.calculatedBy || '66e2f79f3b8d2e1f1a9d9c33'
+      calculatedBy: authUser.id
     };
     
     const taxCalculation = await TaxCalculation.create(taxCalculationData);

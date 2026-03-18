@@ -1,11 +1,12 @@
 
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import dbConnect from '@/lib/db/connect';
 import PayrollRun from '@/lib/db/models/payroll/PayrollRun';
 import Payslip from '@/lib/db/models/payroll/Payslip';
 import Employee from '@/lib/db/models/payroll/Employee';
 import { generateBankAdviceCSV } from '@/lib/utils/payout-generator';
-import NotificationConfig from '@/lib/db/models/notifications/NotificationConfig'; // Assuming generic model for now, checking logic later
+import NotificationConfig from '@/lib/db/models/notifications/NotificationConfig';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 // We need a way to send notifications. 
 // If there isn't a unified service, we'll create a simple one or use the model directly.
@@ -13,14 +14,21 @@ import NotificationConfig from '@/lib/db/models/notifications/NotificationConfig
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+        
         await dbConnect();
         const body = await request.json();
         const { payrollRunId, action } = body;
-        // action: 'generate_advice' | 'mark_paid'
 
         const payrollRun = await PayrollRun.findById(payrollRunId);
         if (!payrollRun) {
             return NextResponse.json({ error: 'Payroll Run not found' }, { status: 404 });
+        }
+
+        // SaaS PROTECTION: Admin can only process payroll in their org
+        if (authUser.role === 'admin' && payrollRun.organizationId?.toString() !== authUser.organizationId) {
+            return NextResponse.json({ error: 'Forbidden: Not your organization' }, { status: 403 });
         }
 
         if (action === 'generate_advice') {

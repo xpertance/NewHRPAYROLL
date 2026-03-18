@@ -1,164 +1,3 @@
-// import { NextResponse } from "next/server";
-// import dbConnect from "@/lib/db/connect";
-// import Department from "@/lib/db/models/crm/Department/department";
-
-// export async function POST(request) {
-//   try {
-//     await dbConnect();
-
-//     const body = await request.json();
-
-//     console.log(body);
-    
-
-//     // Validate required fields
-//     if (!body.organizationName || !body.departmentName) {
-//       return NextResponse.json(
-//         { error: "Organization name and department name are required" },
-//         { status: 400 }
-//       );
-//     }
-
-//     const department = await Department.create(body);
-
-//     return NextResponse.json(
-//       { message: "Department created successfully", department },
-//       { status: 201 }
-//     );
-//   } catch (error) {
-//     return NextResponse.json(
-//       { error: error.message },
-//       { status: 400 }
-//     );
-//   }
-// }
-
-// // GET All Departments (with pagination and search)
-// export async function GET(request) {
-//   try {
-//     await dbConnect();
-
-//     const { searchParams } = new URL(request.url);
-//     const page = Number(searchParams.get("page")) || 1;
-//     const limit = Number(searchParams.get("limit")) || 20;
-//     const search = searchParams.get("search") || "";
-//     const status = searchParams.get("status") || "";
-//      const organizationId = searchParams.get("organizationId") || "";
-
-//     // Build query
-//     let query = {};
-    
-//     if (search) {
-//       query.departmentName = { $regex: search, $options: "i" };
-//     }
-    
-//     if (status && status !== "all") {
-//       query.status = status;
-//     }
-
-//       // Add organization filter
-//     if (organizationId) {
-//       query.organizationId = organizationId; 
-//     }
-
-//     const departments = await Department.find(query)
-//       .skip((page - 1) * limit)
-//       .limit(limit)
-//       .sort({ createdAt: -1 });
-
-//     const total = await Department.countDocuments(query);
-
-//     return NextResponse.json({
-//       data: departments,
-//       pagination: {
-//         total,
-//         page,
-//         limit,
-//         pages: Math.ceil(total / limit),
-//       },
-//     });
-//   } catch (error) {
-//     return NextResponse.json({ error: error.message }, { status: 500 });
-//   }
-// }
-
-// // PUT - Update Department
-// export async function PUT(request) {
-//   try {
-//     await dbConnect();
-
-//     const { searchParams } = new URL(request.url);
-//     const id = searchParams.get("id");
-
-//     if (!id) {
-//       return NextResponse.json(
-//         { error: "Department ID is required" },
-//         { status: 400 }
-//       );
-//     }
-
-//     const body = await request.json();
-
-//     const department = await Department.findByIdAndUpdate(
-//       id,
-//       body,
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!department) {
-//       return NextResponse.json(
-//         { error: "Department not found" },
-//         { status: 404 }
-//       );
-//     }
-
-//     return NextResponse.json(
-//       { message: "Department updated successfully", department },
-//       { status: 200 }
-//     );
-//   } catch (error) {
-//     return NextResponse.json(
-//       { error: error.message },
-//       { status: 400 }
-//     );
-//   }
-// }
-
-// // DELETE - Delete Department
-// export async function DELETE(request) {
-//   try {
-//     await dbConnect();
-
-//     const { searchParams } = new URL(request.url);
-//     const id = searchParams.get("id");
-
-//     if (!id) {
-//       return NextResponse.json(
-//         { error: "Department ID is required" },
-//         { status: 400 }
-//       );
-//     }
-
-//     const department = await Department.findByIdAndDelete(id);
-
-//     if (!department) {
-//       return NextResponse.json(
-//         { error: "Department not found" },
-//         { status: 404 }
-//       );
-//     }
-
-//     return NextResponse.json(
-//       { message: "Department deleted successfully" },
-//       { status: 200 }
-//     );
-//   } catch (error) {
-//     return NextResponse.json(
-//       { error: error.message },
-//       { status: 400 }
-//     );
-//   }
-// }
 
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
@@ -166,11 +5,20 @@ import Department from "@/lib/db/models/crm/Department/department"
 import Organization from "@/lib/db/models/crm/organization/Organization";
 import User from "@/lib/db/models/User";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 export async function POST(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+    
     await dbConnect();
 
     const body = await request.json();
+    
+    // SaaS PROTECTION: Admin must use their assigned organizationId
+    if (authUser.role === "admin") {
+      body.organizationId = authUser.organizationId;
+    }
 
 
     console.log(body);
@@ -258,6 +106,7 @@ export async function POST(request) {
 // GET All Departments (with pagination and search)
 export async function GET(request) {
   try {
+    const authUser = await getAuthUser();
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -278,7 +127,9 @@ export async function GET(request) {
       query.status = status;
     }
 
-    if (organizationId) {
+    if (authUser.role === "admin" && authUser.organizationId) {
+      query.organizationId = authUser.organizationId;
+    } else if (organizationId) {
       query.organizationId = organizationId;
     }
 
@@ -324,6 +175,9 @@ export async function GET(request) {
 // PUT - Update Department
 export async function PUT(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -349,7 +203,11 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Department not found" }, { status: 404 });
     }
 
-    // Check for duplicate department name IN THE SAME ORGANIZATION (excluding current department)
+    // SaaS PROTECTION: Admin can only update their own org's departments
+    if (authUser.role === 'admin' && existingDepartment.organizationId?.toString() !== authUser.organizationId) {
+      return NextResponse.json({ error: "Forbidden: This department does not belong to your organization" }, { status: 403 });
+    }
+
     const duplicateDepartment = await Department.findOne({
       departmentName: body.departmentName.trim(),
       organizationId: body.organizationId,
@@ -407,6 +265,9 @@ export async function PUT(request) {
 // DELETE - Delete Department
 export async function DELETE(request) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin"]);
+
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -419,6 +280,11 @@ export async function DELETE(request) {
     const department = await Department.findById(id);
     if (!department) {
       return NextResponse.json({ error: "Department not found" }, { status: 404 });
+    }
+
+    // SaaS PROTECTION: Admin can only delete their own org's departments
+    if (authUser.role === 'admin' && department.organizationId?.toString() !== authUser.organizationId) {
+      return NextResponse.json({ error: "Forbidden: This department does not belong to your organization" }, { status: 403 });
     }
 
     await Department.findByIdAndDelete(id);

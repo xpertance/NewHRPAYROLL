@@ -53,6 +53,8 @@ import "../globals.css";
 import { useSession } from "@/context/SessionContext";
 import { useLanguage } from "@/context/LanguageContext";
 import Image from "next/image";
+import SetupWizard from "@/components/ui/SetupWizard";
+import { Toaster } from "sonner";
 import {
   Languages,
 } from "lucide-react";
@@ -273,7 +275,6 @@ function DashboardLayoutContent({ children }) {
       href: "/dashboard/crm",
       icon: Cog,
       children: [
-        { name: t("organizations"), href: "/crm/organizations", icon: Building2 },
         { name: t("department"), href: "/crm/department", icon: Building2 },
         { name: t("employee"), href: "/crm/employeeType", icon: Contact },
         {
@@ -378,6 +379,13 @@ function DashboardLayoutContent({ children }) {
     { name: t("changePassword"), href: "/change-password", icon: Lock },
   ];
 
+  const superAdminNavigation = [
+    { name: "Admin Dashboard", href: "/super-admin", icon: Home },
+    { name: "Client Approvals", href: "/super-admin", icon: Clock },
+    { name: "Organizations", href: "/crm/organizations", icon: Building2 },
+    { name: "System Logs", href: "/logs", icon: List },
+  ];
+
   // Define mapping of permissions to navigation items
   // You can extend this map to include any other permissions and their corresponding routes
   const PERMISSION_NAV_MAP = {
@@ -403,7 +411,9 @@ function DashboardLayoutContent({ children }) {
   }
 
   let navigation = [];
-  if (role === "admin") {
+  if (role === "super_admin") {
+    navigation = superAdminNavigation;
+  } else if (role === "admin") {
     navigation = adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
@@ -685,6 +695,14 @@ function DashboardLayoutContent({ children }) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* First-login Setup Wizard — only shows for admin with no org yet */}
+      {role === "admin" && (
+        <SetupWizard user={user} onComplete={() => {}} />
+      )}
+
+      {/* Toast notifications */}
+      <Toaster position="top-right" richColors closeButton />
     </div>
   );
 }

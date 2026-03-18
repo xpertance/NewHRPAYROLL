@@ -1730,66 +1730,68 @@ export default function LeaveManagement() {
         </div>
 
         {/* Organization Grouping Toggle */}
-        <div
-          className={`bg-white rounded-xl border-2 transition-all ${groupByOrganization
-            ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50"
-            : "border-slate-200"
-            } shadow-sm`}
-        >
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${groupByOrganization ? "bg-yellow-500" : "bg-slate-100"
-                    }`}
-                >
-                  <Layers
-                    className={`w-5 h-5 ${groupByOrganization ? "text-white" : "text-slate-500"
+        {organizationTypes.length > 1 && (
+          <div
+            className={`bg-white rounded-xl border-2 transition-all ${groupByOrganization
+              ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50"
+              : "border-slate-200"
+              } shadow-sm`}
+          >
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${groupByOrganization ? "bg-yellow-500" : "bg-slate-100"
                       }`}
-                  />
+                  >
+                    <Layers
+                      className={`w-5 h-5 ${groupByOrganization ? "text-white" : "text-slate-500"
+                        }`}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Organization-wise Grouping
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {groupByOrganization
+                        ? "Leaves are grouped by organization"
+                        : "Click to group leaves by organization"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Organization-wise Grouping
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {groupByOrganization
-                      ? "Leaves are grouped by organization"
-                      : "Click to group leaves by organization"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                {groupByOrganization && (
-                  <>
-                    <button
-                      onClick={expandAllOrganizations}
-                      className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition-colors border border-yellow-200"
-                    >
-                      Expand All
-                    </button>
-                    <button
-                      onClick={collapseAllOrganizations}
-                      className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
-                    >
-                      Collapse All
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={handleGroupToggle}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${groupByOrganization ? "bg-yellow-500" : "bg-slate-300"
-                    }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${groupByOrganization ? "translate-x-6" : "translate-x-1"
+                <div className="flex items-center space-x-3">
+                  {groupByOrganization && (
+                    <>
+                      <button
+                        onClick={expandAllOrganizations}
+                        className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition-colors border border-yellow-200"
+                      >
+                        Expand All
+                      </button>
+                      <button
+                        onClick={collapseAllOrganizations}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+                      >
+                        Collapse All
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={handleGroupToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${groupByOrganization ? "bg-yellow-500" : "bg-slate-300"
                       }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${groupByOrganization ? "translate-x-6" : "translate-x-1"
+                        }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -1821,26 +1823,28 @@ export default function LeaveManagement() {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-2 space-y-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Organization
-                </label>
-                <select
-                  value={selectedOrganization}
-                  onChange={(e) => {
-                    setSelectedOrganization(e.target.value);
-                    setPagination((prev) => ({ ...prev, page: 1 }));
-                  }}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                >
-                  <option value="">All Organizations</option>
-                  {organizationTypes.map((org) => (
-                    <option key={org.value} value={org.value}>
-                      {org.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {organizationTypes.length > 1 && (
+                <div className="lg:col-span-2 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Organization
+                  </label>
+                  <select
+                    value={selectedOrganization}
+                    onChange={(e) => {
+                      setSelectedOrganization(e.target.value);
+                      setPagination((prev) => ({ ...prev, page: 1 }));
+                    }}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizationTypes.map((org) => (
+                      <option key={org.value} value={org.value}>
+                        {org.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="lg:col-span-2 space-y-2">
                 <label className="block text-sm font-medium text-slate-700">
                   Month

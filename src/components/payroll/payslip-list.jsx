@@ -490,6 +490,97 @@ export default function PayslipList() {
     }
   };
 
+  // Export Bank Advice (CSV)
+  const handleExportBankAdvice = (orgName, orgPayslips, employeeTypeFilter = 'all') => {
+    try {
+      setExportLoading(true);
+      const toastId = toast.loading("Generating Bank Advice CSV...");
+
+      let filteredPayslips = orgPayslips;
+      if (employeeTypeFilter !== 'all') {
+        filteredPayslips = orgPayslips.filter(p => {
+          const empType =
+            p.employeeType ||
+            p.employee?.employeeType ||
+            p.employee?.jobDetails?.employeeType ||
+            p.employee?.category;
+          return empType === employeeTypeFilter;
+        });
+      }
+
+      if (filteredPayslips.length === 0) {
+        toast.error("No payslips found for selected employee type");
+        toast.dismiss(toastId);
+        setExportLoading(false);
+        return;
+      }
+
+      // Generate CSV Content
+      const headers = [
+        "Employee ID",
+        "Employee Name",
+        "Bank Name",
+        "Account Number",
+        "IFSC Code",
+        "Net Pay Amount",
+        "Transfer Narration"
+      ];
+
+      const csvRows = [headers.join(",")];
+
+      filteredPayslips.forEach(p => {
+        const emp = p.employee || {};
+        const personal = emp.personalDetails || {};
+        const salaryInfo = emp.salaryDetails?.bankAccount || {};
+        
+        const empId = emp.employeeId || "-";
+        const empName = `${personal.firstName || ""} ${personal.lastName || ""}`.trim() || "-";
+        const bankName = salaryInfo.bankName || "MISSING_BANK";
+        const accountNum = salaryInfo.accountNumber || "MISSING_ACCOUNT";
+        const ifsc = salaryInfo.ifscCode || "MISSING_IFSC";
+        const netPay = p.netSalary || 0;
+        const monthName = monthFilter ? months[parseInt(monthFilter) - 1] : "";
+        const narration = `"Salary ${monthName} ${yearFilter || ""}"`;
+
+        // Escape quotes and wrap strings containing commas
+        const safeName = `"${empName}"`;
+        const safeBankName = `"${bankName}"`;
+
+        csvRows.push([
+          empId,
+          safeName,
+          safeBankName,
+          accountNum,
+          ifsc,
+          netPay,
+          narration
+        ].join(","));
+      });
+
+      const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
+      
+      const fileName = employeeTypeFilter !== 'all'
+        ? `Bank_Advice_${employeeTypeFilter.replace(/\s+/g, "_")}_${orgName.replace(/\s+/g, "_")}.csv`
+        : `Bank_Advice_${orgName.replace(/\s+/g, "_")}.csv`;
+
+      // Trigger download
+      const link = document.createElement("a");
+      link.setAttribute("href", csvContent);
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link); // Required for FF
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Bank Advice CSV generated!");
+      toast.dismiss(toastId);
+    } catch (error) {
+      console.error("Error generating CSV: ", error);
+      toast.error("Failed to generate Bank Advice");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Export Modal Component
   const ExportModal = () => {
     if (!showExportModal) return null;
@@ -651,12 +742,31 @@ export default function PayslipList() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-slate-200 p-6 flex items-center gap-3 justify-end">
+          <div className="border-t border-slate-200 p-6 flex items-center gap-3 justify-end flex-wrap">
             <button
               onClick={() => setShowExportModal(false)}
               className="px-4 py-2.5 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
             >
               Cancel
+            </button>
+            <button
+              onClick={() => {
+                handleExportBankAdvice(
+                  exportModalData.orgName,
+                  exportModalData.orgPayslips,
+                  selectedEmployeeType
+                );
+                setShowExportModal(false);
+              }}
+              disabled={exportLoading || loadingEmployeeTypes}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-lg font-semibold transition-all disabled:opacity-50"
+            >
+              {exportLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+              ) : (
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+              )}
+              Bank Advice (CSV)
             </button>
             <button
               onClick={() => {
@@ -934,53 +1044,53 @@ export default function PayslipList() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* NEW: Organization Grouping Toggle */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Layers className={`w-5 h-5 ${groupByOrganization ? 'text-blue-600' : 'text-slate-600'}`} />
-              <div>
-                <h3 className="font-semibold text-slate-900">Group by Organization</h3>
-                <p className="text-sm text-slate-600 mt-0.5">
-                  {groupByOrganization
-                    ? "Payslips are grouped by their organizations"
-                    : "Showing all payslips in a unified list"
-                  }
-                </p>
+              {/* NEW: Organization Grouping Toggle */}
+        {organizations.length > 1 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Layers className={`w-5 h-5 ${groupByOrganization ? 'text-blue-600' : 'text-slate-600'}`} />
+                <div>
+                  <h3 className="font-semibold text-slate-900">Group by Organization</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    {groupByOrganization
+                      ? "Payslips are grouped by their organizations"
+                      : "Showing all payslips in a unified list"
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {groupByOrganization && groupedPayslips && (
+                  <>
+                    <button
+                      onClick={expandAllOrgs}
+                      className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      Expand All
+                    </button>
+                    <button
+                      onClick={collapseAllOrgs}
+                      className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      Collapse All
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setGroupByOrganization(!groupByOrganization)}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${groupByOrganization ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${groupByOrganization ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                  />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {groupByOrganization && groupedPayslips && (
-                <>
-                  <button
-                    onClick={expandAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-                  >
-                    Expand All
-                  </button>
-                  <button
-                    onClick={collapseAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border-2 border-blue-200 text-blue-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-                  >
-                    Collapse All
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setGroupByOrganization(!groupByOrganization)}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${groupByOrganization ? 'bg-blue-600' : 'bg-slate-300'
-                  }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${groupByOrganization ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                />
-              </button>
-            </div>
           </div>
-        </div>
+        )}    </div>
 
         {/* Controls Panel */}
         <div className="bg-white rounded-xl border-2 border-slate-200 shadow-sm">
@@ -1033,19 +1143,21 @@ export default function PayslipList() {
                 </div>
               </div>
 
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
-                <select
-                  value={organizationFilter}
-                  onChange={(e) => setOrganizationFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                >
-                  <option value="">All Organizations</option>
-                  {organizations.map(org => (
-                    <option key={org} value={org}>{org}</option>
-                  ))}
-                </select>
-              </div>
+              {organizations.length > 1 && (
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
+                  <select
+                    value={organizationFilter}
+                    onChange={(e) => setOrganizationFilter(e.target.value)}
+                    className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  >
+                    <option value="">All Organizations</option>
+                    {organizations.map(org => (
+                      <option key={org} value={org}>{org}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Month</label>
@@ -1310,7 +1422,9 @@ export default function PayslipList() {
                       <tr>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Payslip ID</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Employee</th>
-                        <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
+                        {organizations.length > 1 && (
+                          <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
+                        )}
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Pay Period</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Net Salary</th>
                         <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
@@ -1340,9 +1454,11 @@ export default function PayslipList() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-6 text-slate-900 text-sm">
-                            {payslip.organizationName || 'N/A'}
-                          </td>
+                          {organizations.length > 1 && (
+                            <td className="py-4 px-6 text-slate-900 text-sm">
+                              {payslip.organizationName || 'N/A'}
+                            </td>
+                          )}
                           <td className="py-4 px-6">
                             <div className="flex items-center space-x-2">
                               <Calendar className="w-4 h-4 text-slate-400" />

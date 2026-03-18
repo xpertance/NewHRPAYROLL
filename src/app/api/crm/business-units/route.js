@@ -3,11 +3,20 @@ import dbConnect from "@/lib/db/connect";
 import BusinessUnit from "@/lib/db/models/crm/organization/BusinessUnit";
 import Organization from "@/lib/db/models/crm/organization/Organization";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+        
         await dbConnect();
         const body = await request.json();
+        
+        // SaaS PROTECTION: Admin must use their assigned organizationId
+        if (authUser.role === "admin") {
+            body.organizationId = authUser.organizationId;
+        }
 
         if (!body.organizationId || !body.name) {
             return NextResponse.json(
@@ -66,6 +75,7 @@ export async function POST(request) {
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const page = Number(searchParams.get("page")) || 1;
@@ -77,7 +87,9 @@ export async function GET(request) {
         if (search) {
             query.name = { $regex: search, $options: "i" };
         }
-        if (organizationId) {
+        if (authUser.role === "admin" && authUser.organizationId) {
+            query.organizationId = authUser.organizationId;
+        } else if (organizationId) {
             query.organizationId = organizationId;
         }
 
@@ -107,6 +119,9 @@ export async function GET(request) {
 
 export async function PUT(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+        
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const id = searchParams.get("id");
@@ -166,6 +181,9 @@ export async function PUT(request) {
 
 export async function DELETE(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+        
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const id = searchParams.get("id");
