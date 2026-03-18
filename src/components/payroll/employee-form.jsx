@@ -1794,7 +1794,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
                         <label className="block text-sm font-semibold text-slate-700">
-                          Employee ID
+                          Employee ID <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1848,7 +1848,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                       </div>
                       <div className="space-y-2">
                         <label className="block text-sm font-semibold text-slate-700">
-                          Role
+                          Role <span className="text-red-500">*</span>
                         </label>
                         <SimpleSelect
                           value={formData.role}

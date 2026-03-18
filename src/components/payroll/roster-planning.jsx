@@ -101,9 +101,8 @@ export default function RosterPlanning() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    assignments: [{ employeeId, date, shiftId }],
-                    organizationId: "66e2f79f3b8d2e1f1a9d9c33",
-                    assignedBy: "674e92d8ce08af0109923297" // Admin ID
+                    assignments: [{ employeeId, date, shiftId }]
+                    // organizationId and assignedBy are securely handled by the backend
                 })
             });
             const data = await response.json();
@@ -132,9 +131,8 @@ export default function RosterPlanning() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    assignments,
-                    organizationId: "66e2f79f3b8d2e1f1a9d9c33",
-                    assignedBy: "674e92d8ce08af0109923297"
+                    assignments
+                    // organizationId and assignedBy are securely handled by the backend
                 })
             });
             const data = await response.json();
