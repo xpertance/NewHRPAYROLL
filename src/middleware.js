@@ -16,6 +16,12 @@ const protectedRoutes = [
   { path: '/dashboard/crm', roles: ['admin', 'super_admin', 'employee'] },
   { path: '/dashboard/tasks', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
   { path: '/dashboard/projects', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
+  
+  // Enforce rigid SaaS API layer security instead of relying manually on route-level validation
+  { path: '/api/v1/super-admin', roles: ['super_admin'], isApi: true },
+  { path: '/api/v1/admin', roles: ['admin'], isApi: true },
+  { path: '/api/v1/employee', roles: ['employee', 'supervisor', 'attendance_only'], isApi: true },
+  { path: '/api/v1/supervisor', roles: ['supervisor'], isApi: true },
 ];
 
 export async function middleware(req) {
@@ -37,6 +43,9 @@ export async function middleware(req) {
   const token = req.cookies.get('authToken')?.value || req.cookies.get('employee_token')?.value;
 
   if (!token) {
+    if (routeConfig.isApi) {
+      return NextResponse.json({ error: "Unauthorized: No active session" }, { status: 401 });
+    }
     console.log(`Middleware: Redirecting to login - No token found for ${pathname}`);
     const url = req.nextUrl.clone();
     url.pathname = '/login';
@@ -50,15 +59,38 @@ export async function middleware(req) {
     // Role-based access check
     if (!routeConfig.roles.includes(payload.role)) {
       console.warn(`Middleware: Unauthorized access attempt for ${pathname} (Role: ${payload.role})`);
+      
+      if (routeConfig.isApi) {
+        return NextResponse.json({ error: `Forbidden: Role ${payload.role} does not have permission for this route.` }, { status: 403 });
+      }
+      
       const url = req.nextUrl.clone();
       url.pathname = '/unauthorized';
       url.searchParams.set('message', 'You do not have access to this page');
       return NextResponse.redirect(url);
     }
 
-    return NextResponse.next();
+    // Pass the payload strictly into isolated Next Request Headers
+    // Allows the global database singleton to reliably filter multi-tenancy via x-org-id
+    const requestHeaders = new Headers(req.headers);
+    if (payload.organizationId) {
+      requestHeaders.set("x-organization-id", payload.organizationId);
+    }
+    requestHeaders.set("x-user-role", payload.role || "");
+    requestHeaders.set("x-user-id", payload.id || "");
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   } catch (error) {
     console.error(`Middleware: Token verification failed for ${pathname}:`, error.message);
+    
+    if (routeConfig && routeConfig.isApi) {
+      return NextResponse.json({ error: "Session expired or invalid token." }, { status: 401 });
+    }
+    
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('message', 'Session expired. Please login again.');
@@ -66,7 +98,7 @@ export async function middleware(req) {
   }
 }
 
-// Apply middleware to all routes except static & API
+// Apply middleware completely globally bypassing arbitrary Next caches for explicit api traffic
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|_next/data).*)'],
 };

@@ -30,7 +30,7 @@ export default function StatutorySettings() {
 
     const fetchConfigs = async () => {
         try {
-            const res = await fetch("/api/payroll/settings/statutory/route");
+            const res = await fetch("/api/v1/admin/payroll/settings/statutory/route");
             const data = await res.json();
             if (Array.isArray(data)) {
                 setConfigs(data);
@@ -108,7 +108,7 @@ export default function StatutorySettings() {
         }
 
         try {
-            const res = await fetch("/api/payroll/settings/statutory/route", {
+            const res = await fetch("/api/v1/admin/payroll/settings/statutory/route", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)

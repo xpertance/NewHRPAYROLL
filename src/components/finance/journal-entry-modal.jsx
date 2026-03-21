@@ -76,7 +76,7 @@ export default function JournalEntryModal({ isOpen, onClose, onEntrySaved }) {
                 }))
             };
 
-            const res = await fetch('/api/finance/ledger', {
+            const res = await fetch('/api/v1/admin/finance/ledger', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

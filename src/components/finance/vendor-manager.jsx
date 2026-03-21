@@ -23,7 +23,7 @@ export default function VendorManager() {
 
     const fetchVendors = async () => {
         try {
-            const res = await fetch('/api/finance/vendors');
+            const res = await fetch('/api/v1/admin/finance/vendors');
             const data = await res.json();
             if (data.vendors) {
                 setVendors(data.vendors);

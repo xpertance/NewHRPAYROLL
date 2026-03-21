@@ -35,7 +35,7 @@ export default function ESSLeaveManagement({ employeeId }) {
     const fetchMyLeaves = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/leave-applications?employeeId=${employeeId}`);
+            const res = await fetch(`/api/v1/admin/payroll/leave-applications?employeeId=${employeeId}`);
             if (!res.ok) throw new Error("Failed to fetch leaves");
             const data = await res.json();
             setApplications(data.applications || []);
@@ -74,7 +74,7 @@ export default function ESSLeaveManagement({ employeeId }) {
 
         try {
             setSubmitLoading(true);
-            const res = await fetch('/api/payroll/leave-applications', {
+            const res = await fetch('/api/v1/admin/payroll/leave-applications', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

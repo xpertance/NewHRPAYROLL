@@ -9,8 +9,6 @@ import {
   ChevronLeft, ChevronRight, MoreHorizontal, Loader2, Building2, Layers,
   ChevronUp, Package
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function PayslipList() {
@@ -114,7 +112,7 @@ export default function PayslipList() {
       if (organizationFilter) params.append('organization', organizationFilter);
       params.append('limit', '1000'); // Fetch more payslips to ensure all are loaded
 
-      const response = await fetch(`/api/payroll/payslip?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/payslip?${params}`);
       const data = await response.json();
 
       console.log("data", data);
@@ -306,6 +304,8 @@ export default function PayslipList() {
         return;
       }
 
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
       const doc = new jsPDF("landscape", "mm", "a4");
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();

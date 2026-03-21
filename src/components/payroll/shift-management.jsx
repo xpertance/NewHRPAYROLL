@@ -33,7 +33,7 @@ export default function ShiftManagement() {
     const fetchShifts = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/payroll/shifts');
+            const response = await fetch('/api/v1/admin/payroll/shifts');
             const data = await response.json();
             if (data.success) {
                 setShifts(data.shifts || []);
@@ -98,7 +98,7 @@ export default function ShiftManagement() {
         }
 
         try {
-            const url = '/api/payroll/shifts';
+            const url = '/api/v1/admin/payroll/shifts';
             const method = editingShift ? 'PUT' : 'POST';
             
             // Note: organizationId is now handled by the backend from the JWT session
@@ -128,7 +128,7 @@ export default function ShiftManagement() {
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this shift?")) return;
         try {
-            const response = await fetch(`/api/payroll/shifts?id=${id}`, { method: 'DELETE' });
+            const response = await fetch(`/api/v1/admin/payroll/shifts?id=${id}`, { method: 'DELETE' });
             const data = await response.json();
             if (data.success) {
                 toast.success("Shift deleted");

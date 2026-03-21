@@ -28,7 +28,7 @@ export default function VendorModal({ isOpen, onClose, onVendorSaved }) {
 
         try {
             setLoading(true);
-            const res = await fetch('/api/finance/vendors', {
+            const res = await fetch('/api/v1/admin/finance/vendors', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

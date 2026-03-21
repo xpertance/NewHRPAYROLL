@@ -160,7 +160,7 @@ export default function ComplianceGenerator() {
         overallStatus
       };
 
-      const response = await fetch('/api/payroll/compliance', {
+      const response = await fetch('/api/v1/admin/payroll/compliance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

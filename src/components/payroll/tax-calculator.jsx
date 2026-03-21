@@ -66,7 +66,7 @@
 //   const fetchEmployees = async () => {
 //     try {
 //       setEmployeesLoading(true);
-//       const response = await fetch('/api/payroll/employees');
+//       const response = await fetch('/api/v1/admin/payroll/employees');
       
 //       if (!response.ok) {
 //         throw new Error('Failed to fetch employees');
@@ -160,7 +160,7 @@
 //         status: 'Calculated'
 //       };
 
-//       const response = await fetch('/api/payroll/taxes', {
+//       const response = await fetch('/api/v1/admin/payroll/taxes', {
 //         method: 'POST',
 //         headers: {
 //           'Content-Type': 'application/json',
@@ -751,7 +751,7 @@ export default function TaxCalculator() {
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
-      const response = await fetch('/api/payroll/employees');
+      const response = await fetch('/api/v1/admin/payroll/employees');
       
       if (!response.ok) {
         throw new Error('Failed to fetch employees');
@@ -950,7 +950,7 @@ const handleSubmit = async (e) => {
       status: 'Calculated'
     };
 
-    const response = await fetch('/api/payroll/taxes', {
+    const response = await fetch('/api/v1/admin/payroll/taxes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

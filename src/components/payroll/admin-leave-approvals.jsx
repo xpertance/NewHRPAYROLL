@@ -29,7 +29,7 @@ export default function AdminLeaveApprovals() {
     const fetchApplications = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/leave-applications?status=${filterStatus}`);
+            const res = await fetch(`/api/v1/admin/payroll/leave-applications?status=${filterStatus}`);
             if (!res.ok) throw new Error("Failed to fetch applications");
             const data = await res.json();
             setApplications(data.applications || []);
@@ -43,7 +43,7 @@ export default function AdminLeaveApprovals() {
     const handleAction = async (appId, status, reason = '') => {
         try {
             setActionLoading(true);
-            const res = await fetch(`/api/payroll/leave-applications/${appId}`, {
+            const res = await fetch(`/api/v1/admin/payroll/leave-applications/${appId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

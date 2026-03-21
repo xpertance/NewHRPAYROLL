@@ -56,7 +56,7 @@ const {user} = useSession()
         }
 
         // Fetch departments for this organization using organizationId
-        const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}`);
+        const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}`);
         
         if (response.ok) {
           const data = await response.json();
@@ -133,7 +133,7 @@ const {user} = useSession()
 
       console.log("Submitting employee type:", payload);
 
-      const res = await fetch("/api/crm/employeetype", {
+      const res = await fetch("/api/v1/admin/crm/employeetype", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
