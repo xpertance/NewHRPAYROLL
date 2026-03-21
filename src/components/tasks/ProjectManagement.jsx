@@ -50,8 +50,8 @@ const ProjectManagement = () => {
         try {
             setLoading(true);
             const [projRes, empRes] = await Promise.all([
-                fetch("/api/tasks/projects"),
-                fetch("/api/payroll/employees?limit=1000") // Get all employees for assignment
+                fetch("/api/v1/admin/tasks/projects"),
+                fetch("/api/v1/admin/payroll/employees?limit=1000") // Get all employees for assignment
             ]);
             const projData = await projRes.json();
             const empData = await empRes.json();
@@ -97,7 +97,7 @@ const ProjectManagement = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const url = editingProject ? `/api/tasks/projects/${editingProject._id}` : "/api/tasks/projects";
+            const url = editingProject ? `/api/v1/admin/tasks/projects/${editingProject._id}` : "/api/v1/admin/tasks/projects";
             const method = editingProject ? "PUT" : "POST";
 
             const res = await fetch(url, {
@@ -122,7 +122,7 @@ const ProjectManagement = () => {
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this project?")) return;
         try {
-            const res = await fetch(`/api/tasks/projects/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/v1/admin/tasks/projects/${id}`, { method: "DELETE" });
             const data = await res.json();
             if (data.success) {
                 toast.success("Project deleted");

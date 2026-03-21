@@ -19,7 +19,7 @@ export default function FnFSettlement({ exitRequestId, employeeId, isHR, status 
     const fetchFnFData = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/fnf?exitRequestId=${exitRequestId}`);
+            const res = await fetch(`/api/v1/admin/payroll/fnf?exitRequestId=${exitRequestId}`);
             if (res.ok) {
                 const data = await res.json();
                 setFnfData(data); // Can be null if not yet created
@@ -34,7 +34,7 @@ export default function FnFSettlement({ exitRequestId, employeeId, isHR, status 
     const handleCalculate = async () => {
         try {
             setProcessing(true);
-            const res = await fetch("/api/payroll/fnf", {
+            const res = await fetch("/api/v1/admin/payroll/fnf", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

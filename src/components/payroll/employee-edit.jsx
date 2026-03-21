@@ -149,7 +149,7 @@ function DocumentUploadSection({
       console.log("Category ID for document fetch:", categoryId);
       try {
         setLoadingDocuments(true);
-        const categoryResponse = await fetch(`/api/crm/employeecategory/${categoryId?._id}`);
+        const categoryResponse = await fetch(`/api/v1/admin/crm/employeecategory/${categoryId?._id}`);
         if (!categoryResponse.ok) {
           throw new Error("Failed to fetch category details");
         }
@@ -1650,7 +1650,7 @@ export default function EmployeeEdit({ employeeId }) {
   const fetchEmployee = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/employees/${employeeId}`);
+      const response = await fetch(`/api/v1/admin/payroll/employees/${employeeId}`);
       // if (!response.ok) {
       //   const errorData = await response.json();
       //   toast.error(`Failed to load employee data: ${errorData.error || "Unknown error"}`);
@@ -1795,7 +1795,7 @@ export default function EmployeeEdit({ employeeId }) {
   const fetchOrganizations = async () => {
     try {
       setFetchLoading(true);
-      const response = await fetch("/api/crm/organizations?limit=1000");
+      const response = await fetch("/api/v1/admin/crm/organizations?limit=1000");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch organizations");
@@ -1826,7 +1826,7 @@ export default function EmployeeEdit({ employeeId }) {
         return;
       }
       const response = await fetch(
-        `/api/crm/departments?organizationId=${organizationId?._id || organizationId}&limit=1000`
+        `/api/v1/admin/crm/departments?organizationId=${organizationId?._id || organizationId}&limit=1000`
       );
       const data = await response.json();
       if (!response.ok) {
@@ -1858,7 +1858,7 @@ export default function EmployeeEdit({ employeeId }) {
       params.set("organizationId", organizationId?._id || organizationId);
       params.set("departmentId", departmentId?._id || departmentId);
       params.set("limit", "1000");
-      const response = await fetch(`/api/crm/employeetype?${params.toString()}`);
+      const response = await fetch(`/api/v1/admin/crm/employeetype?${params.toString()}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch employee types");
@@ -1888,7 +1888,7 @@ export default function EmployeeEdit({ employeeId }) {
       params.set("employeeTypeId", employeeTypeId?._id || employeeTypeId);
       params.set("limit", "1000");
       const response = await fetch(
-        `/api/crm/employeecategory?${params.toString()}`
+        `/api/v1/admin/crm/employeecategory?${params.toString()}`
       );
       const data = await response.json();
       if (!response.ok) {
@@ -1926,7 +1926,7 @@ export default function EmployeeEdit({ employeeId }) {
       params.set("limit", "1000");
 
       const response = await fetch(
-        `/api/crm/employeesubcategory?${params.toString()}`
+        `/api/v1/admin/crm/employeesubcategory?${params.toString()}`
       );
       const data = await response.json();
       if (!response.ok) {
@@ -1952,7 +1952,7 @@ export default function EmployeeEdit({ employeeId }) {
       }
       setLoadingSupervisors(true);
       const response = await fetch(
-        `/api/payroll/employees?organizationId=${organizationId?._id}&status=Active&limit=1000`
+        `/api/v1/admin/payroll/employees?organizationId=${organizationId?._id}&status=Active&limit=1000`
       );
       const data = await response.json();
       if (!response.ok) {
@@ -2358,7 +2358,7 @@ export default function EmployeeEdit({ employeeId }) {
         categoryId: formData.categoryId?._id || formData.categoryId,
         subCategoryId: formData.subCategoryId?._id || formData.subCategoryId,
       };
-      const response = await fetch(`/api/payroll/employees/${employeeId}`, {
+      const response = await fetch(`/api/v1/admin/payroll/employees/${employeeId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

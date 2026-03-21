@@ -259,7 +259,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/employees/${employeeData._id}`, {
+      const response = await fetch(`/api/v1/admin/admin/payroll/employees/${employeeData._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -285,14 +285,14 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/employees/${employeeData._id}`, {
+      const response = await fetch(`/api/v1/admin/admin/payroll/employees/${employeeData._id}`, {
         method: "DELETE",
       });
 
       if (!response.ok) throw new Error("Failed to deactivate employee");
 
       toast.success("Employee deactivated successfully");
-      router.push("/payroll/employees");
+      router.push("/admin/payroll/employees");
       router.refresh();
     } catch (error) {
       console.error("Error deactivating employee:", error);
@@ -308,14 +308,14 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/employees/${employeeData._id}?permanent=true`, {
+      const response = await fetch(`/api/v1/admin/admin/payroll/employees/${employeeData._id}?permanent=true`, {
         method: "DELETE",
       });
 
       if (!response.ok) throw new Error("Failed to delete employee");
 
       toast.success("Employee permanently deleted");
-      router.push("/payroll/employees");
+      router.push("/admin/payroll/employees");
       router.refresh();
     } catch (error) {
       console.error("Error deleting employee:", error);
@@ -478,7 +478,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   // Fetch functions
   const fetchShifts = async () => {
     try {
-      const response = await fetch("/api/payroll/shifts");
+      const response = await fetch("/api/v1/admin/payroll/shifts");
       const data = await response.json();
       if (data.success) {
         setAvailableShifts(data.shifts.map(s => ({ value: String(s._id), label: `${s.name} (${s.startTime} - ${s.endTime})` })));
@@ -491,7 +491,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   const fetchOrganizations = async () => {
     try {
       setFetchLoading(true);
-      const response = await fetch("/api/crm/organizations?limit=1000");
+      const response = await fetch("/api/v1/admin/crm/organizations?limit=1000");
       const data = await response.json();
 
       if (!response.ok) {
@@ -523,7 +523,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         setBusinessUnits([]);
         return;
       }
-      const response = await fetch(`/api/crm/business-units?organizationId=${organizationId}&limit=1000`);
+      const response = await fetch(`/api/v1/admin/crm/business-units?organizationId=${organizationId}&limit=1000`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch business units");
       setBusinessUnits(data.data.map(bu => ({ value: String(bu._id), label: bu.name })));
@@ -535,7 +535,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
   const fetchCostCenters = async () => {
     try {
-      const response = await fetch("/api/finance/cost-centers?limit=1000");
+      const response = await fetch("/api/v1/admin/finance/cost-centers?limit=1000");
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch cost centers");
       setCostCenters(data.data.map(cc => ({ value: String(cc._id), label: `${cc.name} (${cc.code})` })));
@@ -551,7 +551,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         setTeams([]);
         return;
       }
-      const response = await fetch(`/api/crm/teams?departmentId=${departmentId}&limit=1000`);
+      const response = await fetch(`/api/v1/admin/crm/teams?departmentId=${departmentId}&limit=1000`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch teams");
 
@@ -571,7 +571,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         return;
       }
       const response = await fetch(
-        `/api/crm/departments?businessUnitId=${businessUnitId}&limit=1000`
+        `/api/v1/admin/crm/departments?businessUnitId=${businessUnitId}&limit=1000`
       );
       const data = await response.json();
 
@@ -608,7 +608,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       params.set("departmentId", departmentId);
       params.set("limit", "1000");
       const response = await fetch(
-        `/api/crm/employeetype?${params.toString()}`
+        `/api/v1/admin/crm/employeetype?${params.toString()}`
       );
       const data = await response.json();
 
@@ -638,7 +638,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       }
       setLoadingSupervisors(true);
       const response = await fetch(
-        `/api/payroll/employees?organizationId=${organizationId}&status=Active&limit=1000`
+        `/api/v1/admin/admin/payroll/employees?organizationId=${organizationId}&status=Active&limit=1000`
       );
       const data = await response.json();
 
@@ -667,7 +667,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         setOfficeLocations([]);
         return;
       }
-      const response = await fetch(`/api/settings/office-locations?organizationId=${organizationId}`);
+      const response = await fetch(`/api/v1/admin/settings/office-locations?organizationId=${organizationId}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch office locations");
 
@@ -947,7 +947,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       params.set("status", "Active"); // Only active employees
       params.set("limit", "1000");
 
-      const response = await fetch(`/api/payroll/employees?${params.toString()}`);
+      const response = await fetch(`/api/v1/admin/admin/payroll/employees?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -1534,8 +1534,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     setLoading(true);
     try {
       const url = isEdit
-        ? `/api/payroll/employees/${employeeData._id}`
-        : "/api/payroll/employees";
+        ? `/api/v1/admin/admin/payroll/employees/${employeeData._id}`
+        : "/api/v1/admin/admin/payroll/employees";
       const method = isEdit ? "PUT" : "POST";
       const submitData = {
         ...formData,
@@ -1586,7 +1586,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         );
         console.log("✅ Employee saved:", savedEmployee);
         setTimeout(() => {
-          router.push("/payroll/employees");
+          router.push("/admin/payroll/employees");
         }, 1000);
       } else {
         const textStr = await response.text();

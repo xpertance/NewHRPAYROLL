@@ -32,7 +32,7 @@ export default function FinanceDashboard({ initialTab = "overview" }) {
     const fetchStats = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/finance/stats');
+            const res = await fetch('/api/v1/admin/finance/stats');
             const data = await res.json();
             if (data.stats) {
                 setStats({
@@ -51,7 +51,7 @@ export default function FinanceDashboard({ initialTab = "overview" }) {
 
     const handleExport = async () => {
         try {
-            const res = await fetch('/api/finance/ledger');
+            const res = await fetch('/api/v1/admin/finance/ledger');
             const data = await res.json();
 
             if (!data.entries || data.entries.length === 0) {
@@ -273,7 +273,7 @@ function LedgerViewer() {
 
     const fetchLedger = async () => {
         try {
-            const res = await fetch('/api/finance/ledger');
+            const res = await fetch('/api/v1/admin/finance/ledger');
             const data = await res.json();
             setEntries(data.entries || []);
         } catch (error) {
@@ -358,7 +358,7 @@ function CostCenterManager() {
     const fetchCostCenters = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/finance/cost-centers');
+            const res = await fetch('/api/v1/admin/finance/cost-centers');
             const data = await res.json();
             setCostCenters(data.data || []);
         } catch (error) {
@@ -371,7 +371,7 @@ function CostCenterManager() {
     const handleUpdateBudget = async (id, payload) => {
         try {
             const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/finance/cost-centers?id=${id}` : '/api/finance/cost-centers';
+            const url = id ? `/api/v1/admin/finance/cost-centers?id=${id}` : '/api/v1/admin/finance/cost-centers';
 
             const res = await fetch(url, {
                 method,

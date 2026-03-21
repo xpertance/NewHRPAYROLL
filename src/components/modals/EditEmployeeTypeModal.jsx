@@ -70,7 +70,7 @@ export default function EditEmployeeTypeModal({
           return;
         }
 
-        const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
+        const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
         
         if (response.ok) {
           const data = await response.json();
@@ -133,7 +133,7 @@ export default function EditEmployeeTypeModal({
         employeeType: formData.employeeType.trim(),
       };
 
-      const res = await fetch(`/api/crm/employeetype/${employeeTypeData._id}`, {
+      const res = await fetch(`/api/v1/admin/crm/employeetype/${employeeTypeData._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

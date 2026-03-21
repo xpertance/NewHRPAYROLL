@@ -40,8 +40,8 @@ export default function RecruitmentHub() {
         try {
             setLoading(true);
             const [jobsRes, candidatesRes] = await Promise.all([
-                fetch('/api/recruitment/jobs'),
-                fetch('/api/recruitment/candidates')
+                fetch('/api/v1/admin/recruitment/jobs'),
+                fetch('/api/v1/admin/recruitment/candidates')
             ]);
 
             const jobsData = await jobsRes.json();
@@ -431,7 +431,7 @@ function AddCandidateModal({ jobs, onClose, onSuccess }) {
         e.preventDefault();
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/candidates', {
+            const res = await fetch('/api/v1/admin/recruitment/candidates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -524,7 +524,7 @@ function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }
     const updateStatus = async (newStatus) => {
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/candidates', {
+            const res = await fetch('/api/v1/admin/recruitment/candidates', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: candidate._id, status: newStatus })
@@ -625,7 +625,7 @@ function OfferManagement({ onRefresh, onCreateOffer }) {
         const fetchOffers = async () => {
             try {
                 setLoading(true);
-                const res = await fetch('/api/recruitment/offers');
+                const res = await fetch('/api/v1/admin/recruitment/offers');
                 const data = await res.json();
                 setOffers(data.offers || []);
             } catch (error) {
@@ -728,7 +728,7 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
                 status: 'Sent' // Auto-send for now
             };
 
-            const res = await fetch('/api/recruitment/offers', {
+            const res = await fetch('/api/v1/admin/recruitment/offers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -738,7 +738,7 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
 
             // Also update candidate status to 'Offer Sent'
             if (formData.candidate) {
-                await fetch('/api/recruitment/candidates', {
+                await fetch('/api/v1/admin/recruitment/candidates', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: formData.candidate, status: 'Offer Sent' })
@@ -870,7 +870,7 @@ function JobRequisitionModal({ onClose, onSuccess }) {
         e.preventDefault();
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/jobs', {
+            const res = await fetch('/api/v1/admin/recruitment/jobs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -37,8 +37,8 @@ export default function InterviewScheduler() {
         try {
             setLoading(true);
             const [intRes, candRes] = await Promise.all([
-                fetch('/api/recruitment/interviews'),
-                fetch('/api/recruitment/candidates')
+                fetch('/api/v1/admin/recruitment/interviews'),
+                fetch('/api/v1/admin/recruitment/candidates')
             ]);
 
             const intData = await intRes.json();
@@ -60,7 +60,7 @@ export default function InterviewScheduler() {
 
     const updateStatus = async (candidateId, interviewId, newStatus) => {
         try {
-            const res = await fetch('/api/recruitment/interviews', {
+            const res = await fetch('/api/v1/admin/recruitment/interviews', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -402,7 +402,7 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
 
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/interviews', {
+            const res = await fetch('/api/v1/admin/recruitment/interviews', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -72,7 +72,8 @@ export default function AttendanceDashboard() {
   // Fetch organizations
   const fetchOrganizations = async () => {
     try {
-      const response = await fetch("/api/crm/organizations?limit=1000");
+      const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
+      const response = await fetch(`${baseUrl}/crm/organizations?limit=1000`);
       const data = await response.json();
 
       if (response.ok) {
@@ -104,7 +105,8 @@ export default function AttendanceDashboard() {
         params.append("organizationId", selectedOrganization);
       }
 
-      const response = await fetch(`/api/payroll/employees?${params}`);
+      const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
+      const response = await fetch(`${baseUrl}/payroll/employees?${params}`);
       const data = await response.json();
 
       console.log(user.role);
@@ -157,8 +159,9 @@ export default function AttendanceDashboard() {
         params.append("organizationId", selectedOrganization);
       }
 
+      const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
       const response = await fetch(
-        `/api/payroll/attendance?${params.toString()}`
+        `${baseUrl}/payroll/attendance?${params.toString()}`
       );
       const data = await response.json();
 
@@ -198,7 +201,7 @@ export default function AttendanceDashboard() {
   //     }
 
   //     const response = await fetch(
-  //       `/api/payroll/attendance?${params.toString()}`
+  //       `/api/v1/admin/payroll/attendance?${params.toString()}`
   //     );
   //     const data = await response.json();
 
@@ -695,7 +698,7 @@ export default function AttendanceDashboard() {
                 {exportLoading ? "Exporting..." : "Export"}
               </button>
               {user?.role === "admin" && <button
-                onClick={() => router.push("/payroll/attendance/import")}
+                onClick={() => router.push(user?.role === 'employee' ? '/employee/attendance/import' : "/admin/attendance/import")}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors font-medium"
               >
                 <Upload className="w-4 h-4" />
@@ -703,7 +706,7 @@ export default function AttendanceDashboard() {
               </button>}
               <button
                 onClick={() =>
-                  router.push("/payroll/attendance/add-attendance")
+                  router.push(user?.role === 'employee' ? '/employee/attendance/add-attendance' : "/admin/attendance/add-attendance")
                 }
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors font-medium"
               >

@@ -135,7 +135,7 @@ export default function LeaveManagement() {
 
   const fetchOrganizationTypes = async () => {
     try {
-      const response = await fetch("/api/crm/organizations?limit=1000");
+      const response = await fetch("/api/v1/admin/crm/organizations?limit=1000");
       const data = await response.json();
 
       if (response.ok) {
@@ -163,7 +163,7 @@ export default function LeaveManagement() {
       if (orgId) params.append("organizationId", orgId);
       if (user?.role === 'supervisor') params.append("supervisorUserId", user.id || user._id);
 
-      const response = await fetch(`/api/payroll/employees?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/employees?${params}`);
       const data = await response.json();
       if (response.ok) {
         setEmployees(data.employees || []);
@@ -194,7 +194,7 @@ export default function LeaveManagement() {
       }
       if (user?.role === 'supervisor') empParams.append("supervisorUserId", user.id || user._id);
 
-      const empResponse = await fetch(`/api/payroll/employees?${empParams}`);
+      const empResponse = await fetch(`/api/v1/admin/payroll/employees?${empParams}`);
       const empData = await empResponse.json();
       const allEmployees = empResponse.ok ? empData.employees || [] : [];
 
@@ -211,7 +211,7 @@ export default function LeaveManagement() {
       }
       if (user?.role === 'supervisor') leaveParams.append("supervisorUserId", user.id || user._id);
 
-      const leaveResponse = await fetch(`/api/payroll/leaves?${leaveParams}`);
+      const leaveResponse = await fetch(`/api/v1/admin/payroll/leaves?${leaveParams}`);
       const leaveData = await leaveResponse.json();
       const allYearLeaves = leaveResponse.ok ? leaveData.leaves || [] : [];
 
@@ -373,7 +373,7 @@ export default function LeaveManagement() {
   const fetchLeaveRecord = async (leaveId) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/leaves/${leaveId}`);
+      const response = await fetch(`/api/v1/admin/payroll/leaves/${leaveId}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -601,7 +601,7 @@ export default function LeaveManagement() {
     if (!confirm("Are you sure you want to delete this leave record?")) return;
 
     try {
-      const response = await fetch(`/api/payroll/leaves/${leaveId}`, {
+      const response = await fetch(`/api/v1/admin/payroll/leaves/${leaveId}`, {
         method: "DELETE",
       });
 
@@ -837,7 +837,7 @@ export default function LeaveManagement() {
   const saveLeaveRecord = async (data, isEdit, leaveId) => {
     setLoading(true);
     try {
-      const url = isEdit ? `/api/payroll/leaves/${leaveId}` : "/api/payroll/leaves";
+      const url = isEdit ? `/api/v1/admin/payroll/leaves/${leaveId}` : "/api/v1/admin/payroll/leaves";
       const method = isEdit ? "PUT" : "POST";
       const response = await fetch(url, {
         method,

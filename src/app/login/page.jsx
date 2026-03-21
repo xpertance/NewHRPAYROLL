@@ -93,10 +93,10 @@ const LoginPage = () => {
 
       if (response.success) {
         toast.success(t('loginSuccessful'));
-        if (formData.role === "admin") router.push("/payroll/employees");
-        else if (formData.role === "employee") router.push("/payroll/my-payslip");
-        else if (formData.role === "supervisor") router.push("/payroll/attendance");
-        else if (formData.role === "attendance_only") router.push("/payroll/attendance");
+        const userRole = response.user?.role || formData.role;
+        if (userRole === "super_admin") router.push("/super-admin/dashboard");
+        else if (userRole === "admin" || userRole === "company_admin" || userRole === "hr") router.push("/admin/dashboard");
+        else if (userRole === "employee" || userRole === "supervisor" || userRole === "attendance_only") router.push("/employee/dashboard");
         else router.push("/");
       } else {
         const msg = response.message || t('loginFailed');

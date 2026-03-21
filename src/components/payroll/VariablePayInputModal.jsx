@@ -20,7 +20,7 @@ export default function VariablePayInputModal({ isOpen, onClose, run, onUpdate }
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/input/variable?runId=${run._id}`);
+            const res = await fetch(`/api/v1/admin/payroll/input/variable?runId=${run._id}`);
             if (!res.ok) throw new Error("Failed to fetch variable pay data");
             const data = await res.json();
             setEmployees(data);
@@ -70,7 +70,7 @@ export default function VariablePayInputModal({ isOpen, onClose, run, onUpdate }
                 });
             });
 
-            const res = await fetch("/api/payroll/input/variable", {
+            const res = await fetch("/api/v1/admin/payroll/input/variable", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ runId: run._id, inputs })

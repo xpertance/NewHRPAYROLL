@@ -48,8 +48,8 @@ export default function RosterPlanning() {
         try {
             setLoading(true);
             const [empRes, shiftRes] = await Promise.all([
-                fetch('/api/payroll/employees'),
-                fetch('/api/payroll/shifts')
+                fetch('/api/v1/admin/payroll/employees'),
+                fetch('/api/v1/admin/payroll/shifts')
             ]);
             const empData = await empRes.json();
             const shiftData = await shiftRes.json();
@@ -68,7 +68,7 @@ export default function RosterPlanning() {
         try {
             const startDate = dates[0].toISOString();
             const endDate = dates[dates.length - 1].toISOString();
-            const response = await fetch(`/api/payroll/roster?startDate=${startDate}&endDate=${endDate}`);
+            const response = await fetch(`/api/v1/admin/payroll/roster?startDate=${startDate}&endDate=${endDate}`);
             const data = await response.json();
             if (data.success) {
                 setRoster(data.roster || []);
@@ -97,7 +97,7 @@ export default function RosterPlanning() {
         }
 
         try {
-            const response = await fetch('/api/payroll/roster', {
+            const response = await fetch('/api/v1/admin/payroll/roster', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -127,7 +127,7 @@ export default function RosterPlanning() {
                 });
             });
 
-            const response = await fetch('/api/payroll/roster', {
+            const response = await fetch('/api/v1/admin/payroll/roster', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

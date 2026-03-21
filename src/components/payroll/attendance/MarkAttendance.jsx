@@ -21,7 +21,9 @@ export default function MarkAttendance({ onAttendanceMarked }) {
     const checkTodayAttendance = async () => {
         try {
             const today = new Date().toISOString().split("T")[0];
-            const res = await fetch(`/api/payroll/attendance?employeeId=${user.id}&date=${today}`);
+            const baseUrl = user.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
+            const res = await fetch(`${baseUrl}/payroll/attendance?employeeId=${user.id}&date=${today}`);
+            if (!res.ok) return;
             const data = await res.json();
 
             const record = data.attendance?.[0];
@@ -69,8 +71,9 @@ export default function MarkAttendance({ onAttendanceMarked }) {
             setLoading(true);
             setLocationError(null);
             const location = await getLocation();
+            const baseUrl = user.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
 
-            const res = await fetch("/api/payroll/attendance", {
+            const res = await fetch(`${baseUrl}/payroll/attendance`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -118,9 +121,10 @@ export default function MarkAttendance({ onAttendanceMarked }) {
             setLoading(true);
             setLocationError(null);
             const location = await getLocation();
+            const baseUrl = user.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
 
             // Use PUT to update existing record
-            const res = await fetch("/api/payroll/attendance", {
+            const res = await fetch(`${baseUrl}/payroll/attendance`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
