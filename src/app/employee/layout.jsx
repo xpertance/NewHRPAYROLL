@@ -154,7 +154,7 @@ function DashboardLayoutContent({ children }) {
 
   const adminNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
-    { name: t("employeeDirectory"), href: "/admin/payroll/employees", icon: Users },
+    { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
     {
       name: t("payrollManagement"),
       href: "/admin/payroll",
@@ -384,7 +384,7 @@ function DashboardLayoutContent({ children }) {
     'manage_departments': { name: t("department"), href: "/admin/organization/department", icon: Building2 },
     'view_organizations': { name: t("organizations"), href: "/super-admin/organizations", icon: Building2 },
     'manage_permissions': { name: t("permissions"), href: "/admin/organization/permissions", icon: Shield },
-    'manage_employees': { name: t("employeeDirectory"), href: "/admin/payroll/employees", icon: Users },
+    'manage_employees': { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
     'view_attendance': { name: t("attendanceDirectory"), href: "/admin/payroll/attendance", icon: UserCheck },
     // Example for the user's request:
     // 'add_product': { name: "Add Product", href: "/products/add", icon: Plus }, 
@@ -590,7 +590,7 @@ function DashboardLayoutContent({ children }) {
                   <h2 className="text-xl font-bold text-slate-800 leading-none">
                     {{
                       '/': t("dashboard"),
-                      '/payroll/employees': t("employeeManagement")
+                      '/employees': t("employeeManagement")
                     }[pathname] || (pathname || "").split('/').filter(Boolean).slice(-1)[0]?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || t("overview")}
                   </h2>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">

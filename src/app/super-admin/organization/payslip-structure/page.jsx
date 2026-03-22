@@ -183,7 +183,7 @@ const PayslipTemplate = () => {
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/crm/template");
+      const response = await fetch("/api/v1/admin/crm/template");
       const data = await response.json();
 
       if (data.success && data.data.length > 0) {
@@ -226,7 +226,7 @@ const PayslipTemplate = () => {
         createdBy: user.id,
       };
 
-      const response = await fetch("/api/crm/template", {
+      const response = await fetch("/api/v1/admin/crm/template", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -259,7 +259,7 @@ const PayslipTemplate = () => {
     try {
       setSaving(true);
 
-      const response = await fetch(`/api/crm/template/${templateId}`, {
+      const response = await fetch(`/api/v1/admin/crm/template/${templateId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -288,7 +288,7 @@ const PayslipTemplate = () => {
 
   const deleteTemplateFromDb = async (templateId) => {
     try {
-      const response = await fetch(`/api/crm/template/${templateId}`, {
+      const response = await fetch(`/api/v1/admin/crm/template/${templateId}`, {
         method: "DELETE",
       });
 

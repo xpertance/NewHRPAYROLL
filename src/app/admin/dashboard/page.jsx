@@ -126,7 +126,7 @@ export default function DashboardPage() {
 
         <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
           {/* ESS Quick Portal */}
-          <Link href="/ess">
+          <Link href="/admin/profile">
             <div className="group bg-gradient-to-r from-indigo-600 to-violet-700 rounded-2xl p-8 text-white shadow-xl shadow-indigo-200 hover:scale-[1.01] transition-all cursor-pointer relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
                 <Shield className="w-48 h-48" />
@@ -426,7 +426,7 @@ export default function DashboardPage() {
 
         <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
           {/* Personal ESS Portal */}
-          <Link href="/ess">
+          <Link href="/admin/profile">
             <div className="group bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg hover:scale-[1.005] transition-all cursor-pointer relative overflow-hidden">
               <div className="relative z-10 flex justify-between items-center">
                 <div className="flex items-center gap-4">

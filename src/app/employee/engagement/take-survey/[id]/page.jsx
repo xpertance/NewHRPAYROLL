@@ -26,7 +26,7 @@ export default function TakeSurvey() {
 
     const fetchSurvey = async () => {
         try {
-            const res = await fetch("/api/engagement/surveys");
+            const res = await fetch("/api/v1/admin/engagement/surveys");
             const data = await res.json();
             if (data.success) {
                 const found = data.surveys.find(s => s._id === id);
@@ -60,7 +60,7 @@ export default function TakeSurvey() {
                 answer: ans
             }));
 
-            const res = await fetch("/api/engagement/responses", {
+            const res = await fetch("/api/v1/admin/engagement/responses", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

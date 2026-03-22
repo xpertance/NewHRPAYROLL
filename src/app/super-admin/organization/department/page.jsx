@@ -943,8 +943,8 @@ import {
 } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 
-const API_URL = '/api/crm/departments';
-const ORGANIZATIONS_API = '/api/crm/organizations';
+const API_URL = '/api/v1/admin/crm/departments';
+const ORGANIZATIONS_API = '/api/v1/super-admin/organizations';
 
 const initialFormData = {
   organizationId: '',
@@ -1040,7 +1040,7 @@ export default function DepartmentsPage() {
 
   const fetchPermissions = async () => {
     try {
-      const res = await fetch('/api/crm/permissions?limit=-1');
+      const res = await fetch('/api/v1/admin/crm/permissions?limit=-1');
       if (res.ok) {
         const data = await res.json();
         setAvailablePermissions(data.data || []);

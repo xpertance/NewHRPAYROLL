@@ -26,7 +26,7 @@ export default function SurveyStats() {
         try {
             setLoading(true);
             // Fetch survey metadata
-            const surveyRes = await fetch("/api/engagement/surveys");
+            const surveyRes = await fetch("/api/v1/admin/engagement/surveys");
             const surveyData = await surveyRes.json();
             if (surveyData.success) {
                 const found = surveyData.surveys.find(s => s._id === id);
@@ -34,7 +34,7 @@ export default function SurveyStats() {
             }
 
             // Fetch survey responses
-            const responseRes = await fetch(`/api/engagement/responses?surveyId=${id}`);
+            const responseRes = await fetch(`/api/v1/admin/engagement/responses?surveyId=${id}`);
             const responseData = await responseRes.json();
             if (responseData.success) {
                 setResponses(responseData.responses);
