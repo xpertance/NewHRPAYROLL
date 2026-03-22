@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "@/context/SessionContext";
-import { PayrollRunDashboard } from "@/components/payroll/payroll-run-dashboard";
+import PayrollRunDashboard from "@/components/payroll/payroll-run-dashboard";
 
 export default function RunPayrollPage() {
   const { user, loading } = useSession();

@@ -73,7 +73,7 @@ export default function AttendanceDashboard() {
   const fetchOrganizations = async () => {
     try {
       const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
-      const response = await fetch(`${baseUrl}/crm/organizations?limit=1000`);
+      const response = await fetch(`${baseUrl}/organizations?limit=1000`);
       const data = await response.json();
 
       if (response.ok) {
@@ -106,7 +106,7 @@ export default function AttendanceDashboard() {
       }
 
       const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
-      const response = await fetch(`${baseUrl}/payroll/employees?${params}`);
+      const response = await fetch(`${baseUrl}/employees?${params}`);
       const data = await response.json();
 
       console.log(user.role);
@@ -161,7 +161,7 @@ export default function AttendanceDashboard() {
 
       const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
       const response = await fetch(
-        `${baseUrl}/payroll/attendance?${params.toString()}`
+        `${baseUrl}/attendance?${params.toString()}`
       );
       const data = await response.json();
 
@@ -698,7 +698,7 @@ export default function AttendanceDashboard() {
                 {exportLoading ? "Exporting..." : "Export"}
               </button>
               {user?.role === "admin" && <button
-                onClick={() => router.push(user?.role === 'employee' ? '/employee/attendance/import' : "/admin/attendance/import")}
+                onClick={() => router.push(user?.role === 'employee' ? '/employee/attendance/import' : "/admin/attendance/import-attendance")}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors font-medium"
               >
                 <Upload className="w-4 h-4" />

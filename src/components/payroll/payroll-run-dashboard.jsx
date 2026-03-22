@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { CalendarDays, PlayCircle, Loader2, AlertCircle, RefreshCw, FileText } from "lucide-react";
 
-export function PayrollRunDashboard() {
+export default function PayrollRunDashboard() {
   const router = useRouter();
   const { user } = useSession();
   const [loading, setLoading] = useState(false);

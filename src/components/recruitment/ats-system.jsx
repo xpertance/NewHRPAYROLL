@@ -64,18 +64,18 @@ export default function ATSSystem() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const [jobsRes, candidatesRes, interviewersRes] = await Promise.all([
+            const [jobsRes, pipelineRes, interviewersRes] = await Promise.all([
                 fetch('/api/v1/admin/recruitment/jobs'),
-                fetch('/api/v1/admin/recruitment/candidates'),
+                fetch('/api/v1/admin/recruitment/pipeline'),
                 fetch('/api/v1/admin/recruitment/interviews') // Reusing this to get interviewers
             ]);
 
             const jobsData = await jobsRes.json();
-            const candidatesData = await candidatesRes.json();
+            const pipelineData = await pipelineRes.json();
             const intData = await interviewersRes.json();
 
             setJobs(jobsData.jobs || []);
-            setCandidates(candidatesData.candidates || []);
+            setCandidates(pipelineData.candidates || []);
             setInterviewers(intData.interviewers || []);
         } catch (error) {
             console.error("Error fetching ATS data:", error);

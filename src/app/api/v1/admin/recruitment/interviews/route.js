@@ -6,16 +6,29 @@ import Employee from '@/lib/db/models/payroll/Employee';
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
 
+        // SaaS PROTECTION: Scope to org
+        let query = {};
+        if (authUser.role !== "super_admin" && authUser.organizationId) {
+            query.organizationId = authUser.organizationId;
+        }
+
         // Fetch candidates with interviews
-        const candidates = await Candidate.find({})
+        const candidates = await Candidate.find(query)
             .populate('jobRequisition', 'title department')
             .populate('interviews.interviewer', 'personalDetails jobDetails')
             .lean();
 
         // Also fetch active employees to be used as interviewers
-        const interviewers = await Employee.find({ status: 'Active' })
+        const interviewerQuery = { status: 'Active' };
+        if (authUser.role !== "super_admin" && authUser.organizationId) {
+            interviewerQuery['jobDetails.organizationId'] = authUser.organizationId;
+        }
+
+        const interviewers = await Employee.find(interviewerQuery)
             .select('personalDetails jobDetails')
             .lean();
 
@@ -32,21 +45,25 @@ export async function GET(request) {
         ).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         return NextResponse.json({
+            success: true,
             interviews: allInterviews,
             interviewers: interviewers.map(emp => ({
                 _id: emp._id,
                 name: `${emp.personalDetails.firstName} ${emp.personalDetails.lastName}`,
-                designation: emp.jobDetails.designation,
-                department: emp.jobDetails.department
+                designation: emp.jobDetails?.designation,
+                department: emp.jobDetails?.department
             }))
         });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("GET INTERVIEWS ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
         const { candidateId, interview } = body;
@@ -74,14 +91,17 @@ export async function POST(request) {
         candidate.interviews.push(interview);
         await candidate.save();
 
-        return NextResponse.json({ message: "Interview scheduled successfully", candidate });
+        return NextResponse.json({ success: true, message: "Interview scheduled successfully", candidate });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("POST INTERVIEW ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
 export async function PUT(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
         const { candidateId, interviewId, updateData } = body;
@@ -103,8 +123,9 @@ export async function PUT(request) {
         };
 
         await candidate.save();
-        return NextResponse.json({ message: "Interview updated successfully" });
+        return NextResponse.json({ success: true, message: "Interview updated successfully" });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("PUT INTERVIEW ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

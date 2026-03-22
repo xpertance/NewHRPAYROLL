@@ -94,13 +94,13 @@ export default function RecruitmentHub() {
 
                 <div className="flex flex-wrap items-center gap-4">
                     <button
-                        onClick={() => router.push('/recruitment/ats')}
+                        onClick={() => router.push('/admin/recruitment/ats')}
                         className="bg-white border-2 border-slate-100 text-slate-900 px-8 h-18 rounded-[28px] text-[13px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-100 transition-all flex items-center gap-3 shadow-xl shadow-slate-200/50 group"
                     >
                         <Users className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" /> ATS Board
                     </button>
                     <button
-                        onClick={() => router.push('/recruitment/interviews')}
+                        onClick={() => router.push('/admin/recruitment/interviews')}
                         className="bg-white border-2 border-slate-100 text-slate-900 px-8 h-18 rounded-[28px] text-[13px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-100 transition-all flex items-center gap-3 shadow-xl shadow-slate-200/50 group"
                     >
                         <Calendar className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" /> Interviews
