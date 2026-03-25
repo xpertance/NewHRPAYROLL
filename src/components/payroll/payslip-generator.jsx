@@ -269,11 +269,11 @@ export default function PayslipGenerator() {
 
   const fetchEmployees = async () => {
     try {
-      const response = await fetch("/api/v1/admin/payroll/employees?limit=1000");
+      const response = await fetch("/api/v1/admin/employees?limit=1000");
       const data = await response.json();
       console.log("Fetched employees:", data);
       if (response.ok) {
-        setEmployees(data.employees || []);
+        setEmployees(data.data || data.employees || []);
       } else {
         console.error("Failed to fetch employees:", data.error);
       }
@@ -285,10 +285,11 @@ export default function PayslipGenerator() {
   const fetchEmployeeDetails = async (employeeId) => {
     try {
       setLoadingEmployeeDetails(true);
-      const response = await fetch(`/api/v1/admin/payroll/employees/${employeeId}`);
+      const response = await fetch(`/api/v1/admin/employees/${employeeId}`);
       const data = await response.json();
       if (response.ok) {
-        const { salaryDetails, payslipStructure } = data;
+        const empData = data.employee || data;
+        const { salaryDetails, payslipStructure } = empData;
         const earnings = (payslipStructure?.earnings || []).map((e) => ({
           name: e.name || "Other",
           type: e.name || "Other",
@@ -309,7 +310,7 @@ export default function PayslipGenerator() {
           enabled: d.enabled !== false,
           editable: d.editable !== false,
         }));
-        setEmployeeData(data);
+        setEmployeeData(empData);
         setFormData((prev) => ({
           ...prev,
           basicSalary: payslipStructure?.basicSalary || 0,
@@ -341,7 +342,7 @@ export default function PayslipGenerator() {
     setLoadingLeaves(true);
     try {
       const response = await fetch(
-        `/api/v1/admin/payroll/leaves?employeeId=${formData.employee}&year=${formData.year}`
+        `/api/v1/admin/leaves?employeeId=${formData.employee}&year=${formData.year}`
       );
       const data = await response.json();
       if (response.ok && data.leaves && data.leaves.length > 0) {
@@ -406,7 +407,7 @@ export default function PayslipGenerator() {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
       const response = await fetch(
-        `/api/v1/admin/payroll/attendance?employeeId=${employeeId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `/api/v1/admin/attendance?employeeId=${employeeId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
       const data = await response.json();
       if (response.ok && data.attendance) {
@@ -445,7 +446,7 @@ export default function PayslipGenerator() {
     setCheckingDuplicate(true);
     try {
       const response = await fetch(
-        `/api/v1/admin/payroll/payslip?employee=${formData.employee}&month=${formData.month}&year=${formData.year}`
+        `/api/v1/admin/payslips?employee=${formData.employee}&month=${formData.month}&year=${formData.year}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -821,7 +822,7 @@ export default function PayslipGenerator() {
         salaryType: employeeData?.payslipStructure?.salaryType || "monthly",
         generatedBy: user?.id, // Add the current user ID
       };
-      const response = await fetch("/api/v1/admin/payroll/payslip", {
+      const response = await fetch("/api/v1/admin/payslips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -851,7 +852,7 @@ export default function PayslipGenerator() {
         setDuplicatePayslip(null);
 
         // Redirect immediately
-        router.push("/payroll/payslip");
+        router.push("/admin/payroll/payslip");
       } else {
         if (data.error === "DUPLICATE_PAYSLIP") {
           setDuplicatePayslip(data.existingPayslipId);

@@ -12,7 +12,45 @@ export async function GET(request, { params }) {
 
         if (!project) return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 
-        return NextResponse.json({ success: true, project });
+        // Fetch related tasks for statistics
+        const [Task, TimesheetEntry] = await Promise.all([
+            import('@/lib/db/models/tasks/Task').then(m => m.default),
+            import('@/lib/db/models/tasks/TimesheetEntry').then(m => m.default)
+        ]);
+
+        const tasks = await Task.find({ project: params.id });
+        
+        const stats = {
+            totalTasks: tasks.length,
+            completedTasks: tasks.filter(t => t.status === 'Completed').length,
+            pendingTasks: tasks.filter(t => t.status === 'Pending').length,
+            inProgressTasks: tasks.filter(t => t.status === 'In Progress').length,
+            totalEstimatedHours: tasks.reduce((acc, t) => acc + (t.estimatedHours || 0), 0),
+            overallProgress: tasks.length > 0 
+                ? Math.round(tasks.reduce((acc, t) => acc + (t.progress || 0), 0) / tasks.length) 
+                : 0
+        };
+
+        // Fetch total logged hours from timesheets and aggregate per member
+        const timeEntries = await TimesheetEntry.find({ project: params.id }).populate('employee', 'personalDetails.firstName personalDetails.lastName');
+        
+        stats.totalLoggedHours = timeEntries.reduce((acc, e) => acc + (e.hours || 0), 0);
+        
+        const memberStats = {};
+        timeEntries.forEach(entry => {
+            const memberId = entry.employee?._id?.toString();
+            if (!memberId) return;
+            if (!memberStats[memberId]) {
+                memberStats[memberId] = {
+                    name: `${entry.employee.personalDetails.firstName} ${entry.employee.personalDetails.lastName}`,
+                    hours: 0
+                };
+            }
+            memberStats[memberId].hours += (entry.hours || 0);
+        });
+        stats.memberAggregation = Object.values(memberStats);
+
+        return NextResponse.json({ success: true, project, stats });
     } catch (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }

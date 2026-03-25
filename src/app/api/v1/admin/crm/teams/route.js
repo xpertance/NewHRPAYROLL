@@ -12,14 +12,14 @@ export async function POST(request) {
 
         if (!body.departmentId || !body.name) {
             return NextResponse.json(
-                { error: "Department ID and Team name are required" },
+                { success: false, error: "Department ID and Team name are required" },
                 { status: 400 }
             );
         }
 
         const department = await Department.findById(body.departmentId);
         if (!department) {
-            return NextResponse.json({ error: "Department not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Department not found" }, { status: 404 });
         }
 
         const existingTeam = await Team.findOne({
@@ -29,7 +29,7 @@ export async function POST(request) {
 
         if (existingTeam) {
             return NextResponse.json(
-                { error: "Team name already exists in this department" },
+                { success: false, error: "Team name already exists in this department" },
                 { status: 400 }
             );
         }
@@ -60,12 +60,12 @@ export async function POST(request) {
         });
 
         return NextResponse.json(
-            { message: "Team created successfully", team: populatedTeam },
+            { success: true, message: "Team created successfully", team: populatedTeam },
             { status: 201 }
         );
     } catch (error) {
         console.error("Create Team error:", error);
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
 
@@ -104,6 +104,7 @@ export async function GET(request) {
         const total = await Team.countDocuments(query);
 
         return NextResponse.json({
+            success: true,
             data: teams,
             pagination: {
                 total,
@@ -114,7 +115,7 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Get Teams error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
@@ -125,13 +126,13 @@ export async function PUT(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ error: "Team ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Team ID is required" }, { status: 400 });
         }
 
         const body = await request.json();
         const existingTeam = await Team.findById(id);
         if (!existingTeam) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Team not found" }, { status: 404 });
         }
 
         if (body.name) {
@@ -142,7 +143,7 @@ export async function PUT(request) {
             });
             if (duplicateTeam) {
                 return NextResponse.json(
-                    { error: "Team name already exists in this department" },
+                    { success: false, error: "Team name already exists in this department" },
                     { status: 400 }
                 );
             }
@@ -174,10 +175,10 @@ export async function PUT(request) {
             req: request
         });
 
-        return NextResponse.json({ message: "Team updated successfully", team: updatedTeam });
+        return NextResponse.json({ success: true, message: "Team updated successfully", team: updatedTeam });
     } catch (error) {
         console.error("Update Team error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
@@ -188,12 +189,12 @@ export async function DELETE(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ error: "Team ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Team ID is required" }, { status: 400 });
         }
 
         const team = await Team.findById(id);
         if (!team) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Team not found" }, { status: 404 });
         }
 
         await Team.findByIdAndDelete(id);
@@ -205,9 +206,9 @@ export async function DELETE(request) {
             req: request
         });
 
-        return NextResponse.json({ message: "Team deleted successfully" });
+        return NextResponse.json({ success: true, message: "Team deleted successfully" });
     } catch (error) {
         console.error("Delete Team error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

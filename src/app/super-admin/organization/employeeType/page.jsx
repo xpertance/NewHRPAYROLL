@@ -782,7 +782,7 @@ export default function EmployeeTypesPage() {
       params.set("page", "1");
       params.set("limit", "100");
       params.set("status", "Active");
-      const res = await fetch(`/api/crm/organizations?${params.toString()}`);
+      const res = await fetch(`/api/v1/super-admin/organizations?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setOrganizations(data.organizations || []);
@@ -799,7 +799,7 @@ export default function EmployeeTypesPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/crm/departments?organizationId=${organizationId}&limit=100`);
+      const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${organizationId}&limit=100`);
       const data = await response.json();
       if (response.ok) {
         setDepartments(data.data || []);
@@ -816,7 +816,7 @@ export default function EmployeeTypesPage() {
       if (organizationId) params.set("organizationId", organizationId);
       if (departmentId) params.set("departmentId", departmentId);
       params.set("limit", "1000");
-      const res = await fetch(`/api/crm/employeetype?${params.toString()}`);
+      const res = await fetch(`/api/v1/admin/crm/employeetype?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setEmployeeTypes(data.data || []);
@@ -833,7 +833,7 @@ export default function EmployeeTypesPage() {
       if (organizationId) params.set("organizationId", organizationId);
       if (departmentId) params.set("departmentId", departmentId);
       params.set("limit", "1000");
-      const res = await fetch(`/api/crm/employeecategory?${params.toString()}`);
+      const res = await fetch(`/api/v1/admin/crm/employeecategory?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setCategories(data.data || []);
@@ -850,7 +850,7 @@ export default function EmployeeTypesPage() {
       if (organizationId) params.set("organizationId", organizationId);
       if (departmentId) params.set("departmentId", departmentId);
       params.set("limit", "1000");
-      const res = await fetch(`/api/crm/employeesubcategory?${params.toString()}`);
+      const res = await fetch(`/api/v1/admin/crm/employeesubcategory?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setSubCategories(data.data || []);
@@ -957,7 +957,7 @@ export default function EmployeeTypesPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/crm/employeecategory/${categoryId}`, {
+      const res = await fetch(`/api/v1/admin/crm/employeecategory/${categoryId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -976,7 +976,7 @@ export default function EmployeeTypesPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/crm/employeetype/${typeId}`, {
+      const res = await fetch(`/api/v1/admin/crm/employeetype/${typeId}`, {
         method: "DELETE",
       });
       if (!res.ok) {

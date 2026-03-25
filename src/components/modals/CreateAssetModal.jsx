@@ -31,7 +31,7 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
                 return;
             }
 
-            const res = await fetch("/api/assets", {
+            const res = await fetch("/api/v1/admin/assets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),

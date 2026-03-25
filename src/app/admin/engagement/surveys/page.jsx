@@ -25,7 +25,7 @@ export default function SurveyList() {
 
     const fetchSurveys = async () => {
         try {
-            const res = await fetch("/api/engagement/surveys");
+            const res = await fetch("/api/v1/admin/engagement/surveys");
             const data = await res.json();
             if (data.success) setSurveys(data.surveys);
         } catch (error) {
@@ -47,7 +47,7 @@ export default function SurveyList() {
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <Link href="/admin/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-500" />
                     </Link>
                     <div>
@@ -56,7 +56,7 @@ export default function SurveyList() {
                     </div>
                 </div>
                 <Link
-                    href="/engagement/surveys/new"
+                    href="/admin/engagement/surveys/new"
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-4 h-4" />
@@ -111,7 +111,7 @@ export default function SurveyList() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <Link href={`/engagement/surveys/${survey._id}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                        <Link href={`/admin/engagement/surveys/${survey._id}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                                             <Eye className="w-4 h-4" />
                                         </Link>
                                         <button

@@ -7,7 +7,7 @@ import {
   MoreHorizontal, ChevronLeft, ChevronRight, FilterX
 } from 'lucide-react';
 
-const API_URL = '/api/crm/permissions';
+const API_URL = '/api/v1/admin/crm/permissions';
 
 const initialFormData = {
   name: '',

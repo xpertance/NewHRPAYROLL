@@ -21,6 +21,7 @@ const candidateSchema = z.object({
 export async function GET(request) {
     try {
         const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const jobId = searchParams.get('jobId');
@@ -43,17 +44,17 @@ export async function GET(request) {
             .populate('jobRequisition', 'title department')
             .sort({ createdAt: -1 });
 
-        return NextResponse.json({ candidates });
+        return NextResponse.json({ success: true, candidates });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("GET CANDIDATES ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
 export async function POST(request) {
     try {
         const authUser = await getAuthUser();
-        // Removed strict authorization
-        
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
         const validatedData = candidateSchema.parse(body);
@@ -62,17 +63,20 @@ export async function POST(request) {
         const orgId = authUser.role === 'admin' ? authUser.organizationId : body.organizationId;
 
         const candidate = await Candidate.create({ ...validatedData, organizationId: orgId });
-        return NextResponse.json({ candidate, message: "Candidate application received" }, { status: 201 });
+        return NextResponse.json({ success: true, candidate, message: "Candidate application received" }, { status: 201 });
     } catch (error) {
+        console.error("POST CANDIDATE ERROR:", error);
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Validation failed', details: error.errors }, { status: 400 });
         }
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
 export async function PUT(request) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
         const { id, ...updateData } = body;
@@ -154,10 +158,12 @@ export async function PUT(request) {
         }
 
         return NextResponse.json({
+            success: true,
             candidate,
             message: newStatus === 'Hired' ? "Candidate Hired & Onboarding Initiated!" : "Candidate updated successfully"
         });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("PUT CANDIDATE ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { 
   ArrowLeft, Lock, Send, FileText, CheckCircle, 
-  AlertTriangle, DollarSign, Calculator, Users, Clock 
+  AlertTriangle, DollarSign, Calculator, Users, Clock,
+  Download, ChevronDown
 } from "lucide-react";
 
 export function PayrollRunReview({ runId }) {
@@ -13,6 +14,8 @@ export function PayrollRunReview({ runId }) {
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [showBankDropdown, setShowBankDropdown] = useState(false);
   const [run, setRun] = useState(null);
   const [payslips, setPayslips] = useState([]);
 
@@ -85,6 +88,38 @@ export function PayrollRunReview({ runId }) {
       setPublishing(false);
     }
   };
+  
+  const handleRecalculate = async () => {
+    const confirm = window.confirm(
+      "Are you sure you want to RECALCULATE this payroll run?\n\nThis will re-fetch all attendance, leaves, and salary structures to update the draft payslips."
+    );
+    if (!confirm) return;
+
+    setProcessing(true);
+    const toastId = toast.loading("Recalculating all payslips in this batch...");
+    try {
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}/process`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Passing current user as performedBy if your API expects it
+        body: JSON.stringify({ performedBy: "Admin" }) 
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to recalculate run");
+      
+      toast.success("Recalculation complete!", { id: toastId });
+      fetchData(); // Refresh UI
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const downloadBankFile = (format) => {
+    window.open(`/api/v1/admin/payroll/run/${runId}/export-bank?format=${format}`, '_blank');
+    setShowBankDropdown(false);
+  };
 
   if (loading) {
     return (
@@ -115,7 +150,7 @@ export function PayrollRunReview({ runId }) {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <button 
-          onClick={() => router.push('/payroll/run')}
+          onClick={() => router.push('/admin/payroll/run')}
           className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -154,14 +189,24 @@ export function PayrollRunReview({ runId }) {
       {/* Action Buttons aligned right */}
       <div className="flex justify-end gap-3 pb-2 border-b border-slate-200">
          {isDraft && (
-           <button 
-             onClick={handleLock}
-             disabled={locking}
-             className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 font-medium rounded-lg transition-colors"
-           >
-             <Lock className="w-4 h-4" />
-             Lock Payroll
-           </button>
+           <>
+             <button 
+               onClick={handleRecalculate}
+               disabled={processing || locking}
+               className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 font-medium rounded-lg transition-colors shadow-sm"
+             >
+               <Calculator className="w-4 h-4" />
+               Recalculate
+             </button>
+             <button 
+               onClick={handleLock}
+               disabled={locking || processing}
+               className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 font-medium rounded-lg transition-colors shadow-sm"
+             >
+               <Lock className="w-4 h-4" />
+               Lock Payroll
+             </button>
+           </>
          )}
          
          {isLocked && (
@@ -262,7 +307,7 @@ export function PayrollRunReview({ runId }) {
                   </td>
                   <td className="px-6 py-4 text-right">
                      <button 
-                       onClick={() => router.push(`/payroll/payslip/${slip._id}`)}
+                       onClick={() => router.push(`/admin/payroll/payslip/${slip._id}`)}
                        className="text-indigo-600 hover:underline text-xs"
                      >
                        View Slip

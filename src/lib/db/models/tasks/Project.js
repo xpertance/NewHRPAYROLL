@@ -32,7 +32,14 @@ const projectSchema = new mongoose.Schema(
         budget: { type: Number, default: 0 },
         currency: { type: String, default: "INR" },
         isInternal: { type: Boolean, default: false },
+        billingType: {
+            type: String,
+            enum: ["Fixed", "Time & Material"],
+            default: "Fixed",
+        },
+        isBillable: { type: Boolean, default: true },
     },
+
     { timestamps: true }
 );
 

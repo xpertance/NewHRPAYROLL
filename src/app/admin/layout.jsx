@@ -163,7 +163,7 @@ function DashboardLayoutContent({ children }) {
 
   const adminNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
-    { name: t("employeeDirectory"), href: "/admin/payroll/employees", icon: Users },
+    { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
     {
       name: t("payrollManagement"),
       href: "/admin/payroll",
@@ -171,12 +171,12 @@ function DashboardLayoutContent({ children }) {
       children: [
         {
           name: t("attendanceDirectory"),
-          href: "/admin/payroll/attendance",
+          href: "/admin/attendance",
           icon: UserCheck,
         },
         {
           name: t("holidayManagement"),
-          href: "/admin/payroll/holidays",
+          href: "/admin/holidays",
           icon: Calendar,
         },
         {
@@ -221,7 +221,7 @@ function DashboardLayoutContent({ children }) {
         },
         {
           name: t("leaveManagement"),
-          href: "/admin/payroll/leaves",
+          href: "/admin/leaves",
           icon: CalendarRange,
         },
         {
@@ -343,7 +343,7 @@ function DashboardLayoutContent({ children }) {
   const supervisorNavigation = [
     {
       name: t("attendanceDirectory"),
-      href: "/admin/payroll/attendance",
+      href: "/admin/attendance",
       icon: UserCheck,
     },
     { name: t("myPayslip"), href: "/admin/payroll/my-payslip", icon: Receipt },
@@ -373,7 +373,7 @@ function DashboardLayoutContent({ children }) {
   const attendanceOnlyNavigation = [
     {
       name: t("attendanceDirectory"),
-      href: "/admin/payroll/attendance",
+      href: "/admin/attendance",
       icon: UserCheck,
     },
     { name: t("changePassword"), href: "/change-password", icon: Lock },
@@ -393,8 +393,8 @@ function DashboardLayoutContent({ children }) {
     'manage_departments': { name: t("department"), href: "/admin/organization/department", icon: Building2 },
     'view_organizations': { name: t("organizations"), href: "/super-admin/organizations", icon: Building2 },
     'manage_permissions': { name: t("permissions"), href: "/admin/organization/permissions", icon: Shield },
-    'manage_employees': { name: t("employeeDirectory"), href: "/admin/payroll/employees", icon: Users },
-    'view_attendance': { name: t("attendanceDirectory"), href: "/admin/payroll/attendance", icon: UserCheck },
+    'manage_employees': { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
+    'view_attendance': { name: t("attendanceDirectory"), href: "/admin/attendance", icon: UserCheck },
     // Example for the user's request:
     // 'add_product': { name: "Add Product", href: "/products/add", icon: Plus }, 
   };
@@ -599,7 +599,7 @@ function DashboardLayoutContent({ children }) {
                   <h2 className="text-xl font-bold text-slate-800 leading-none">
                     {{
                       '/': t("dashboard"),
-                      '/payroll/employees': t("employeeManagement")
+                      '/employees': t("employeeManagement")
                     }[pathname] || (pathname || "").split('/').filter(Boolean).slice(-1)[0]?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || t("overview")}
                   </h2>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -626,7 +626,7 @@ function DashboardLayoutContent({ children }) {
                 </DropdownMenu>
 
                 <button
-                  onClick={() => router.push('/notifications')}
+                  onClick={() => router.push('/admin/notifications')}
                   className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors relative"
                   aria-label="Notifications"
                 >
@@ -664,7 +664,7 @@ function DashboardLayoutContent({ children }) {
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator className="-mx-1 my-1 border-t border-slate-100" />
 
-                      <DropdownMenuItem onClick={() => router.push("/ess")}>
+                      <DropdownMenuItem onClick={() => router.push("/admin/profile")}>
                         <User className="w-4 h-4 mr-2 text-slate-500" />
                         {t("myPortal")}
                       </DropdownMenuItem>

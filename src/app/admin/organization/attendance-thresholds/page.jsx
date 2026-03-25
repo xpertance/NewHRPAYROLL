@@ -63,7 +63,8 @@ export default function AttendanceThresholds() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch organizations');
       }
-      const organizationOptions = data.organizations.map(org => ({
+      const orgsList = data.data || data.organizations || [];
+      const organizationOptions = orgsList.map(org => ({
         value: org._id,
         label: org.name,
         orgId: org.orgId

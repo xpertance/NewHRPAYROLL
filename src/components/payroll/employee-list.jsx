@@ -78,11 +78,12 @@ export default function EmployeeList() {
       const data = await response.json();
 
       if (response.ok) {
-        setEmployees(data.employees || []);
+        const employeesList = data.data || data.employees || [];
+        setEmployees(employeesList);
         // Auto-expand all organizations initially when grouping is enabled
         if (groupByOrganization) {
           const orgs = {};
-          (data.employees || []).forEach(emp => {
+          employeesList.forEach(emp => {
             const orgName = emp.organizationType || emp.jobDetails?.organizationId?.name || 'Unassigned';
             orgs[orgName] = true;
           });
@@ -583,7 +584,7 @@ export default function EmployeeList() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Employee Directory</h1>
-                <p className="text-slate-600 text-sm mt-0.5">Manage your supply chain workforce and team operations</p>
+                <p className="text-slate-600 text-sm mt-0.5">Manage your organizational workforce and team operations</p>
               </div>
             </div>
 
@@ -602,7 +603,7 @@ export default function EmployeeList() {
               </button>
 
               <Link
-                href="/admin/payroll/employees/new"
+                href="/admin/employees/new"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
               >
                 <Plus className="w-4 h-4" />

@@ -20,14 +20,14 @@ export async function POST(request) {
 
         if (!body.organizationId || !body.name) {
             return NextResponse.json(
-                { error: "Organization ID and Business Unit name are required" },
+                { success: false, error: "Organization ID and Business Unit name are required" },
                 { status: 400 }
             );
         }
 
         const organization = await Organization.findById(body.organizationId);
         if (!organization) {
-            return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Organization not found" }, { status: 404 });
         }
 
         const existingBU = await BusinessUnit.findOne({
@@ -37,7 +37,7 @@ export async function POST(request) {
 
         if (existingBU) {
             return NextResponse.json(
-                { error: "Business Unit name already exists in this organization" },
+                { success: false, error: "Business Unit name already exists in this organization" },
                 { status: 400 }
             );
         }
@@ -64,12 +64,12 @@ export async function POST(request) {
         });
 
         return NextResponse.json(
-            { message: "Business Unit created successfully", businessUnit: populatedBU },
+            { success: true, message: "Business Unit created successfully", businessUnit: populatedBU },
             { status: 201 }
         );
     } catch (error) {
         console.error("Create Business Unit error:", error);
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
 
@@ -103,6 +103,7 @@ export async function GET(request) {
         const total = await BusinessUnit.countDocuments(query);
 
         return NextResponse.json({
+            success: true,
             data: businessUnits,
             pagination: {
                 total,
@@ -113,7 +114,7 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Get Business Units error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
@@ -127,13 +128,13 @@ export async function PUT(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ error: "Business Unit ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Business Unit ID is required" }, { status: 400 });
         }
 
         const body = await request.json();
         const existingBU = await BusinessUnit.findById(id);
         if (!existingBU) {
-            return NextResponse.json({ error: "Business Unit not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Business Unit not found" }, { status: 404 });
         }
 
         if (body.name) {
@@ -144,7 +145,7 @@ export async function PUT(request) {
             });
             if (duplicateBU) {
                 return NextResponse.json(
-                    { error: "Business Unit name already exists in this organization" },
+                    { success: false, error: "Business Unit name already exists in this organization" },
                     { status: 400 }
                 );
             }
@@ -172,10 +173,10 @@ export async function PUT(request) {
             req: request
         });
 
-        return NextResponse.json({ message: "Business Unit updated successfully", businessUnit: updatedBU });
+        return NextResponse.json({ success: true, message: "Business Unit updated successfully", businessUnit: updatedBU });
     } catch (error) {
         console.error("Update Business Unit error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
@@ -189,12 +190,12 @@ export async function DELETE(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ error: "Business Unit ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Business Unit ID is required" }, { status: 400 });
         }
 
         const bu = await BusinessUnit.findById(id);
         if (!bu) {
-            return NextResponse.json({ error: "Business Unit not found" }, { status: 404 });
+            return NextResponse.json({ success: false, error: "Business Unit not found" }, { status: 404 });
         }
 
         await BusinessUnit.findByIdAndDelete(id);
@@ -206,9 +207,9 @@ export async function DELETE(request) {
             req: request
         });
 
-        return NextResponse.json({ message: "Business Unit deleted successfully" });
+        return NextResponse.json({ success: true, message: "Business Unit deleted successfully" });
     } catch (error) {
         console.error("Delete Business Unit error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

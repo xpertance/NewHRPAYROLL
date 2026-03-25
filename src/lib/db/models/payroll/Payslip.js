@@ -54,6 +54,12 @@ const payslipSchema = new mongoose.Schema(
       ref: "Organization",
       required: true,
     },
+    payrollRunId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PayrollRun",
+      default: null,
+      index: true,
+    },
     payslipId: {
       type: String,
       required: true,

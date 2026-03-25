@@ -758,7 +758,7 @@ export default function TaxCalculator() {
       }
       
       const data = await response.json();
-      setEmployees(data.employees || []);
+      setEmployees(data.data || data.employees || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Failed to load employees. Please try again.');

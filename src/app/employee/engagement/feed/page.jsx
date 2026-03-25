@@ -30,7 +30,7 @@ export default function SocialFeed() {
 
     const fetchFeed = async () => {
         try {
-            const res = await fetch("/api/engagement/shout-outs");
+            const res = await fetch("/api/v1/admin/engagement/shout-outs");
             const data = await res.json();
             if (data.success) setPosts(data.posts);
         } catch (error) {
@@ -56,7 +56,7 @@ export default function SocialFeed() {
 
         try {
             setSubmitting(true);
-            const res = await fetch("/api/engagement/shout-outs", {
+            const res = await fetch("/api/v1/admin/engagement/shout-outs", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newPost),
@@ -79,7 +79,7 @@ export default function SocialFeed() {
 
     const toggleLike = async (postId) => {
         try {
-            const res = await fetch(`/api/engagement/shout-outs/${postId}/like`, { method: "POST" });
+            const res = await fetch(`/api/v1/admin/engagement/shout-outs/${postId}/like`, { method: "POST" });
             const data = await res.json();
             if (data.success) {
                 setPosts(posts.map(p => p._id === postId ? {
@@ -201,7 +201,7 @@ function PostCard({ post, user, onLike }) {
 
         try {
             setSubmittingComment(true);
-            const res = await fetch(`/api/engagement/shout-outs/${post._id}/comment`, {
+            const res = await fetch(`/api/v1/admin/engagement/shout-outs/${post._id}/comment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: commentText }),

@@ -3,16 +3,22 @@ import dbConnect from '@/lib/db/connect';
 import Timesheet from '@/lib/db/models/tasks/Timesheet';
 import TimesheetEntry from '@/lib/db/models/tasks/TimesheetEntry';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser } from '@/lib/auth-util';
 
 export async function GET(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser(request);
+        if (!authUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const employeeId = searchParams.get('employeeId');
         const weekStartDate = searchParams.get('weekStartDate');
         const status = searchParams.get('status');
 
-        let query = {};
+        let query = { organizationId: authUser.organizationId };
         if (employeeId) query.employee = employeeId;
         if (weekStartDate) query.weekStartDate = new Date(weekStartDate);
         if (status) query.status = status;
@@ -43,6 +49,11 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser(request);
+        if (!authUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { employee, weekStartDate, entries, status = 'Draft' } = body;
 
@@ -60,6 +71,7 @@ export async function POST(request) {
             timesheet = new Timesheet({
                 employee,
                 weekStartDate: new Date(weekStartDate),
+                organizationId: authUser.organizationId,
                 status
             });
         } else {

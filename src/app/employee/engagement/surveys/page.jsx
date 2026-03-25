@@ -25,7 +25,7 @@ export default function SurveyList() {
 
     const fetchSurveys = async () => {
         try {
-            const res = await fetch("/api/engagement/surveys");
+            const res = await fetch("/api/v1/admin/engagement/surveys");
             const data = await res.json();
             if (data.success) setSurveys(data.surveys);
         } catch (error) {

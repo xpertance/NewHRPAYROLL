@@ -117,6 +117,19 @@ export default function TimesheetsPage() {
             return;
         }
 
+        // Daily Hour Validation
+        const dailyHours = {};
+        timesheetEntries.forEach(e => {
+            const dateStr = format(new Date(e.date), 'yyyy-MM-dd');
+            dailyHours[dateStr] = (dailyHours[dateStr] || 0) + (parseFloat(e.hours) || 0);
+        });
+
+        const overLoggedDate = Object.entries(dailyHours).find(([date, hours]) => hours > 24);
+        if (overLoggedDate) {
+            toast.error(`Total hours for ${overLoggedDate[0]} cannot exceed 24 hours. Currently: ${overLoggedDate[1]} hrs`);
+            return;
+        }
+
         setIsSavingTimesheet(true);
         try {
             const res = await fetch('/api/v1/employee/tasks/timesheets', {
@@ -225,8 +238,10 @@ export default function TimesheetsPage() {
                                     <th className="p-4 w-48">{t("date")}</th>
                                     <th className="p-4 w-24">{t("hours")}</th>
                                     <th className="p-4">{t("taskDescription")}</th>
+                                    <th className="p-4 w-24 text-center">Billable</th>
                                     <th className="p-4 w-16 text-center">{t("action")}</th>
                                 </tr>
+
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {timesheetEntries.map((entry, idx) => (

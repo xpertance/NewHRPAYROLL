@@ -148,7 +148,7 @@ export default function LeaveForm({ leaveId }) {
       const data = await response.json();
       console.log("Fetched Employees:", data);
       if (response.ok) {
-        setEmployees(data.employees || []);
+        setEmployees(data.data || data.employees || []);
       } else {
         console.error("Error fetching employees:", data.error);
         setEmployees([]);
@@ -461,7 +461,7 @@ export default function LeaveForm({ leaveId }) {
 
       if (response.ok) {
         toast.success(`Leave record ${isEdit ? "updated" : "created"} successfully!`);
-        router.push("/payroll/leaves");
+        router.push("/admin/payroll/leaves");
       } else {
         const data = await response.json();
         toast.error(`Error: ${data.error}`);

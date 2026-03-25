@@ -1272,7 +1272,7 @@ export default function PayslipList() {
                   </button>
                 ) : (
                   <Link
-                    href="/payroll/payslip/generate"
+                    href="/admin/payroll/payslip/generate"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl"
                   >
                     <Plus className="w-4 h-4" />

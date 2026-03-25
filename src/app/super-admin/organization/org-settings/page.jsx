@@ -72,11 +72,11 @@ export default function OrgSettingsPage() {
         try {
             setLoading(true);
             const [buRes, teamRes, ccRes, orgRes, deptRes] = await Promise.all([
-                fetch("/api/crm/business-units?limit=1000"),
-                fetch("/api/crm/teams?limit=1000"),
-                fetch("/api/finance/cost-centers?limit=1000"),
-                fetch("/api/crm/organizations?limit=1000"),
-                fetch("/api/crm/departments?limit=1000")
+                fetch("/api/v1/admin/crm/business-units?limit=1000"),
+                fetch("/api/v1/admin/crm/teams?limit=1000"),
+                fetch("/api/v1/admin/finance/cost-centers?limit=1000"),
+                fetch("/api/v1/super-admin/organizations?limit=1000"),
+                fetch("/api/v1/admin/crm/departments?limit=1000")
             ]);
 
             const [buData, teamData, ccData, orgData, deptData] = await Promise.all([
@@ -139,7 +139,7 @@ export default function OrgSettingsPage() {
             const type = activeTab === 'business-units' ? 'business-units' :
                 activeTab === 'teams' ? 'teams' : 'cost-centers';
 
-            const endpoint = type === 'cost-centers' ? `/api/finance/${type}` : `/api/crm/${type}`;
+            const endpoint = type === 'cost-centers' ? `/api/v1/admin/finance/${type}` : `/api/v1/admin/crm/${type}`;
             const method = editingItem ? 'PUT' : 'POST';
 
             // Clean data based on type
@@ -173,9 +173,9 @@ export default function OrgSettingsPage() {
         if (!confirm(`Are you sure you want to delete this ${type.slice(0, -1)}?`)) return;
 
         try {
-            const endpoint = type === 'businessUnits' ? `/api/crm/business-units` :
-                type === 'teams' ? `/api/crm/teams` :
-                    `/api/finance/cost-centers`;
+            const endpoint = type === 'businessUnits' ? `/api/v1/admin/crm/business-units` :
+                type === 'teams' ? `/api/v1/admin/crm/teams` :
+                    `/api/v1/admin/finance/cost-centers`;
 
             const response = await fetch(`${endpoint}?id=${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error("Delete failed");
