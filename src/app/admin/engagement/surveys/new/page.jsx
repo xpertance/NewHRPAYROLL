@@ -55,7 +55,7 @@ export default function NewSurvey() {
 
         try {
             setLoading(true);
-            const res = await fetch("/api/engagement/surveys", {
+            const res = await fetch("/api/v1/admin/engagement/surveys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -78,7 +78,7 @@ export default function NewSurvey() {
     return (
         <div className="p-6 max-w-4xl mx-auto space-y-8">
             <div className="flex items-center gap-4">
-                <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Link href="/admin/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <div>

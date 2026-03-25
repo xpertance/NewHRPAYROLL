@@ -7,6 +7,7 @@ import Payslip from '@/lib/db/models/payroll/Payslip';
 import RetroAdjustment from '@/lib/db/models/payroll/RetroAdjustment';
 import PayrollVariableInput from '@/lib/db/models/payroll/PayrollVariableInput';
 import VariablePayConfig from '@/lib/db/models/payroll/VariablePayConfig';
+import StatutoryConfig from '@/lib/db/models/payroll/StatutoryConfig';
 import { logActivity } from '@/lib/logger';
 
 export async function POST(request, { params }) {
@@ -48,123 +49,72 @@ export async function POST(request, { params }) {
                 // 0. Populate necessary refs
                 await employee.populate('jobDetails.organizationId');
 
-                // 1. Calculate Attendance-based LOP
-                const attendance = await Attendance.find({
-                    employee: employee._id,
-                    date: { $gte: startDate, $lte: endDate },
-                    status: { $in: ['Absent', 'Leave'] }
+                // 1. Fetch Statutory Config for Employee's State
+                const workState = employee.jobDetails?.workState || 'Maharashtra';
+                const statutoryConfig = await StatutoryConfig.findOne({ 
+                    state: { $regex: new RegExp(`^${workState}$`, 'i') } 
                 });
 
-                // Simplified LOP: Count any 'Absent' or unpaid 'Leave'
-                const lopDays = attendance.length;
-
-                const retros = await RetroAdjustment.find({
-                    employeeId: employee._id,
-                    status: 'Pending',
-                    // Optionally filter for retros intended for this specific month
+                // 2. Run Unified Calculation Engine (Async)
+                // This now handles Attendance, Leaves, Overtime, Loans, Retros, and Variable Pay
+                const salaryCalc = await employee.calculateSalaryComponents(statutoryConfig, {
+                    month: run.month,
+                    year: run.year
                 });
 
-                // 2.5 Fetch Variable Pay Inputs
-                const variableInputs = await PayrollVariableInput.find({
-                    payrollRunId: run._id,
-                    employeeId: employee._id
-                });
-
-                // Fetch component names for display
-                // Optimization: We could cache these outside the loop
-                const variableComponents = await VariablePayConfig.find({
-                    _id: { $in: variableInputs.map(v => v.componentId) }
-                });
-                const componentMap = {};
-                variableComponents.forEach(c => componentMap[c._id.toString()] = c.name);
-
-                // 3. Run Calculation Engine
-                const payrollData = employee.calculateSalaryComponents({
-                    workingDaysInMonth: daysInMonth,
-                    lopDays: lopDays,
-                    month: run.month
-                });
-
-                // Add Retros to calculations
-                let retroEarningTotal = retros.filter(r => r.type === 'Earning').reduce((sum, r) => sum + r.amount, 0);
-                let retroDeductionTotal = retros.filter(r => r.type === 'Deduction').reduce((sum, r) => sum + r.amount, 0);
-
-                // Add Variable Pay to calculations
-                let variablePayTotal = variableInputs.reduce((sum, v) => sum + v.payoutAmount, 0);
-
-                // Adjust final numbers
-                const finalGross = payrollData.totalEarnings + retroEarningTotal + variablePayTotal;
-                const finalDeductions = payrollData.totalDeductions + retroDeductionTotal;
-                const finalNet = finalGross - finalDeductions;
-
-                // 4. Create/Update Payslip
+                // 3. Create/Update Payslip Payload
+                const payslipId = `PSL-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+                
                 const payslipData = {
+                    payrollRunId: run._id,
                     employee: employee._id,
                     month: run.month,
                     year: run.year,
-                    basicSalary: Math.round(payrollData.basicSalary),
-                    grossSalary: Math.round(finalGross),
-                    totalDeductions: Math.round(finalDeductions),
-                    netSalary: Math.round(finalNet),
-                    earnings: payrollData.earnings.map(e => ({
+                    basicSalary: Math.round(salaryCalc.basicSalary),
+                    grossSalary: Math.round(salaryCalc.totalEarnings),
+                    totalDeductions: Math.round(salaryCalc.totalDeductions),
+                    netSalary: Math.round(salaryCalc.netSalary),
+                    earnings: salaryCalc.earnings.map(e => ({
                         type: e.name,
                         amount: Math.round(e.calculatedAmount),
                         calculationType: e.calculationType || 'fixed',
                         percentage: e.percentage || 0
                     })),
-                    deductions: payrollData.deductions.map(d => ({
+                    deductions: salaryCalc.deductions.map(d => ({
                         type: d.name,
                         amount: Math.round(d.calculatedAmount),
                         calculationType: d.calculationType || 'fixed',
                         percentage: d.percentage || 0
                     })),
                     workingDays: daysInMonth,
-                    presentDays: daysInMonth - lopDays,
-                    lopDays: lopDays,
+                    presentDays: daysInMonth - (salaryCalc.lopDays || 0),
+                    lopDays: salaryCalc.lopDays || 0,
+                    leaveDays: salaryCalc.lopDays || 0,
                     status: 'Draft',
+                    organizationId: run.organizationId,
                     organizationName: employee.jobDetails?.organizationId?.name || "N/A",
-                    salaryType: payrollData.salaryType,
-                    generatedBy: performedBy
+                    salaryType: salaryCalc.salaryType,
+                    generatedBy: performedBy,
+                    overtimeHours: salaryCalc.overtimeHours || 0,
+                    overtimeAmount: salaryCalc.overtimeAmount || 0,
+                    loanDeductions: salaryCalc.loanDeductions || 0,
+                    paymentMethod: employee.salaryDetails?.bankAccount?.accountNumber ? "Bank Transfer" : "Manual",
+                    paymentDetails: employee.salaryDetails?.bankAccount || {}
                 };
-
-                // Add additional retro entries if any
-                if (retros.length > 0) {
-                    retros.forEach(r => {
-                        if (r.type === 'Earning') {
-                            payslipData.earnings.push({ type: r.componentName + " (Retro)", amount: r.amount });
-                        } else {
-                            payslipData.deductions.push({ type: r.componentName + " (Retro)", amount: r.amount });
-                        }
-                    });
-                }
-
-                // Add Variable Pay entries
-                if (variableInputs.length > 0) {
-                    variableInputs.forEach(v => {
-                        const name = componentMap[v.componentId.toString()] || "Variable Pay";
-                        payslipData.earnings.push({
-                            type: name,
-                            amount: Math.round(v.payoutAmount),
-                            calculationType: 'performance_linked',
-                            percentage: v.achievementPercentage
-                        });
-                    });
-                }
 
                 // Upsert Payslip
                 const existingPayslip = await Payslip.findOne({ employee: employee._id, month: run.month, year: run.year });
                 if (existingPayslip) {
                     await Payslip.findByIdAndUpdate(existingPayslip._id, payslipData);
                 } else {
-                    const count = await Payslip.countDocuments();
-                    payslipData.payslipId = `PSL${String(count + 1).padStart(6, "0")}`;
+                    payslipData.payslipId = payslipId;
                     await Payslip.create(payslipData);
                 }
 
-                // 5. Update Retros to 'Applied'
-                if (retros.length > 0) {
+                // 4. Update Retros to 'Applied'
+                if (salaryCalc.retroList && salaryCalc.retroList.length > 0) {
                     await RetroAdjustment.updateMany(
-                        { _id: { $in: retros.map(r => r._id) } },
+                        { _id: { $in: salaryCalc.retroList.map(r => r.retroId) } },
                         { status: 'Applied', appliedInMonth: run.month, appliedInYear: run.year }
                     );
                 }

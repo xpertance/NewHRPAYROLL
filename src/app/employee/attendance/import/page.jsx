@@ -447,7 +447,7 @@ export default function ImportAttendance() {
       const allSheetData = await parseExcelFile(file);
       const { attendanceRecords } = extractAttendanceData(allSheetData);
 
-      const response = await fetch("/api/payroll/attendance/import", {
+      const response = await fetch("/api/v1/admin/payroll/attendance/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attendanceRecords }),
@@ -481,7 +481,7 @@ export default function ImportAttendance() {
     try {
       // First, find employee by code
       const employeeResponse = await fetch(
-        `/api/payroll/employees?employeeId=${record.employeeCode}`
+        `/api/v1/admin/payroll/employees?employeeId=${record.employeeCode}`
       );
       const employeeData = await employeeResponse.json();
 
@@ -500,7 +500,7 @@ export default function ImportAttendance() {
         checkOut: record.checkOut,
       };
 
-      const response = await fetch("/api/payroll/attendance", {
+      const response = await fetch("/api/v1/admin/payroll/attendance", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

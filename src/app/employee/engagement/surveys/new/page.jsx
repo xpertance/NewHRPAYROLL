@@ -55,7 +55,7 @@ export default function NewSurvey() {
 
         try {
             setLoading(true);
-            const res = await fetch("/api/engagement/surveys", {
+            const res = await fetch("/api/v1/admin/engagement/surveys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),

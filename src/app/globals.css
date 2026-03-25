@@ -55,3 +55,19 @@
   scrollbar-width: none;
   /* Firefox */
 }
+
+/* ========== Global Font System ========== */
+/* Headings: Manrope */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Manrope', sans-serif;
+}
+
+/* Body: Inter (set on <body> via layout.js) */
+
+/* Labels & small UI text: Inter Medium */
+label,
+.label,
+.text-xs,
+.text-sm {
+  font-family: 'Inter', sans-serif;
+}

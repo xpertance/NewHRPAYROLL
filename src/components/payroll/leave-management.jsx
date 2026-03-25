@@ -166,7 +166,7 @@ export default function LeaveManagement() {
       const response = await fetch(`/api/v1/admin/payroll/employees?${params}`);
       const data = await response.json();
       if (response.ok) {
-        setEmployees(data.employees || []);
+        setEmployees(data.data || data.employees || []);
       } else {
         console.error("Error fetching employees:", data.error);
         setEmployees([]);

@@ -287,7 +287,8 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      employees,
+      success: true,
+      data: employees,
       counts: {
         status: statusCounts,
         category: categoryCounts,
@@ -301,8 +302,8 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error in GET /api/payroll/employees:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error in GET /api/v1/admin/payroll/employees:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -598,14 +599,15 @@ export async function POST(request) {
       req: request
     });
 
-    return NextResponse.json(employee, { status: 201 });
+    return NextResponse.json({ success: true, data: employee }, { status: 201 });
   } catch (error) {
-    console.error('❌ Error in POST /api/payroll/employees:', error);
+    console.error('Error in POST /api/v1/admin/payroll/employees:', error);
     
     // Handle Mongoose validation errors gracefully to display on frontend
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return NextResponse.json({
+        success: false,
         error: messages.join(', '),
         validationErrors: error.errors
       }, { status: 400 });

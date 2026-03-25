@@ -38,7 +38,7 @@ export default function AttendanceThresholds() {
   const fetchThresholds = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/payroll/attendance-thresholds');
+      const response = await fetch('/api/v1/admin/payroll/attendance-thresholds');
       const data = await response.json();
 
       if (data.success) {
@@ -57,7 +57,7 @@ export default function AttendanceThresholds() {
   const fetchOrganizations = async () => {
     try {
       setFetchLoading(true);
-      const response = await fetch('/api/crm/organizations?limit=1000');
+      const response = await fetch('/api/v1/super-admin/organizations?limit=1000');
       const data = await response.json();
 
       if (!response.ok) {
@@ -87,7 +87,7 @@ export default function AttendanceThresholds() {
       const params = new URLSearchParams();
       params.set('organizationId', organizationId);
       params.set('limit', '1000');
-      const response = await fetch(`/api/crm/departments?${params.toString()}`);
+      const response = await fetch(`/api/v1/admin/crm/departments?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -116,7 +116,7 @@ export default function AttendanceThresholds() {
       const params = new URLSearchParams();
       params.set('departmentId', departmentId);
       params.set('limit', '1000');
-      const response = await fetch(`/api/crm/employeecategory?${params.toString()}`);
+      const response = await fetch(`/api/v1/admin/crm/employeecategory?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -197,8 +197,8 @@ export default function AttendanceThresholds() {
       setSaving(true);
 
       const url = editingThreshold
-        ? `/api/payroll/attendance-thresholds?id=${editingThreshold._id}`
-        : '/api/payroll/attendance-thresholds';
+        ? `/api/v1/admin/payroll/attendance-thresholds?id=${editingThreshold._id}`
+        : '/api/v1/admin/payroll/attendance-thresholds';
 
       const payload = { ...formData };
       if (editingThreshold) {
@@ -275,7 +275,7 @@ export default function AttendanceThresholds() {
     }
 
     try {
-      const response = await fetch(`/api/payroll/attendance-thresholds?id=${thresholdId}`, {
+      const response = await fetch(`/api/v1/admin/payroll/attendance-thresholds?id=${thresholdId}`, {
         method: 'DELETE',
       });
 

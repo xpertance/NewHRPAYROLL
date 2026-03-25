@@ -74,24 +74,33 @@ export default function OrgSettingsPage() {
             const [buRes, teamRes, ccRes, orgRes, deptRes] = await Promise.all([
                 fetch("/api/v1/admin/crm/business-units?limit=1000"),
                 fetch("/api/v1/admin/crm/teams?limit=1000"),
-                fetch("/api/finance/cost-centers?limit=1000"),
+                fetch("/api/v1/admin/finance/cost-centers?limit=1000"),
                 fetch("/api/v1/admin/crm/organizations?limit=1000"),
                 fetch("/api/v1/admin/crm/departments?limit=1000")
             ]);
 
-            const [buData, teamData, ccData, orgData, deptData] = await Promise.all([
-                buRes.json(),
-                teamRes.json(),
-                ccRes.json(),
-                orgRes.json(),
-                deptRes.json()
-            ]);
+            const safeJson = async (res) => {
+                if (!res.ok) {
+                    const text = await res.text();
+                    console.error(`API Error (${res.url}):`, text);
+                    return { data: [] };
+                }
+                return res.json();
+            };
+
+            const [buData, teamData, ccData, orgData, deptData] = [
+                await safeJson(buRes),
+                await safeJson(teamRes),
+                await safeJson(ccRes),
+                await safeJson(orgRes),
+                await safeJson(deptRes)
+            ];
 
             setData({
                 businessUnits: buData.data || [],
                 teams: teamData.data || [],
                 costCenters: ccData.data || [],
-                organizations: orgData.organizations || [],
+                organizations: orgData.data || orgData.organizations || [],
                 departments: deptData.data || []
             });
         } catch (error) {
@@ -139,7 +148,7 @@ export default function OrgSettingsPage() {
             const type = activeTab === 'business-units' ? 'business-units' :
                 activeTab === 'teams' ? 'teams' : 'cost-centers';
 
-            const endpoint = type === 'cost-centers' ? `/api/finance/${type}` : `/api/v1/admin/crm/${type}`;
+            const endpoint = type === 'cost-centers' ? `/api/v1/admin/finance/${type}` : `/api/v1/admin/crm/${type}`;
             const method = editingItem ? 'PUT' : 'POST';
 
             // Clean data based on type
@@ -175,7 +184,7 @@ export default function OrgSettingsPage() {
         try {
             const endpoint = type === 'businessUnits' ? `/api/v1/admin/crm/business-units` :
                 type === 'teams' ? `/api/v1/admin/crm/teams` :
-                    `/api/finance/cost-centers`;
+                    `/api/v1/admin/finance/cost-centers`;
 
             const response = await fetch(`${endpoint}?id=${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error("Delete failed");

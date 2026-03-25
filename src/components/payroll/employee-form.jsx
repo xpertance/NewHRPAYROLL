@@ -259,7 +259,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/v1/admin/admin/payroll/employees/${employeeData._id}`, {
+      const response = await fetch(`/api/v1/admin/employees/${employeeData._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -481,7 +481,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch("/api/v1/admin/payroll/shifts");
       const data = await response.json();
       if (data.success) {
-        setAvailableShifts(data.shifts.map(s => ({ value: String(s._id), label: `${s.name} (${s.startTime} - ${s.endTime})` })));
+        const shifts = Array.isArray(data.shifts) ? data.shifts : Array.isArray(data.data) ? data.data : [];
+        setAvailableShifts(shifts.map(s => ({ value: String(s._id), label: `${s.name} (${s.startTime} - ${s.endTime})` })));
       }
     } catch (error) {
       console.error("Error fetching shifts:", error);
@@ -497,7 +498,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch organizations");
       }
-      const organizationOptions = data.organizations.map((org) => ({
+      const orgArray = Array.isArray(data.organizations) ? data.organizations : Array.isArray(data.data) ? data.data : [];
+      const organizationOptions = orgArray.map((org) => ({
         value: String(org._id),
         label: org.name,
         orgId: org.orgId,
@@ -526,7 +528,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch(`/api/v1/admin/crm/business-units?organizationId=${organizationId}&limit=1000`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch business units");
-      setBusinessUnits(data.data.map(bu => ({ value: String(bu._id), label: bu.name })));
+      const buArray = Array.isArray(data.data) ? data.data : Array.isArray(data.businessUnits) ? data.businessUnits : [];
+      setBusinessUnits(buArray.map(bu => ({ value: String(bu._id), label: bu.name })));
     } catch (error) {
       console.error("Error fetching business units:", error);
       setBusinessUnits([]);
@@ -538,7 +541,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch("/api/v1/admin/finance/cost-centers?limit=1000");
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch cost centers");
-      setCostCenters(data.data.map(cc => ({ value: String(cc._id), label: `${cc.name} (${cc.code})` })));
+      const ccArray = Array.isArray(data.data) ? data.data : Array.isArray(data.costCenters) ? data.costCenters : [];
+      setCostCenters(ccArray.map(cc => ({ value: String(cc._id), label: `${cc.name} (${cc.code})` })));
     } catch (error) {
       console.error("Error fetching cost centers:", error);
       setCostCenters([]);
@@ -555,7 +559,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch teams");
 
-      const mapped = data.data.map(team => ({ value: String(team._id), label: team.name }));
+      const teamsArray = Array.isArray(data.data) ? data.data : Array.isArray(data.teams) ? data.teams : [];
+      const mapped = teamsArray.map(team => ({ value: String(team._id), label: team.name }));
       setTeams(mapped);
     } catch (error) {
       console.error("Error fetching teams:", error);
@@ -578,7 +583,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch departments");
       }
-      const departmentOptions = data.data
+      const deptArray = Array.isArray(data.data) ? data.data : Array.isArray(data.departments) ? data.departments : [];
+      const departmentOptions = deptArray
         .filter((dept) => dept.status === "Active")
         .map((dept) => ({
           value: String(dept._id),
@@ -615,7 +621,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch employee types");
       }
-      const employeeTypeOptions = data.data.map((item) => ({
+      const etArray = Array.isArray(data.data) ? data.data : Array.isArray(data.employeeTypes) ? data.employeeTypes : [];
+      const employeeTypeOptions = etArray.map((item) => ({
         value: String(item._id),
         label: item.employeeType,
         typeName: item.employeeType,
@@ -638,18 +645,19 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       }
       setLoadingSupervisors(true);
       const response = await fetch(
-        `/api/v1/admin/admin/payroll/employees?organizationId=${organizationId}&status=Active&limit=1000`
+        `/api/v1/admin/employees?organizationId=${organizationId}&status=Active&limit=1000`
       );
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch supervisors");
       }
-      const supervisorOptions = data.employees
+      const empArray = Array.isArray(data.employees) ? data.employees : Array.isArray(data.data) ? data.data : [];
+      const supervisorOptions = empArray
         .filter((emp) => emp._id !== employeeData?._id)
         .map((emp) => ({
           value: String(emp._id),
-          label: `${emp.personalDetails.firstName} ${emp.personalDetails.lastName} (${emp.employeeId})`,
+          label: `${emp.personalDetails?.firstName || ''} ${emp.personalDetails?.lastName || ''} (${emp.employeeId || ''})`,
         }));
 
       setAvailableSupervisors(supervisorOptions);
@@ -671,7 +679,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch office locations");
 
-      setOfficeLocations(data.locations.map(loc => ({
+      const locArray = Array.isArray(data.locations) ? data.locations : Array.isArray(data.data) ? data.data : [];
+      setOfficeLocations(locArray.map(loc => ({
         value: String(loc._id),
         label: loc.name
       })));
@@ -1534,8 +1543,8 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     setLoading(true);
     try {
       const url = isEdit
-        ? `/api/v1/admin/admin/payroll/employees/${employeeData._id}`
-        : "/api/v1/admin/admin/payroll/employees";
+        ? `/api/v1/admin/employees/${employeeData._id}`
+        : "/api/v1/admin/employees";
       const method = isEdit ? "PUT" : "POST";
       const submitData = {
         ...formData,
@@ -1586,7 +1595,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         );
         console.log("✅ Employee saved:", savedEmployee);
         setTimeout(() => {
-          router.push("/admin/payroll/employees");
+          router.push("/admin/employees");
         }, 1000);
       } else {
         const textStr = await response.text();
@@ -1905,31 +1914,29 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                       <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           {/* 1. Organization Dropdown */}
-                          {organizations.length > 1 && (
-                            <div className="space-y-2">
-                              <label className="block text-sm font-semibold text-slate-700">
-                                Organization <span className="text-red-500">*</span>
-                              </label>
-                              {fetchLoading ? (
-                                <div className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-100 animate-pulse">
-                                  Loading...
-                                </div>
-                              ) : (
-                                <SimpleSelect
-                                  value={formData.jobDetails.organizationId}
-                                  onChange={(e) =>
-                                    handleSelectChange(
-                                      "jobDetails.organizationId",
-                                      e.target.value
-                                    )
-                                  }
-                                  options={organizations}
-                                  placeholder="Select organization"
-                                  error={errors["jobDetails.organizationId"]}
-                                />
-                              )}
-                            </div>
-                          )}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-slate-700">
+                              Organization <span className="text-red-500">*</span>
+                            </label>
+                            {fetchLoading ? (
+                              <div className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-100 animate-pulse">
+                                Loading...
+                              </div>
+                            ) : (
+                              <SimpleSelect
+                                value={formData.jobDetails.organizationId}
+                                onChange={(e) =>
+                                  handleSelectChange(
+                                    "jobDetails.organizationId",
+                                    e.target.value
+                                  )
+                                }
+                                options={organizations}
+                                placeholder="Select organization"
+                                error={errors["jobDetails.organizationId"]}
+                              />
+                            )}
+                          </div>
 
                           {/* 2. Business Unit Dropdown */}
                           <div className="space-y-2">

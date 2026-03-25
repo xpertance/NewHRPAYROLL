@@ -43,17 +43,17 @@ export async function GET(request) {
         if (department) query.department = department;
 
         const jobs = await JobRequisition.find(query).sort({ createdAt: -1 });
-        return NextResponse.json({ jobs });
+        return NextResponse.json({ success: true, jobs });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("GET JOBS ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
 export async function POST(request) {
     try {
         const authUser = await getAuthUser();
-        // Removed strict authorization to allow HR/managers to post jobs
-        
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
         
@@ -72,13 +72,12 @@ export async function POST(request) {
             organizationId: orgId,
             createdBy: authUser.id
         });
-        return NextResponse.json({ job, message: "Job requisition created successfully" }, { status: 201 });
+        return NextResponse.json({ success: true, job, message: "Job requisition created successfully" }, { status: 201 });
     } catch (error) {
+        console.error("POST JOB ERROR:", error);
         if (error instanceof z.ZodError) {
-            console.error("ZOD VALIDATION FAILED:", JSON.stringify(error.errors, null, 2));
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Validation failed', details: error.errors }, { status: 400 });
         }
-        console.error("OTHER POST ERROR:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

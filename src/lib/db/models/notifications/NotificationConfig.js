@@ -19,10 +19,15 @@ const NotificationSchema = new mongoose.Schema({
     enum: ['low', 'medium', 'high'],
     default: 'medium'
   },
-  read: {
-    type: Boolean,
-    default: false
+  audienceType: {
+    type: String,
+    enum: ['individual', 'team', 'organization'],
+    default: 'individual'
   },
+  readBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  }],
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization'
@@ -30,6 +35,14 @@ const NotificationSchema = new mongoose.Schema({
   employee: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee'
+  },
+  employees: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  }],
+  department: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department'
   },
   details: {
     type: mongoose.Schema.Types.Mixed

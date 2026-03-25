@@ -33,17 +33,17 @@ export default function EngagementHub() {
             setLoading(true);
             // Fetch stats for admin
             if (user?.role === 'admin') {
-                const statsRes = await fetch('/api/engagement/scores');
+                const statsRes = await fetch('/api/v1/admin/engagement/scores');
                 const statsData = await statsRes.json();
                 if (statsData.success) setStats(statsData.stats);
 
-                const enpsRes = await fetch('/api/engagement/enps');
+                const enpsRes = await fetch('/api/v1/admin/engagement/enps');
                 const enpsResult = await enpsRes.json();
                 if (enpsResult.success) setEnpsData(enpsResult);
             }
 
             // Fetch surveys for everyone
-            const surveyRes = await fetch('/api/engagement/surveys');
+            const surveyRes = await fetch('/api/v1/admin/engagement/surveys');
             const surveyData = await surveyRes.json();
             if (surveyData.success) {
                 const active = surveyData.surveys.filter(s => s.status === 'Published');

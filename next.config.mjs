@@ -8,10 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 const nextConfig = {
-    serverExternalPackages: ['jspdf', 'fflate'],
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
+    serverExternalPackages: ['jspdf', 'fflate', 'node-cron', 'nodemailer'],
 };
 
 export default nextConfig;

@@ -35,6 +35,8 @@ import { useSession } from "@/context/SessionContext";
 import { useLanguage } from "@/context/LanguageContext";
 import ESSLeaveManagement from "@/components/payroll/ess-leave-management";
 import ESSTalentDashboard from "@/components/talent/ess-talent-dashboard";
+import MyTasks from "@/components/tasks/my-tasks";
+import { CheckSquare } from "lucide-react";
 
 const TabButton = ({ active, label, icon: Icon, onClick }) => (
     <button
@@ -94,6 +96,7 @@ function ESSDashboardContent() {
     const [employee, setEmployee] = useState(null);
     const [payslips, setPayslips] = useState([]);
     const [investments, setInvestments] = useState(null);
+    const [taskStats, setTaskStats] = useState({ total: 0, pending: 0 });
 
     const [showPolicyModal, setShowPolicyModal] = useState(false);
     const [selectedFY, setSelectedFY] = useState("2025-26");
@@ -354,6 +357,19 @@ function ESSDashboardContent() {
                 const invData = await invRes.json();
                 setInvestments(invData);
             }
+            
+            // Fetch tasks to get count
+            const taskRes = await fetch('/api/v1/admin/tasks');
+            if (taskRes.ok) {
+                const taskData = await taskRes.json();
+                if (taskData.success) {
+                    const tasks = taskData.data || [];
+                    setTaskStats({
+                        total: tasks.length,
+                        pending: tasks.filter(t => t.status !== 'Completed').length
+                    });
+                }
+            }
         } catch (error) {
             toast.error("Failed to load dashboard data");
         } finally {
@@ -506,6 +522,12 @@ function ESSDashboardContent() {
                             icon={History}
                             label={t("otAndCOff")}
                         />
+                        <TabButton
+                            active={activeTab === 'tasks'}
+                            onClick={() => setActiveTab('tasks')}
+                            icon={CheckSquare}
+                            label={t("myTasks") || "My Tasks"}
+                        />
                     </nav>
                 </div>
 
@@ -545,6 +567,21 @@ function ESSDashboardContent() {
                                             <div className="bg-emerald-500 h-full w-[35%]"></div>
                                         </div>
                                         <span className="text-[10px] font-bold text-slate-400">35%</span>
+                                    </div>
+                                </Card>
+
+                                <Card className="p-6 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setActiveTab('tasks')}>
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="p-2 bg-rose-50 rounded-lg">
+                                            <CheckSquare className="w-5 h-5 text-rose-600" />
+                                        </div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("activeTasks")}</span>
+                                    </div>
+                                    <h3 className="text-3xl font-black text-slate-900 mb-1">{taskStats.pending}</h3>
+                                    <p className="text-slate-500 text-sm">{t("pendingTasks") || "Pending Tasks"}</p>
+                                    <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between items-center text-xs">
+                                        <span className="opacity-80">{t("totalTasks") || "Total"}: {taskStats.total}</span>
+                                        <span className="flex items-center gap-1 text-indigo-600 font-bold">{t("viewAll")} <ChevronRight className="w-3 h-3" /></span>
                                     </div>
                                 </Card>
                             </div>
@@ -677,6 +714,12 @@ function ESSDashboardContent() {
                                 </div>
                             </Card>
                         </div>
+                    </div>
+                )}
+
+                {activeTab === 'tasks' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <MyTasks />
                     </div>
                 )}
 

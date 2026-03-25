@@ -14,10 +14,12 @@ export async function GET(request) {
         const status = searchParams.get('status');
         const memberId = searchParams.get('memberId');
 
-        let query = {};
         // SaaS PROTECTION: Restrict by organization
-        if (authUser.role === "admin" || authUser.role === "supervisor") {
-            query.organizationId = authUser.organizationId;
+        let query = { organizationId: authUser.organizationId };
+        
+        // Employee-specific filtering: Only show projects they are members of
+        if (authUser.role === "employee") {
+            query.members = authUser.id;
         }
         if (status) query.status = status;
         if (memberId) query.members = memberId;

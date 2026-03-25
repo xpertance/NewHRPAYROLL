@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { useSession } from "@/context/SessionContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { CalendarDays, PlayCircle, Loader2, AlertCircle, RefreshCw, FileText } from "lucide-react";
+import { CalendarDays, PlayCircle, Loader2, AlertCircle, RefreshCw, FileText, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 
-export function PayrollRunDashboard() {
+export default function PayrollRunDashboard() {
   const router = useRouter();
   const { user } = useSession();
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(true);
   const [payrollHistory, setPayrollHistory] = useState([]);
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -73,13 +75,33 @@ export function PayrollRunDashboard() {
       toast.success(data.message || "Batch Payroll Generated Successfully!", { id: toastId });
       
       // Navigate to the Review screen for this new run
-      router.push(`/payroll/run/${data.runId}`);
+      router.push(`/admin/payroll/run/${data.runId}`);
 
     } catch (error) {
       console.error("Batch error:", error);
       toast.error("Internal Server Error", { id: toastId });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    setValidating(true);
+    setValidationResult(null);
+    try {
+      const res = await fetch(`/api/v1/admin/payroll/run/validate?month=${formData.month}&year=${formData.year}&orgId=${user?.organizationId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setValidationResult(data);
+      if (data.isReady) {
+        toast.success(`All ${data.summary.readyCount}/${data.summary.totalEmployees} employees ready!`);
+      } else {
+        toast.error(`${data.summary.criticalIssues} critical issues found. Fix before proceeding.`);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setValidating(false);
     }
   };
 
@@ -146,8 +168,26 @@ export function PayrollRunDashboard() {
             </div>
 
             <button
+              onClick={handleValidate}
+              disabled={validating}
+              className="w-full md:w-auto flex-shrink-0 px-6 py-3 bg-white border-2 border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-medium rounded-lg transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            >
+              {validating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Validating...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  Validate Readiness
+                </>
+              )}
+            </button>
+
+            <button
               onClick={handleGenerateBatch}
-              disabled={loading}
+              disabled={loading || (validationResult && !validationResult.isReady)}
               className="w-full md:w-auto flex-shrink-0 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all disabled:opacity-70 flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -163,6 +203,69 @@ export function PayrollRunDashboard() {
               )}
             </button>
           </div>
+
+          {/* Validation Results Panel */}
+          {validationResult && (
+            <div className="mt-6 space-y-3">
+              {/* Summary Bar */}
+              <div className={`flex items-center gap-3 p-4 rounded-lg border ${validationResult.isReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                {validationResult.isReady ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+                <div>
+                  <p className="font-semibold">
+                    {validationResult.isReady ? 'All Clear — Ready to Process' : `${validationResult.summary.criticalIssues} Critical Issue(s) Found`}
+                  </p>
+                  <p className="text-sm opacity-80">
+                    {validationResult.summary.readyCount}/{validationResult.summary.totalEmployees} employees ready • {validationResult.summary.warnings} warnings • {validationResult.summary.infoNotices} notices
+                  </p>
+                </div>
+              </div>
+
+              {/* Critical Issues */}
+              {validationResult.issues.critical.length > 0 && (
+                <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+                  <h4 className="text-sm font-bold text-red-700 mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Critical — Must Fix</h4>
+                  <div className="space-y-1.5">
+                    {validationResult.issues.critical.map((issue, i) => (
+                      <div key={i} className="text-sm text-red-700 flex items-start gap-2">
+                        <span className="font-mono text-xs bg-red-100 px-1.5 py-0.5 rounded">{issue.employeeId}</span>
+                        <span>{issue.employeeName}: {issue.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {validationResult.issues.warnings.length > 0 && (
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-4">
+                  <h4 className="text-sm font-bold text-amber-700 mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Warnings</h4>
+                  <div className="space-y-1.5">
+                    {validationResult.issues.warnings.map((issue, i) => (
+                      <div key={i} className="text-sm text-amber-700 flex items-start gap-2">
+                        <span className="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">{issue.employeeId}</span>
+                        <span>{issue.employeeName}: {issue.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info Notices */}
+              {validationResult.issues.info.length > 0 && (
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                  <h4 className="text-sm font-bold text-blue-700 mb-2 flex items-center gap-2"><Info className="w-4 h-4" /> Info</h4>
+                  <div className="space-y-1.5">
+                    {validationResult.issues.info.map((issue, i) => (
+                      <div key={i} className="text-sm text-blue-700 flex items-start gap-2">
+                        <span className="font-mono text-xs bg-blue-100 px-1.5 py-0.5 rounded">{issue.employeeId}</span>
+                        <span>{issue.employeeName}: {issue.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 flex gap-2 items-start p-4 bg-amber-50 rounded-lg text-amber-800 text-sm">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
@@ -236,7 +339,7 @@ export function PayrollRunDashboard() {
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <button
-                        onClick={() => router.push(`/payroll/run/${run._id}`)}
+                        onClick={() => router.push(`/admin/payroll/run/${run._id}`)}
                         className="text-indigo-600 hover:text-indigo-900 hover:underline"
                       >
                         View Summary

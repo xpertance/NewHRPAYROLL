@@ -20,10 +20,10 @@ export default function AssetsPage() {
             const query = new URLSearchParams();
             if (filterStatus) query.append("status", filterStatus);
 
-            const res = await fetch(`/api/assets?${query.toString()}`);
+            const res = await fetch(`/api/v1/admin/assets?${query.toString()}`);
             if (res.ok) {
-                const data = await res.json();
-                setAssets(data);
+                const result = await res.json();
+                setAssets(Array.isArray(result) ? result : result.data || []);
             }
         } catch (error) {
             console.error("Failed to fetch assets", error);
@@ -89,10 +89,10 @@ export default function AssetsPage() {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr><td colSpan="5" className="p-8 text-center text-slate-500">Loading assets...</td></tr>
-                            ) : assets.length === 0 ? (
+                            ) : (Array.isArray(assets) ? assets : assets.data || []).length === 0 ? (
                                 <tr><td colSpan="5" className="p-8 text-center text-slate-500">No assets found.</td></tr>
                             ) : (
-                                assets.map((asset) => (
+                                (Array.isArray(assets) ? assets : assets.data || []).map((asset) => (
                                     <tr key={asset._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-start gap-3">

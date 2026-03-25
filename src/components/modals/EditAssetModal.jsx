@@ -46,8 +46,8 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
             setIsSubmitting(true);
             setError("");
 
-            console.log(`Sending PUT to /api/assets/${asset._id}`);
-            const res = await fetch(`/api/assets/${asset._id}`, {
+            console.log(`Sending PUT to /api/v1/admin/assets/${asset._id}`);
+            const res = await fetch(`/api/v1/admin/assets/${asset._id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -76,7 +76,7 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
         if (!confirm("Are you sure you want to delete this asset?")) return;
         try {
             setIsSubmitting(true);
-            const res = await fetch(`/api/assets/${asset._id}`, {
+            const res = await fetch(`/api/v1/admin/assets/${asset._id}`, {
                 method: "DELETE",
             });
 
