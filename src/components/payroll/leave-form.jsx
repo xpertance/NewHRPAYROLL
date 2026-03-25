@@ -106,7 +106,7 @@ export default function LeaveForm({ leaveId }) {
   // Fetch organizations from Organization collection
   const fetchOrganizationTypes = async () => {
     try {
-      const response = await fetch("/api/crm/organizations?limit=1000");
+      const response = await fetch("/api/v1/admin/crm/organizations?limit=1000");
       const data = await response.json();
 
       if (response.ok) {
@@ -144,7 +144,7 @@ export default function LeaveForm({ leaveId }) {
         params.append("organizationId", orgId);
       }
 
-      const response = await fetch(`/api/payroll/employees?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/employees?${params}`);
       const data = await response.json();
       console.log("Fetched Employees:", data);
       if (response.ok) {
@@ -166,7 +166,7 @@ export default function LeaveForm({ leaveId }) {
     try {
       setFetchLoading(true);
 
-      const response = await fetch(`/api/payroll/leaves/${leaveId}`);
+      const response = await fetch(`/api/v1/admin/payroll/leaves/${leaveId}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -446,8 +446,8 @@ export default function LeaveForm({ leaveId }) {
 
     try {
       const url = isEdit
-        ? `/api/payroll/leaves/${leaveId}`
-        : "/api/payroll/leaves";
+        ? `/api/v1/admin/payroll/leaves/${leaveId}`
+        : "/api/v1/admin/payroll/leaves";
 
       const method = isEdit ? "PUT" : "POST";
 

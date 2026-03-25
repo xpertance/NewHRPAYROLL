@@ -19,7 +19,7 @@ export default function AdminCompOffApprovals() {
     const fetchRequests = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/comp-off?status=${filterStatus}`);
+            const res = await fetch(`/api/v1/admin/payroll/comp-off?status=${filterStatus}`);
             const data = await res.json();
             if (data.success) {
                 setRequests(data.requests);
@@ -36,7 +36,7 @@ export default function AdminCompOffApprovals() {
         if (status === 'Rejected' && !adminNotes) return;
 
         try {
-            const res = await fetch(`/api/payroll/comp-off/${id}`, {
+            const res = await fetch(`/api/v1/admin/payroll/comp-off/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status, adminNotes, approvedBy: user?.id })

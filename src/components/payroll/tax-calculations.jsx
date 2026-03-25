@@ -33,7 +33,7 @@
 //       if (yearFilter) params.append('financialYear', yearFilter);
 //       if (statusFilter) params.append('status', statusFilter);
 
-//       const response = await fetch(`/api/payroll/taxes?${params}`);
+//       const response = await fetch(`/api/v1/admin/payroll/taxes?${params}`);
 //       const data = await response.json();
 
 //       if (response.ok) {
@@ -463,7 +463,7 @@ export default function TaxCalculations() {
       if (yearFilter) params.append('financialYear', yearFilter);
       if (statusFilter) params.append('status', statusFilter);
 
-      const response = await fetch(`/api/payroll/taxes?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/taxes?${params}`);
       const data = await response.json();
 
       if (response.ok) {

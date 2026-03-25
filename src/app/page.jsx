@@ -11,7 +11,15 @@ export default function RootPage() {
     useEffect(() => {
         if (!loading) {
             if (user) {
-                router.push('/dashboard');
+                if (user.role === 'super_admin') {
+                    router.push('/super-admin/dashboard');
+                } else if (['admin', 'company_admin', 'hr'].includes(user.role)) {
+                    router.push('/admin/dashboard');
+                } else if (['employee', 'supervisor', 'attendance_only'].includes(user.role)) {
+                    router.push('/employee/dashboard');
+                } else {
+                    router.push('/login');
+                }
             } else {
                 router.push('/login');
             }

@@ -22,7 +22,7 @@ export default function OnboardingTracker() {
     const fetchChecklists = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/recruitment/onboarding');
+            const res = await fetch('/api/v1/admin/recruitment/onboarding');
             const data = await res.json();
             setChecklists(data.checklists || []);
         } catch (error) {
@@ -42,7 +42,7 @@ export default function OnboardingTracker() {
                 updatedTasks[taskIndex].completedAt = new Date();
             }
 
-            const res = await fetch('/api/recruitment/onboarding', {
+            const res = await fetch('/api/v1/admin/recruitment/onboarding', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: checklistId, tasks: updatedTasks })

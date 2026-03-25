@@ -423,14 +423,14 @@ export default function SetupWizard({ user, onComplete }) {
     if (alreadyDone) return;
 
     // Fetch admin's existing organization (created during approval)
-    fetch("/api/crm/organizations?limit=1")
+    fetch("/api/v1/admin/crm/organizations?limit=1")
       .then((r) => r.json())
       .then((data) => {
         if (data.organizations && data.organizations.length > 0) {
           const org = data.organizations[0];
           setCreatedOrg({ _id: org._id, name: org.name });
           // Check if departments already exist for this org
-          fetch(`/api/crm/departments?organizationId=${org._id}`)
+          fetch(`/api/v1/admin/crm/departments?organizationId=${org._id}`)
             .then((r) => r.json())
             .then((deptData) => {
               if (deptData.departments && deptData.departments.length > 0) {
@@ -506,7 +506,7 @@ export default function SetupWizard({ user, onComplete }) {
       Object.entries(orgData).forEach(([k, v]) => { if (v !== undefined && v !== "") fd.append(k, v); });
       if (user?.id) fd.append("createdBy", user.id);
 
-      const res = await fetch("/api/crm/organizations", { method: "POST", body: fd });
+      const res = await fetch("/api/v1/admin/crm/organizations", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to create organization");
 
@@ -528,7 +528,7 @@ export default function SetupWizard({ user, onComplete }) {
     try {
       const created = [];
       for (const unit of nonEmpty) {
-        const res = await fetch("/api/crm/business-units", {
+        const res = await fetch("/api/v1/admin/crm/business-units", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ organizationId: createdOrg._id, name: unit.name.trim(), description: unit.description }),
@@ -560,7 +560,7 @@ export default function SetupWizard({ user, onComplete }) {
     try {
       const created = [];
       for (const dept of nonEmpty) {
-        const res = await fetch("/api/crm/departments", {
+        const res = await fetch("/api/v1/admin/crm/departments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -28,7 +28,7 @@ export default function AdminTalentHub() {
         try {
             setLoading(true);
             const [empRes, appRes, goalRes] = await Promise.all([
-                fetch('/api/payroll/employees?limit=1000&status=Active'),
+                fetch('/api/v1/admin/payroll/employees?limit=1000&status=Active'),
                 fetch(`/api/talent/appraisals`),
                 fetch(`/api/talent/goals`)
             ]);

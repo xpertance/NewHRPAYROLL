@@ -74,7 +74,7 @@ export default function EmployeeList() {
       // Fetch all employees for client-side pagination
       params.append('limit', '1000');
 
-      const response = await fetch(`/api/payroll/employees?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/employees?${params}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -261,7 +261,7 @@ export default function EmployeeList() {
     if (!confirm('Are you sure you want to delete this employee?')) return;
 
     try {
-      const response = await fetch(`/api/payroll/employees/${id}`, {
+      const response = await fetch(`/api/v1/admin/payroll/employees/${id}`, {
         method: 'DELETE',
       });
 
@@ -347,7 +347,7 @@ export default function EmployeeList() {
 
     try {
       setLifecycleLoading(true);
-      const response = await fetch(`/api/payroll/employees/${lifecycleModal.employee._id}/lifecycle`, {
+      const response = await fetch(`/api/v1/admin/payroll/employees/${lifecycleModal.employee._id}/lifecycle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -469,14 +469,14 @@ export default function EmployeeList() {
                 <TrendingUp className="w-4 h-4" />
               </button>
               <Link
-                href={`/payroll/employees/${employee._id}`}
+                href={`/admin/payroll/employees/${employee._id}`}
                 className="p-2 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
                 title="View Details"
               >
                 <Eye className="w-4 h-4" />
               </Link>
               <Link
-                href={`/payroll/employees/${employee._id}/edit`}
+                href={`/admin/payroll/employees/${employee._id}/edit`}
                 className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
                 title="Edit"
               >
@@ -602,7 +602,7 @@ export default function EmployeeList() {
               </button>
 
               <Link
-                href="/payroll/employees/new"
+                href="/admin/payroll/employees/new"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
               >
                 <Plus className="w-4 h-4" />
@@ -940,7 +940,7 @@ export default function EmployeeList() {
                   </button>
                 ) : (
                   <a
-                    href="/payroll/employees/new"
+                    href="/admin/payroll/employees/new"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
                   >
                     <Plus className="w-4 h-4" />

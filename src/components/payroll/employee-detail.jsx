@@ -486,7 +486,7 @@ function DocumentUploadSection({
       }
       try {
         setLoadingDocuments(true);
-        const categoryResponse = await fetch(`/api/crm/employeecategory/${categoryId}`);
+        const categoryResponse = await fetch(`/api/v1/admin/crm/employeecategory/${categoryId}`);
         if (!categoryResponse.ok) {
           throw new Error("Failed to fetch category details");
         }
@@ -1792,7 +1792,7 @@ export default function EmployeeDetail({ employeeId }) {
   useEffect(() => {
     const fetchEmployeeDetails = async () => {
       try {
-        const response = await fetch(`/api/payroll/employees/${employeeId}`);
+        const response = await fetch(`/api/v1/admin/payroll/employees/${employeeId}`);
         if (!response.ok) throw new Error("Failed to fetch employee details");
         const data = await response.json();
         setEmployee(data);
@@ -1816,7 +1816,7 @@ export default function EmployeeDetail({ employeeId }) {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/payroll/employees/${employeeId}`, {
+      const response = await fetch(`/api/v1/admin/payroll/employees/${employeeId}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete employee");

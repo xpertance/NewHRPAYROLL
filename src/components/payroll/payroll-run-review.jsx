@@ -23,7 +23,7 @@ export function PayrollRunReview({ runId }) {
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`/api/payroll/run/${runId}`);
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}`);
       if (!res.ok) throw new Error("Failed to load payroll run");
       const data = await res.json();
       setRun(data.run);
@@ -49,7 +49,7 @@ export function PayrollRunReview({ runId }) {
     setLocking(true);
     const toastId = toast.loading("Locking payroll run...");
     try {
-      const res = await fetch(`/api/payroll/run/${runId}/lock`, { method: "PUT" });
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}/lock`, { method: "PUT" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to lock run");
       
@@ -72,7 +72,7 @@ export function PayrollRunReview({ runId }) {
     setPublishing(true);
     const toastId = toast.loading("Publishing payslips...");
     try {
-      const res = await fetch(`/api/payroll/run/${runId}/publish`, { method: "PUT" });
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}/publish`, { method: "PUT" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to publish run");
       

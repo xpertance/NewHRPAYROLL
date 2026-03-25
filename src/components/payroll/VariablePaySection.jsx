@@ -19,7 +19,7 @@ export default function VariablePaySection({
 
     const fetchComponents = async () => {
         try {
-            const res = await fetch("/api/payroll/settings/variable-components");
+            const res = await fetch("/api/v1/admin/payroll/settings/variable-components");
             if (!res.ok) throw new Error("Failed to fetch components");
             const data = await res.json();
             setAvailableComponents(data.filter(c => c.isActive));

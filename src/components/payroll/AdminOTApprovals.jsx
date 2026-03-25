@@ -19,7 +19,7 @@ export default function AdminOTApprovals() {
     const fetchRequests = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/payroll/overtime?status=${filterStatus}`);
+            const res = await fetch(`/api/v1/admin/payroll/overtime?status=${filterStatus}`);
             const data = await res.json();
             if (data.success) {
                 setRequests(data.requests);
@@ -36,7 +36,7 @@ export default function AdminOTApprovals() {
         if (status === 'Rejected' && !adminNotes) return;
 
         try {
-            const res = await fetch(`/api/payroll/overtime/${id}`, {
+            const res = await fetch(`/api/v1/admin/payroll/overtime/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status, adminNotes, approvedBy: user?.id })

@@ -16,7 +16,7 @@ export default function BankPayoutModal({ isOpen, onClose, payrollRun, onUpdate 
     const handleGenerateAdvice = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/payroll/payout', {
+            const res = await fetch('/api/v1/admin/payroll/payout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -55,7 +55,7 @@ export default function BankPayoutModal({ isOpen, onClose, payrollRun, onUpdate 
 
         try {
             setLoading(true);
-            const res = await fetch('/api/payroll/payout', {
+            const res = await fetch('/api/v1/admin/payroll/payout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

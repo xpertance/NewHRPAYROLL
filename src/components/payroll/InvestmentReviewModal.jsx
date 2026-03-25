@@ -22,7 +22,7 @@ export default function InvestmentReviewModal({ declaration, onClose, onUpdate }
     const handleAction = async (status) => {
         try {
             setSubmitting(true);
-            const res = await fetch('/api/payroll/investments', {
+            const res = await fetch('/api/v1/admin/payroll/investments', {
                 method: 'POST', // Reusing POST for update
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

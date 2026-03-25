@@ -45,7 +45,7 @@ export default function DocumentUploadSection({
             console.log("Category ID for document fetch:", categoryId);
             try {
                 setLoadingDocuments(true);
-                const categoryResponse = await fetch(`/api/crm/employeecategory/${typeof categoryId === 'object' ? categoryId._id : categoryId}`);
+                const categoryResponse = await fetch(`/api/v1/admin/crm/employeecategory/${typeof categoryId === 'object' ? categoryId._id : categoryId}`);
                 if (!categoryResponse.ok) {
                     throw new Error("Failed to fetch category details");
                 }

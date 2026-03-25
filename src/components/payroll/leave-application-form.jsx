@@ -75,7 +75,7 @@ export default function LeaveApplicationForm() {
         status: 'Pending'
       };
 
-      const response = await fetch('/api/payroll/leaves', {
+      const response = await fetch('/api/v1/admin/payroll/leaves', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

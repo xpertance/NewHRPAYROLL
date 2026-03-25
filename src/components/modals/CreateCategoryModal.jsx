@@ -92,7 +92,7 @@
 //       }
 
 //       // Fetch departments for this organization
-//       const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
+//       const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
       
 //       if (response.ok) {
 //         const data = await response.json();
@@ -136,7 +136,7 @@
 
 //       // Fetch employee types for this organization and department
 //       const response = await fetch(
-//         `/api/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
+//         `/api/v1/admin/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
 //       );
       
 //       if (response.ok) {
@@ -172,7 +172,7 @@
 //       setError("");
 //       setDuplicateError("");
       
-//       const res = await fetch("/api/crm/employeecategory", {
+//       const res = await fetch("/api/v1/admin/crm/employeecategory", {
 //         method: "POST",
 //         headers: { "Content-Type": "application/json" },
 //         body: JSON.stringify(formData),
@@ -621,7 +621,7 @@ export default function CreateCategoryModal({
         return;
       }
 
-      const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
+      const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
       
       if (response.ok) {
         const data = await response.json();
@@ -659,7 +659,7 @@ export default function CreateCategoryModal({
       }
 
       const response = await fetch(
-        `/api/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
+        `/api/v1/admin/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
       );
       
       if (response.ok) {
@@ -689,7 +689,7 @@ export default function CreateCategoryModal({
       setIsLoadingDocuments(true);
       setError("");
 
-      const response = await fetch(`/api/crm/documents?limit=1000`);
+      const response = await fetch(`/api/v1/admin/crm/documents?limit=1000`);
       
       if (response.ok) {
         const data = await response.json();
@@ -742,7 +742,7 @@ export default function CreateCategoryModal({
         return;
       }
       
-      const res = await fetch("/api/crm/employeecategory", {
+      const res = await fetch("/api/v1/admin/crm/employeecategory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

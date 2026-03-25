@@ -32,7 +32,7 @@ export default function ComplianceReports() {
       if (typeFilter) params.append('reportType', typeFilter);
       if (statusFilter) params.append('status', statusFilter);
 
-      const response = await fetch(`/api/payroll/compliance?${params}`);
+      const response = await fetch(`/api/v1/admin/payroll/compliance?${params}`);
       const data = await response.json();
 
       if (response.ok) {

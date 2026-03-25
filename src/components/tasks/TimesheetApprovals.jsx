@@ -36,7 +36,7 @@ const TimesheetApprovals = () => {
     const fetchTimesheets = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/tasks/timesheets?status=${statusFilter}`);
+            const res = await fetch(`/api/v1/admin/tasks/timesheets?status=${statusFilter}`);
             const data = await res.json();
             if (data.success) setTimesheets(data.timesheets);
         } catch (error) {
@@ -48,7 +48,7 @@ const TimesheetApprovals = () => {
 
     const fetchDetails = async (timesheet) => {
         try {
-            const res = await fetch(`/api/tasks/timesheets?employeeId=${timesheet.employee._id}&weekStartDate=${timesheet.weekStartDate}`);
+            const res = await fetch(`/api/v1/admin/tasks/timesheets?employeeId=${timesheet.employee._id}&weekStartDate=${timesheet.weekStartDate}`);
             const data = await res.json();
             if (data.success) {
                 setEntries(data.entries);
@@ -62,7 +62,7 @@ const TimesheetApprovals = () => {
 
     const handleAction = async (status) => {
         try {
-            const res = await fetch(`/api/tasks/timesheets/${selectedTimesheet._id}`, {
+            const res = await fetch(`/api/v1/admin/tasks/timesheets/${selectedTimesheet._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

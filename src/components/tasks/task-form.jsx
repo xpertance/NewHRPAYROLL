@@ -67,7 +67,7 @@ const {user} = useSession();
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
-      const response = await fetch('/api/payroll/employees');
+      const response = await fetch('/api/v1/admin/payroll/employees');
       
       if (!response.ok) {
         throw new Error('Failed to fetch employees');
@@ -149,7 +149,7 @@ const {user} = useSession();
 
     try {
       const url = isEdit 
-        ? `/api/tasks/${taskData._id}`
+        ? `/api/v1/admin/tasks/${taskData._id}`
         : '/api/tasks';
       
       const method = isEdit ? 'PUT' : 'POST';
