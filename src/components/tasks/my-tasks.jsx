@@ -329,7 +329,7 @@
 //       }
 
 
-//       const response = await fetch(`/api/tasks/${taskId}`, {
+//       const response = await fetch(`/api/v1/admin/tasks/${taskId}`, {
 //         method: "PUT",
 //         headers: {
 //           "Content-Type": "application/json",
@@ -390,7 +390,7 @@
 //     try {
 //       setError("");
 
-//       const response = await fetch(`/api/tasks/${taskId}`, {
+//       const response = await fetch(`/api/v1/admin/tasks/${taskId}`, {
 //         method: "PUT",
 //         headers: {
 //           "Content-Type": "application/json",
@@ -2176,7 +2176,7 @@ export default function MyTasks() {
         updateData.status = "In Progress";
       }
 
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/v1/admin/tasks/${taskId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -2237,7 +2237,7 @@ export default function MyTasks() {
     try {
       setError("");
 
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/v1/admin/tasks/${taskId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -26,7 +26,7 @@ export function PayrollRunDashboard() {
     try {
       setFetchingHistory(true);
       // Fetching all past runs (API filters by org automatically for admins)
-      const res = await fetch("/api/payroll/run");
+      const res = await fetch("/api/v1/admin/payroll/run");
       const data = await res.json();
       if (res.ok) {
         setPayrollHistory(data || []);
@@ -53,7 +53,7 @@ export function PayrollRunDashboard() {
     const toastId = toast.loading("Processing batch payroll. This may take a moment...");
 
     try {
-      const res = await fetch("/api/payroll/run/batch", {
+      const res = await fetch("/api/v1/admin/payroll/run/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

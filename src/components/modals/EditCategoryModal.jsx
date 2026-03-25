@@ -195,7 +195,7 @@ export default function EditCategoryModal({
         setAvailableDepts([]);
         return;
       }
-      const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
+      const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
       if (response.ok) {
         const data = await response.json();
         const dept = data.data.filter((dept) => dept.organizationId === selectedOrg._id);
@@ -231,7 +231,7 @@ export default function EditCategoryModal({
         return;
       }
       const response = await fetch(
-        `/api/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
+        `/api/v1/admin/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
       );
       if (response.ok) {
         const data = await response.json();
@@ -266,7 +266,7 @@ export default function EditCategoryModal({
     try {
       setIsLoadingDocuments(true);
       setError("");
-      const response = await fetch(`/api/crm/documents?limit=1000`);
+      const response = await fetch(`/api/v1/admin/crm/documents?limit=1000`);
       if (response.ok) {
         const data = await response.json();
         
@@ -312,7 +312,7 @@ export default function EditCategoryModal({
         return;
       }
       
-      const res = await fetch(`/api/crm/employeecategory/${category._id}`, {
+      const res = await fetch(`/api/v1/admin/crm/employeecategory/${category._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

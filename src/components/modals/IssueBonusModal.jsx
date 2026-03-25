@@ -35,28 +35,28 @@ const IssueBonusModal = ({ isOpen, onClose, onSave }) => {
     const fetchOptions = async () => {
         try {
             // Fetch employees for selection
-            const empRes = await fetch("/api/payroll/employees/list"); // Assuming this exists or similar
+            const empRes = await fetch("/api/v1/admin/payroll/employees/list"); // Assuming this exists or similar
             // If not, we might need a general fetch. 
             // Often there's an API for dropdowns. If not, I'll fallback to a simpler fetch or assume.
-            // Let's try /api/payroll/employees for now, assuming list might be heavy.
+            // Let's try /api/v1/admin/payroll/employees for now, assuming list might be heavy.
             // Actually, for "Individual" selection, we need names.
 
-            // Checking previous steps, there is `/api/payroll/employees` (implied by sidebar link).
+            // Checking previous steps, there is `/api/v1/admin/payroll/employees` (implied by sidebar link).
             // But let's check if there is a lightweight list. 
-            // I'll use /api/employees/list if it exists, or /api/payroll/employees.
+            // I'll use /api/employees/list if it exists, or /api/v1/admin/payroll/employees.
             // Wait, I haven't seen the employee list API code.
             // I'll assume /api/employees exists or I can use /api/auth/users if it was user based.
             // But Employees are in a separate collection.
             // Let's use a safe assumption or a known route. 
             // Step 171 showed `/payroll/employees` link.
-            // I'll try fetching `/api/payroll/employees` (which likely calls `Employee.find()`).
+            // I'll try fetching `/api/v1/admin/payroll/employees` (which likely calls `Employee.find()`).
 
-            // Also need Departments. `/api/crm/departments`?
+            // Also need Departments. `/api/v1/admin/crm/departments`?
             // I'll wrap this in a try-catch and handle errors gracefully.
 
             const [empResponse, deptResponse] = await Promise.all([
-                fetch("/api/payroll/employees?limit=1000&status=Active"), 
-                fetch("/api/crm/departments?limit=100")
+                fetch("/api/v1/admin/payroll/employees?limit=1000&status=Active"), 
+                fetch("/api/v1/admin/crm/departments?limit=100")
             ]);
 
             // Handling 404s if routes differ

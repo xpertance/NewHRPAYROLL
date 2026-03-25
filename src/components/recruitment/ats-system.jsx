@@ -65,9 +65,9 @@ export default function ATSSystem() {
         try {
             setLoading(true);
             const [jobsRes, candidatesRes, interviewersRes] = await Promise.all([
-                fetch('/api/recruitment/jobs'),
-                fetch('/api/recruitment/candidates'),
-                fetch('/api/recruitment/interviews') // Reusing this to get interviewers
+                fetch('/api/v1/admin/recruitment/jobs'),
+                fetch('/api/v1/admin/recruitment/candidates'),
+                fetch('/api/v1/admin/recruitment/interviews') // Reusing this to get interviewers
             ]);
 
             const jobsData = await jobsRes.json();
@@ -104,7 +104,7 @@ export default function ATSSystem() {
                 c._id === candidateId ? { ...c, status: newStatus } : c
             ));
 
-            const res = await fetch('/api/recruitment/candidates', {
+            const res = await fetch('/api/v1/admin/recruitment/candidates', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: candidateId, status: newStatus })
@@ -502,7 +502,7 @@ function AddCandidateModal({ jobs, onClose, onSuccess }) {
 
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/candidates', {
+            const res = await fetch('/api/v1/admin/recruitment/candidates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -720,7 +720,7 @@ function ScheduleModal({ onClose, candidate, interviewers, onSuccess }) {
 
         try {
             setSubmitting(true);
-            const res = await fetch('/api/recruitment/interviews', {
+            const res = await fetch('/api/v1/admin/recruitment/interviews', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

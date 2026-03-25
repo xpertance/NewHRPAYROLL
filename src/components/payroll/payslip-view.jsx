@@ -20,8 +20,6 @@ import {
 } from "lucide-react";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import toast, { Toaster } from "react-hot-toast";
-import autoTable from "jspdf-autotable";
-import { jsPDF } from "jspdf";
 export default function PayslipView({ payslipId }) {
   const [payslip, setPayslip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +34,7 @@ export default function PayslipView({ payslipId }) {
   const fetchPayslip = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/payroll/payslip/${payslipId}`);
+      const response = await fetch(`/api/v1/admin/payroll/payslip/${payslipId}`);
       if (response.ok) {
         const payslipData = await response.json();
         setPayslip(payslipData);
@@ -79,10 +77,12 @@ export default function PayslipView({ payslipId }) {
   const NUMBER_FONT = "courier";
 
   // ================== SINGLE PAYSLIP PDF ==================
-  const handleDownloadPDF = (payslip) => {
+  const handleDownloadPDF = async (payslip) => {
     const toastId = toast.loading("Generating payslip PDF...");
 
     try {
+      const jsPDF = (await import("jspdf")).default;
+      const autoTable = (await import("jspdf-autotable")).default;
       const doc = new jsPDF("portrait", "mm", "a4");
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();

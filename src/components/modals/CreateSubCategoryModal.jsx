@@ -122,7 +122,7 @@ export default function CreateSubCategoryModal({
         return;
       }
 
-      const response = await fetch(`/api/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
+      const response = await fetch(`/api/v1/admin/crm/departments?organizationId=${selectedOrg._id}&limit=100`);
       
       if (response.ok) {
         const data = await response.json();
@@ -159,7 +159,7 @@ export default function CreateSubCategoryModal({
       }
 
       const response = await fetch(
-        `/api/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
+        `/api/v1/admin/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
       );
       
       if (response.ok) {
@@ -201,7 +201,7 @@ export default function CreateSubCategoryModal({
 
       // First get the employee type ID
       const empTypeResponse = await fetch(
-        `/api/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
+        `/api/v1/admin/crm/employeetype?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&limit=1000`
       );
       
       if (!empTypeResponse.ok) {
@@ -219,7 +219,7 @@ export default function CreateSubCategoryModal({
 
       // Now fetch categories for this employee type
       const response = await fetch(
-        `/api/crm/employeecategory?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&employeeTypeId=${employeeTypeDoc._id}&limit=1000`
+        `/api/v1/admin/crm/employeecategory?organizationId=${selectedOrg._id}&departmentId=${selectedDept._id}&employeeTypeId=${employeeTypeDoc._id}&limit=1000`
       );
       
       if (response.ok) {
@@ -261,7 +261,7 @@ export default function CreateSubCategoryModal({
         return;
       }
       
-      const res = await fetch("/api/crm/employeesubcategory", {
+      const res = await fetch("/api/v1/admin/crm/employeesubcategory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

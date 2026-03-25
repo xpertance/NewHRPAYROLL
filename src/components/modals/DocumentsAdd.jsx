@@ -42,7 +42,7 @@ export default function DocumentAdd({ isOpen, onClose, onSuccess }) {
       setError("");
       setDuplicateError("");
 
-      const res = await fetch("/api/crm/documents", {
+      const res = await fetch("/api/v1/admin/crm/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

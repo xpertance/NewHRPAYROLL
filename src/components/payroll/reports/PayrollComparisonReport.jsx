@@ -31,7 +31,7 @@ export default function PayrollComparisonReport() {
 
     const fetchRuns = async () => {
         try {
-            const res = await fetch("/api/payroll/run");
+            const res = await fetch("/api/v1/admin/payroll/run");
             const data = await res.json();
             if (Array.isArray(data)) {
                 setRuns(data);
@@ -52,7 +52,7 @@ export default function PayrollComparisonReport() {
         if (!run1Id || !run2Id) return;
         setLoadingReport(true);
         try {
-            const res = await fetch(`/api/payroll/reports/comparison?runId1=${run1Id}&runId2=${run2Id}`);
+            const res = await fetch(`/api/v1/admin/payroll/reports/comparison?runId1=${run1Id}&runId2=${run2Id}`);
             const data = await res.json();
             if (res.ok) {
                 setReportData(data);
