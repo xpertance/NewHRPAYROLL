@@ -273,7 +273,7 @@ export default function PayslipGenerator() {
       const data = await response.json();
       console.log("Fetched employees:", data);
       if (response.ok) {
-        setEmployees(data.employees || []);
+        setEmployees(data.data || data.employees || []);
       } else {
         console.error("Failed to fetch employees:", data.error);
       }
@@ -288,7 +288,8 @@ export default function PayslipGenerator() {
       const response = await fetch(`/api/v1/admin/employees/${employeeId}`);
       const data = await response.json();
       if (response.ok) {
-        const { salaryDetails, payslipStructure } = data;
+        const empData = data.employee || data;
+        const { salaryDetails, payslipStructure } = empData;
         const earnings = (payslipStructure?.earnings || []).map((e) => ({
           name: e.name || "Other",
           type: e.name || "Other",
@@ -309,7 +310,7 @@ export default function PayslipGenerator() {
           enabled: d.enabled !== false,
           editable: d.editable !== false,
         }));
-        setEmployeeData(data);
+        setEmployeeData(empData);
         setFormData((prev) => ({
           ...prev,
           basicSalary: payslipStructure?.basicSalary || 0,
@@ -851,7 +852,7 @@ export default function PayslipGenerator() {
         setDuplicatePayslip(null);
 
         // Redirect immediately
-        router.push("/payroll/payslip");
+        router.push("/admin/payroll/payslip");
       } else {
         if (data.error === "DUPLICATE_PAYSLIP") {
           setDuplicatePayslip(data.existingPayslipId);

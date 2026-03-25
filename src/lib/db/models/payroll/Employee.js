@@ -198,6 +198,12 @@ const employeeSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    // NEW FIELD: Tax Regime Selection (Keka Standard)
+    taxRegime: {
+      type: String,
+      enum: ['old', 'new'],
+      default: 'new'
+    },
     personalDetails: {
       firstName: {
         type: String,
@@ -495,10 +501,13 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     throw new Error("Salary structure (payslipStructure) is missing for this employee.");
   }
 
-  // 1. INTEGRATE LEAVES (LOP)
+  // 1. INTEGRATE LEAVES & ATTENDANCE (LOP)
   let lopDays = params.lopDays || 0;
   try {
     const Leave = mongoose.models.Leave || mongoose.model("Leave");
+    const Attendance = mongoose.models.Attendance || mongoose.model("Attendance");
+    
+    // a. Get Unpaid Leaves
     const leaveRecord = await Leave.findOne({ 
       employeeId: this._id, 
       month, 
@@ -506,10 +515,25 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
       status: "Approved" 
     });
     if (leaveRecord && leaveRecord.summary) {
-      lopDays = leaveRecord.summary.unpaidLeaves + (leaveRecord.summary.halfDayUnpaidLeaves || 0) * 0.5;
+      lopDays += leaveRecord.summary.unpaidLeaves + (leaveRecord.summary.halfDayUnpaidLeaves || 0) * 0.5;
     }
+
+    // b. Get Absent Days from Attendance (that are not covered by leaves)
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+    
+    const absentRecords = await Attendance.find({
+      employee: this._id,
+      date: { $gte: startDate, $lte: endDate },
+      status: "Absent"
+    });
+
+    // Each 'Absent' day counts as 1 LOP day if not already counted via Leave
+    // Usually system ensures one status per day, so we can just add them or use a Set of dates
+    lopDays += absentRecords.length;
+
   } catch (err) {
-    console.error("Error fetching leaves for salary calc:", err);
+    console.error("Error fetching leaves/attendance for salary calc:", err);
   }
 
   // 2. INTEGRATE OVERTIME
@@ -564,14 +588,82 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     console.error("Error fetching loans for salary calc:", err);
   }
 
+  // 4. INTEGRATE RETRO ADJUSTMENTS
+  let retroEarnings = 0;
+  let retroDeductions = 0;
+  const retroList = [];
+  try {
+    const RetroAdjustment = mongoose.models.RetroAdjustment || mongoose.model("RetroAdjustment");
+    const pendingRetros = await RetroAdjustment.find({
+      employeeId: this._id,
+      status: "Pending"
+    });
+
+    for (const retro of pendingRetros) {
+      if (retro.type === 'Earning') {
+        retroEarnings += retro.amount;
+      } else {
+        retroDeductions += retro.amount;
+      }
+      retroList.push({
+        name: `${retro.componentName} (${retro.adjustmentType})`,
+        amount: retro.amount,
+        type: retro.type,
+        retroId: retro._id
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching retros for salary calc:", err);
+  }
+
+  // 5. INTEGRATE VARIABLE PAY
+  let variablePayAmount = 0;
+  const variablePayList = [];
+  try {
+    const PayrollVariableInput = mongoose.models.PayrollVariableInput || mongoose.model("PayrollVariableInput");
+    const VariablePayConfig = mongoose.models.VariablePayConfig || mongoose.model("VariablePayConfig");
+    
+    const varInputs = await PayrollVariableInput.find({
+      employeeId: this._id,
+      month,
+      year,
+      status: "Approved"
+    }).populate('componentId');
+
+    for (const input of varInputs) {
+      variablePayAmount += input.payoutAmount;
+      variablePayList.push({
+        name: input.componentId?.name || "Variable Pay",
+        amount: input.payoutAmount,
+        configId: input.componentId?._id
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching variable pay for salary calc:", err);
+  }
+
   const standardBasic = structure.basicSalary || 0;
   let basicSalary = standardBasic;
   let lopAmount = 0;
+  let proratedDays = workingDaysInMonth; // Default: full month
 
-  // Calculate LOP (Loss of Pay)
-  if (lopDays > 0 && workingDaysInMonth > 0 && standardBasic > 0) {
+  // ===== MID-MONTH JOINING PRORATION (Keka Standard) =====
+  const joiningDate = this.personalDetails?.dateOfJoining ? new Date(this.personalDetails.dateOfJoining) : null;
+  const periodStart = new Date(year, month - 1, 1);
+  const periodEnd = new Date(year, month, 0);
+
+  if (joiningDate && joiningDate >= periodStart && joiningDate <= periodEnd) {
+    // Employee joined mid-month — prorate salary
+    const joiningDay = joiningDate.getDate();
+    proratedDays = workingDaysInMonth - joiningDay + 1;
+    const prorationFactor = proratedDays / workingDaysInMonth;
+    basicSalary = Math.round(standardBasic * prorationFactor);
+  }
+
+  // ===== LOP CALCULATION =====
+  if (lopDays > 0 && workingDaysInMonth > 0 && basicSalary > 0) {
     lopAmount = (standardBasic / workingDaysInMonth) * lopDays;
-    basicSalary = Math.max(0, standardBasic - lopAmount);
+    basicSalary = Math.max(0, basicSalary - lopAmount);
   }
 
   // Calculate earnings based on actual basic salary
@@ -603,7 +695,29 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
      });
   }
 
-  // Calculate Gross Salary
+  // Add Variable Pay components to list
+  for (const v of variablePayList) {
+    calculatedEarnings.push({
+      name: v.name,
+      calculatedAmount: Math.round(v.amount),
+      autoCalculated: true,
+      configId: v.configId
+    });
+  }
+
+  // Add Retro Earnings components to list
+  for (const r of retroList) {
+    if (r.type === 'Earning') {
+      calculatedEarnings.push({
+        name: `${r.name}`,
+        calculatedAmount: Math.round(r.amount),
+        autoCalculated: true,
+        retroId: r.retroId
+      });
+    }
+  }
+
+  // Calculate Gross Salary (Sum of all earnings including basic)
   const grossSalary = basicSalary + calculatedEarnings.reduce((sum, e) => sum + e.calculatedAmount, 0);
 
   // Calculate configured deductions
@@ -641,6 +755,18 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
       autoCalculated: true,
       loanId: loan.loanId
     });
+  }
+
+  // Add Retro Deductions components to list
+  for (const r of retroList) {
+    if (r.type === 'Deduction') {
+      calculatedDeductions.push({
+        name: `${r.name}`,
+        calculatedAmount: Math.round(r.amount),
+        autoCalculated: true,
+        retroId: r.retroId
+      });
+    }
   }
 
   // ========== AUTO-CALCULATED STATUTORY DEDUCTIONS (India Compliance) ==========
@@ -684,19 +810,57 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     });
   }
 
-  // 4. TDS (Income Tax)
+  // 4. TDS (Income Tax) — Dual Regime (Keka Standard)
   if (this.isTDSApplicable) {
+    const regime = this.taxRegime || 'new';
     const annualGross = grossSalary * 12;
-    let monthlyTDS = 0;
-    if (annualGross > 700000) {
-      monthlyTDS = Math.round(((annualGross - 700000) * 0.1) / 12);
+    let annualTax = 0;
+
+    if (regime === 'new') {
+      // New Regime FY 2025-26 (Budget 2025)
+      // 0-4L: NIL, 4-8L: 5%, 8-12L: 10%, 12-16L: 15%, 16-20L: 20%, 20-24L: 25%, >24L: 30%
+      // Standard deduction: ₹75,000
+      const taxableIncome = Math.max(0, annualGross - 75000);
+      if (taxableIncome <= 400000) annualTax = 0;
+      else if (taxableIncome <= 800000) annualTax = (taxableIncome - 400000) * 0.05;
+      else if (taxableIncome <= 1200000) annualTax = 20000 + (taxableIncome - 800000) * 0.10;
+      else if (taxableIncome <= 1600000) annualTax = 60000 + (taxableIncome - 1200000) * 0.15;
+      else if (taxableIncome <= 2000000) annualTax = 120000 + (taxableIncome - 1600000) * 0.20;
+      else if (taxableIncome <= 2400000) annualTax = 200000 + (taxableIncome - 2000000) * 0.25;
+      else annualTax = 300000 + (taxableIncome - 2400000) * 0.30;
+
+      // Section 87A rebate: Full tax rebate if taxable income <= ₹12L (new budget)
+      if (taxableIncome <= 1200000) annualTax = 0;
+
+    } else {
+      // Old Regime
+      // 0-2.5L: NIL, 2.5-5L: 5%, 5-10L: 20%, >10L: 30%
+      // Standard deduction: ₹50,000
+      // Note: 80C/80D deductions would further reduce taxable income, but we apply a basic calc here
+      const standardDeduction = 50000;
+      const section80C = 150000; // Max limit — actual declared amount should come from InvestmentDeclaration
+      const taxableIncome = Math.max(0, annualGross - standardDeduction - section80C);
+
+      if (taxableIncome <= 250000) annualTax = 0;
+      else if (taxableIncome <= 500000) annualTax = (taxableIncome - 250000) * 0.05;
+      else if (taxableIncome <= 1000000) annualTax = 12500 + (taxableIncome - 500000) * 0.20;
+      else annualTax = 112500 + (taxableIncome - 1000000) * 0.30;
+
+      // Section 87A rebate: Full tax rebate if taxable income <= ₹5L
+      if (taxableIncome <= 500000) annualTax = 0;
     }
+
+    // Add 4% Health & Education Cess
+    annualTax = Math.round(annualTax * 1.04);
+
+    const monthlyTDS = Math.round(annualTax / 12);
 
     if (monthlyTDS > 0) {
       calculatedDeductions.push({
-        name: 'Income Tax (TDS)',
+        name: `Income Tax (TDS - ${regime === 'new' ? 'New' : 'Old'} Regime)`,
         calculatedAmount: monthlyTDS,
-        autoCalculated: true
+        autoCalculated: true,
+        regime: regime
       });
     }
   }
@@ -733,7 +897,12 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     overtimeHours,
     overtimeAmount,
     loanDeductions: loanDeductionsAmount,
-    loanDeductionsList
+    loanDeductionsList,
+    retroEarnings,
+    retroDeductions,
+    retroList,
+    variablePayAmount,
+    variablePayList
   };
 };
 

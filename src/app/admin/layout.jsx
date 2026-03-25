@@ -626,7 +626,7 @@ function DashboardLayoutContent({ children }) {
                 </DropdownMenu>
 
                 <button
-                  onClick={() => router.push('/notifications')}
+                  onClick={() => router.push('/admin/notifications')}
                   className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors relative"
                   aria-label="Notifications"
                 >

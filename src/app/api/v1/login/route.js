@@ -232,6 +232,7 @@ export async function POST(req) {
           {
             id: employee._id.toString(),
             role: 'supervisor',
+            organizationId: employee.jobDetails?.organizationId?.toString() || null,
             designation: employee.jobDetails.designation,
             department: employee.jobDetails.department,
             isEmployeeSupervisor: true
@@ -308,6 +309,7 @@ export async function POST(req) {
         {
           id: user._id.toString(),
           role: user.role || 'supervisor',
+          organizationId: user.organizationId?.toString() || null,
           department: user.department || 'management',
           designation: user.designation || 'Supervisor'
         },
@@ -390,6 +392,7 @@ export async function POST(req) {
         {
           id: employee._id.toString(),
           role: 'employee',
+          organizationId: employee.jobDetails?.organizationId?.toString() || null,
           designation: employee.jobDetails.designation,
           department: employee.jobDetails.department
         },
@@ -474,6 +477,7 @@ export async function POST(req) {
         {
           id: employee._id.toString(),
           role: 'attendance_only',
+          organizationId: employee.jobDetails?.organizationId?.toString() || null,
           department: employee.jobDetails?.department || 'N/A'
         },
         JWT_SECRET,

@@ -9,7 +9,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
-import toast, { Toaster } from 'react-hot-toast';
+import { toast } from 'sonner';
+import SendNotificationModal from '@/components/modals/SendNotificationModal';
 
 export default function NotificationsDashboard() {
   const { t } = useLanguage();
@@ -18,6 +19,7 @@ export default function NotificationsDashboard() {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -124,6 +126,26 @@ export default function NotificationsDashboard() {
     }
   };
 
+  const handleSendNotification = async (formData) => {
+    try {
+      const response = await fetch('/api/v1/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success(t('notificationSentSuccessfully') || "Notification sent successfully!");
+        fetchNotifications();
+      } else {
+        throw new Error(data.message || "Failed to send notification");
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const getStats = () => {
     const total = notifications.length;
     const unread = notifications.filter(n => !n.read).length;
@@ -216,7 +238,6 @@ export default function NotificationsDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Toaster position="top-right" />
 
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
@@ -233,6 +254,13 @@ export default function NotificationsDashboard() {
             </div>
 
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors font-medium mr-2"
+              >
+                <Bell className="w-4 h-4" />
+                {t('compose') || "Compose"}
+              </button>
               <button
                 onClick={fetchNotifications}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg border-2 border-slate-200 transition-colors font-medium"
@@ -392,6 +420,9 @@ export default function NotificationsDashboard() {
                           {notification.title}
                         </h3>
                         <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="px-2.5 py-1 text-xs font-medium rounded-md border-2 whitespace-nowrap bg-purple-50 text-purple-700 border-purple-200 capitalize">
+                            Target: {notification.audienceType || 'individual'}
+                          </span>
                           <span className={`px-2.5 py-1 text-xs font-medium rounded-md border-2 whitespace-nowrap ${getPriorityBadge(notification.priority)}`}>
                             {notification.priority}
                           </span>
@@ -506,6 +537,17 @@ export default function NotificationsDashboard() {
                   </div>
                 )}
 
+                <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg border-2 border-indigo-200">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  <span className="text-sm font-medium text-slate-900">{t('audience') || 'Audience'}:</span>
+                  <span className="text-sm text-slate-700 capitalize">
+                    {selectedNotification.audienceType || 'individual'}
+                    {selectedNotification.audienceType === 'team' && selectedNotification.department ? ` (${selectedNotification.department})` : ''}
+                    {selectedNotification.audienceType === 'individual' && selectedNotification.employee ? ` - ${selectedNotification.employee}` : ''}
+                    {selectedNotification.audienceType === 'individual' && selectedNotification.employees && selectedNotification.employees.length > 0 ? ` - ${selectedNotification.employees.length} employees` : ''}
+                  </span>
+                </div>
+
                 {selectedNotification.actions && selectedNotification.actions.length > 0 && (
                   <div className="pt-4 border-t-2 border-slate-200">
                     <h4 className="font-semibold text-slate-900 mb-3">{t('quickActions')}</h4>
@@ -545,6 +587,12 @@ export default function NotificationsDashboard() {
           </div>
         </div>
       )}
+
+      <SendNotificationModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSendNotification}
+      />
     </div>
   );
 }

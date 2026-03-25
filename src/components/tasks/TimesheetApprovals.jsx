@@ -15,7 +15,7 @@ import {
     X,
     User
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSession } from "@/context/SessionContext";
 
@@ -68,7 +68,7 @@ const TimesheetApprovals = () => {
                 body: JSON.stringify({
                     status,
                     adminNotes,
-                    approvedBy: user?._id
+                    approvedBy: user?.id
                 })
             });
             const data = await res.json();

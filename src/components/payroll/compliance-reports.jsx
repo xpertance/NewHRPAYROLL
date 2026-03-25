@@ -252,7 +252,7 @@ export default function ComplianceReports() {
                 </button>
 
                 <Link
-                  href="/payroll/compliance/generate"
+                  href="/admin/payroll/compliance/generate"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
@@ -383,7 +383,7 @@ export default function ComplianceReports() {
                           </button>
                         ) : (
                           <Link
-                            href="/payroll/compliance/generate"
+                            href="/admin/payroll/compliance/generate"
                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors shadow-sm"
                           >
                             <Plus className="w-4 h-4" />

@@ -62,6 +62,16 @@ const cleanObjectIdFields = (data) => {
     }
   }
 
+  // Clean attendanceApproval supervisor ObjectId fields
+  if (cleaned.attendanceApproval) {
+    if (cleaned.attendanceApproval.shift1Supervisor === '' || !cleaned.attendanceApproval.shift1Supervisor) {
+      cleaned.attendanceApproval.shift1Supervisor = null;
+    }
+    if (cleaned.attendanceApproval.shift2Supervisor === '' || !cleaned.attendanceApproval.shift2Supervisor) {
+      cleaned.attendanceApproval.shift2Supervisor = null;
+    }
+  }
+
   return cleaned;
 };
 
@@ -343,6 +353,11 @@ export async function POST(request) {
         nextId = (parseInt(lastEmployee.employeeId.replace(/\D/g, "")) || 0) + 1;
       }
       cleanedBody.employeeId = `EMP${String(nextId).padStart(3, "0")}`;
+    }
+
+    // Auto-set createdBy from auth session if not provided
+    if (!cleanedBody.createdBy) {
+      cleanedBody.createdBy = authUser.id;
     }
 
     const employee = await Employee.create(cleanedBody);

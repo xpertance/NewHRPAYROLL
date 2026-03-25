@@ -105,6 +105,36 @@ const swaggerDefinition = {
   ],
   paths: {
     // ==========================================
+    // 0. PROJECT TRACKING (NEW)
+    // ==========================================
+    '/api/v1/admin/tasks/projects': {
+      get: {
+        tags: ['Project Tracking'],
+        summary: 'List Projects',
+        security: [{ adminAuth: [] }, { employeeAuth: [] }],
+        responses: { 200: { description: 'Success' } }
+      },
+      post: {
+        tags: ['Project Tracking'],
+        summary: 'Create Project',
+        security: [{ adminAuth: [] }],
+        responses: { 201: { description: 'Created' } }
+      }
+    },
+    '/api/v1/admin/tasks/utilization': {
+      get: {
+        tags: ['Project Tracking'],
+        summary: 'Get Resource Utilization',
+        description: 'Calculates team productivity and workload intensity.',
+        security: [{ adminAuth: [] }],
+        parameters: [
+            { name: 'startDate', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'endDate', in: 'query', required: true, schema: { type: 'string' } }
+        ],
+        responses: { 200: { description: 'Success' } }
+      }
+    },
+    // ==========================================
     // 0. COMPANY REGISTRATION
     // ==========================================
     '/api/v1/register': {

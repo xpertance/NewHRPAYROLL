@@ -1821,7 +1821,7 @@ export default function EmployeeDetail({ employeeId }) {
       });
       if (!response.ok) throw new Error("Failed to delete employee");
       toast.success("Employee deleted successfully");
-      router.push("/payroll/employees");
+      router.push("/admin/payroll/employees");
     } catch (error) {
       console.error("Error deleting employee:", error);
       toast.error("Failed to delete employee");
