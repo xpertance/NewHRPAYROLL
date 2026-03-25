@@ -103,7 +103,16 @@ function DashboardLayoutContent({ children }) {
   }, [user]);
 
   const fetchUnreadNotifications = async () => {
-    // Disabled wrong role API call from employee layout copy
+    try {
+      const res = await fetch('/api/v1/employee/notifications');
+      const data = await res.json();
+      if (data.success) {
+        const unread = data.notifications.filter(n => !n.read).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications", error);
+    }
   };
 
   const toggleMenu = (menuName) => {
@@ -617,7 +626,7 @@ function DashboardLayoutContent({ children }) {
                 </DropdownMenu>
 
                 <button
-                  onClick={() => router.push('/notifications')}
+                  onClick={() => router.push('/employee/notifications')}
                   className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors relative"
                   aria-label="Notifications"
                 >

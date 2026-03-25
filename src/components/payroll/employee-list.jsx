@@ -584,7 +584,7 @@ export default function EmployeeList() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Employee Directory</h1>
-                <p className="text-slate-600 text-sm mt-0.5">Manage your supply chain workforce and team operations</p>
+                <p className="text-slate-600 text-sm mt-0.5">Manage your organizational workforce and team operations</p>
               </div>
             </div>
 

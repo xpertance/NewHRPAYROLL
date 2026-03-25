@@ -112,7 +112,7 @@ export default function AttendanceDashboard() {
       console.log(user.role);
 
       if (user.role === "admin") {
-        setEmployees(data.employees || []);
+        setEmployees(data.data || data.employees || []);
       } else if (user.role === "supervisor") {
         // Filter employees assigned to this supervisor
         console.log("start", data.employees);

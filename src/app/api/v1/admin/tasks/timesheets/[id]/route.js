@@ -2,12 +2,21 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Timesheet from '@/lib/db/models/tasks/Timesheet';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser } from '@/lib/auth-util';
 
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-        const timesheet = await Timesheet.findById(params.id)
-            .populate('employee', 'personalDetails.firstName personalDetails.lastName employeeId');
+        const authUser = await getAuthUser();
+
+        if (!authUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const timesheet = await Timesheet.findOne({
+            _id: params.id,
+            organizationId: authUser.organizationId
+        }).populate('employee', 'personalDetails.firstName personalDetails.lastName employeeId');
 
         if (!timesheet) return NextResponse.json({ success: false, error: 'Timesheet not found' }, { status: 404 });
 
@@ -20,10 +29,19 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+
+        if (!authUser) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { status, adminNotes, approvedBy } = body;
 
-        const timesheet = await Timesheet.findById(params.id);
+        const timesheet = await Timesheet.findOne({
+            _id: params.id,
+            organizationId: authUser.organizationId
+        });
         if (!timesheet) return NextResponse.json({ success: false, error: 'Timesheet not found' }, { status: 404 });
 
         if (status) timesheet.status = status;

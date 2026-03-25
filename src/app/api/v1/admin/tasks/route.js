@@ -17,9 +17,11 @@ export async function GET(request) {
     await dbConnect();
 
     // SaaS PROTECTION: Restrict by organization
-    let query = {};
-    if (authUser.role === "admin" || authUser.role === "supervisor") {
-      query.organizationId = authUser.organizationId;
+    let query = { organizationId: authUser.organizationId };
+    
+    // Employee-specific filtering
+    if (authUser.role === "employee") {
+      query.assignedTo = authUser.id; // Only see tasks assigned to them
     }
 
     // Fetch all tasks from the database matching the org

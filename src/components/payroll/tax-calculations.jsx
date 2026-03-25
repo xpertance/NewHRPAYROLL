@@ -137,7 +137,7 @@
 //               </div>
 //               <div>
 //                 <h1 className="text-2xl font-bold text-slate-900">Tax Calculations</h1>
-//                 <p className="text-slate-600 text-sm mt-0.5">Supply Chain Financial Management System</p>
+//                 <p className="text-slate-600 text-sm mt-0.5">HR & Payroll Financial Management System</p>
 //               </div>
 //             </div>
 
@@ -717,7 +717,7 @@ export default function TaxCalculations() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Tax Calculations</h1>
-                <p className="text-slate-600 text-sm mt-0.5">Supply Chain Financial Management System</p>
+                <p className="text-slate-600 text-sm mt-0.5">HR & Payroll Financial Management System</p>
               </div>
             </div>
 
@@ -796,7 +796,7 @@ export default function TaxCalculations() {
                 </button>
 
                 <Link
-                  href="/payroll/tax-calculations/tax-calculator"
+                  href="/admin/payroll/tax-calculations/tax-calculator"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />

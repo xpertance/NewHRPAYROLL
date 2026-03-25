@@ -7,6 +7,11 @@ const timesheetSchema = new mongoose.Schema(
             ref: "Employee",
             required: true,
         },
+        organizationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Organization",
+            required: true,
+        },
         weekStartDate: {
             type: Date,
             required: true,

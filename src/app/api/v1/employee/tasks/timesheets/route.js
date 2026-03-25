@@ -2,17 +2,25 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Timesheet from '@/lib/db/models/tasks/Timesheet';
 import TimesheetEntry from '@/lib/db/models/tasks/TimesheetEntry';
+import { getAuthUser } from '@/lib/auth-util';
 import { logActivity } from '@/lib/logger';
+
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
-        const employeeId = searchParams.get('employeeId');
+        let employeeId = searchParams.get('employeeId');
         const weekStartDate = searchParams.get('weekStartDate');
         const status = searchParams.get('status');
 
-        let query = {};
+        // Enforcement: Employees can only see their own timesheets
+        if (authUser.role === "employee") {
+            employeeId = authUser.id;
+        }
+
+        let query = { organizationId: authUser.organizationId };
         if (employeeId) query.employee = employeeId;
         if (weekStartDate) query.weekStartDate = new Date(weekStartDate);
         if (status) query.status = status;
@@ -42,9 +50,15 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const body = await request.json();
         const { employee, weekStartDate, entries, status = 'Draft' } = body;
+
+        // Security Validation
+        if (authUser.role === 'employee' && employee !== authUser.id) {
+            return NextResponse.json({ success: false, error: 'Unauthorized: Cannot log hours for other employees' }, { status: 403 });
+        }
 
         if (!employee || !weekStartDate) {
             return NextResponse.json({ success: false, error: 'Employee and weekStartDate are required' }, { status: 400 });
@@ -60,7 +74,8 @@ export async function POST(request) {
             timesheet = new Timesheet({
                 employee,
                 weekStartDate: new Date(weekStartDate),
-                status
+                status,
+                organizationId: authUser.organizationId // Ensure organizationId is saved
             });
         } else {
             // If already submitted or approved, don't allow changes unless admin?

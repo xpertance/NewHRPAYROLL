@@ -12,15 +12,18 @@ import {
     Briefcase,
     ChevronRight,
     Loader2,
-    X
+    X,
+    LayoutDashboard
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSession } from "@/context/SessionContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useRouter } from "next/navigation";
 
 const ProjectManagement = () => {
     const { user } = useSession();
+    const router = useRouter();
     const { t } = useLanguage();
     const isAdmin = user?.role === 'admin';
     const [projects, setProjects] = useState([]);
@@ -29,6 +32,7 @@ const ProjectManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [memberSearch, setMemberSearch] = useState("");
 
     // Form State
     const [formData, setFormData] = useState({
@@ -57,7 +61,7 @@ const ProjectManagement = () => {
             const empData = await empRes.json();
 
             if (projData.success) setProjects(projData.projects);
-            if (empRes.ok) setEmployees(empData.employees || []);
+            if (empData.success) setEmployees(empData.data || []);
         } catch (error) {
             toast.error("Failed to fetch project data");
         } finally {
@@ -260,6 +264,13 @@ const ProjectManagement = () => {
                                     <td className="p-5">
                                         {isAdmin && (
                                             <div className="flex items-center justify-center gap-2">
+                                                <button 
+                                                    onClick={() => router.push(`/admin/tasks/projects/${project._id}`)} 
+                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                    title="View Details"
+                                                >
+                                                    <LayoutDashboard size={16} />
+                                                </button>
                                                 <button onClick={() => handleOpenModal(project)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                                                     <Edit2 size={16} />
                                                 </button>
@@ -337,9 +348,20 @@ const ProjectManagement = () => {
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                     >
                                         <option value="">Select Manager</option>
-                                        {employees.map(emp => (
-                                            <option key={emp._id} value={emp._id}>{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</option>
-                                        ))}
+                                        {employees
+                                            .filter(emp => (emp.jobDetails?.designation || "").toLowerCase().includes("manager") || (emp.jobDetails?.designation || "").toLowerCase().includes("lead") || (emp.role || "").toLowerCase() === "admin")
+                                            .map(emp => (
+                                                <option key={emp._id} value={emp._id}>
+                                                    {emp.personalDetails?.firstName} {emp.personalDetails?.lastName} ({emp.jobDetails?.designation || 'N/A'})
+                                                </option>
+                                            ))}
+                                        {employees.length > 0 && employees.filter(emp => (emp.jobDetails?.designation || "").toLowerCase().includes("manager")).length === 0 && (
+                                            <optgroup label="Other Employees">
+                                                {employees.map(emp => (
+                                                    <option key={emp._id} value={emp._id}>{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -378,12 +400,26 @@ const ProjectManagement = () => {
                                     />
                                 </div>
                             </div>
-
+                            
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Team Members</label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[150px] overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                    {employees.map(emp => (
-                                        <label key={emp._id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition-colors">
+                                <div className="flex justify-between items-center px-1">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Members</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Filter members..." 
+                                        value={memberSearch}
+                                        onChange={(e) => setMemberSearch(e.target.value)}
+                                        className="text-[10px] px-2 py-1 border border-slate-200 rounded bg-white outline-none focus:ring-1 focus:ring-indigo-500"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-2 gap-3 max-h-[150px] overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    {employees
+                                        .filter(emp => 
+                                            `${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName}`.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                            (emp.jobDetails?.designation || "").toLowerCase().includes(memberSearch.toLowerCase())
+                                        )
+                                        .map(emp => (
+                                        <label key={emp._id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                                             <input
                                                 type="checkbox"
                                                 checked={formData.members.includes(emp._id)}
@@ -395,13 +431,17 @@ const ProjectManagement = () => {
                                                 }}
                                                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                                             />
-                                            <span className="text-xs text-slate-600 truncate">{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold text-slate-700 truncate">{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</span>
+                                                <span className="text-[10px] text-slate-400 truncate">{emp.jobDetails?.designation || 'Employee'}</span>
+                                            </div>
                                         </label>
                                     ))}
                                 </div>
                             </div>
 
                             <div className="pt-4 flex gap-3">
+
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}

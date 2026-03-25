@@ -44,7 +44,9 @@ export async function GET(req) {
 
         const notifications = await Notification.find(query)
             .populate('organization', 'name')
-            // .populate('employee', 'personalDetails') // Optional: populate employee info if needed
+            .populate('employee', 'personalDetails employeeId')
+            .populate('employees', 'personalDetails employeeId')
+            .populate('department', 'departmentName')
             .sort({ createdAt: -1 })
             .limit(50);
 
@@ -54,10 +56,14 @@ export async function GET(req) {
             title: notification.title,
             message: notification.message,
             priority: notification.priority,
-            read: notification.read,
+            read: notification.readBy?.includes(user.id) || notification.read || false,
             createdAt: notification.createdAt,
             organization: notification.organization?.name || null,
-            details: notification.details
+            details: notification.details,
+            audienceType: notification.audienceType || 'individual',
+            department: notification.department?.departmentName || null,
+            employee: notification.employee ? `${notification.employee.personalDetails?.firstName} ${notification.employee.personalDetails?.lastName}` : null,
+            employees: notification.employees?.map(emp => `${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName}`) || null
         }));
 
         return NextResponse.json({
@@ -92,8 +98,11 @@ export async function PUT(req) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
         }
 
-        notification.read = true;
-        await notification.save();
+        if (!notification.readBy) notification.readBy = [];
+        if (!notification.readBy.includes(user.id)) {
+            notification.readBy.push(user.id);
+            await notification.save();
+        }
 
         return NextResponse.json({
             success: true,
@@ -102,6 +111,58 @@ export async function PUT(req) {
 
     } catch (error) {
         console.error("Error updating notification:", error);
+        return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    }
+}
+
+// POST - Create a new notification
+export async function POST(req) {
+    await dbConnect();
+    const user = await getUserFromRequest(req);
+    
+    // Ensure user is admin or super_admin
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+        const body = await req.json();
+        const { title, message, priority, type, audienceType, targetId, employees } = body;
+
+        if (!title || !message) {
+            return NextResponse.json({ message: "Title and message are required" }, { status: 400 });
+        }
+
+        const newNotification = new Notification({
+            type: type || "system",
+            title,
+            message,
+            priority: priority || 'medium',
+            audienceType: audienceType || 'individual',
+            organization: user.organizationId || null,
+        });
+
+        if (audienceType === 'organization') {
+            // No specific IDs needed if it applies to the whole org
+        } else if (audienceType === 'team') {
+            newNotification.department = targetId;
+        } else if (audienceType === 'individual') {
+            if (employees && Array.isArray(employees) && employees.length > 0) {
+                newNotification.employees = employees;
+            } else if (targetId) {
+                newNotification.employee = targetId;
+            }
+        }
+
+        await newNotification.save();
+
+        return NextResponse.json({
+            success: true,
+            message: "Notification sent successfully",
+            notification: newNotification
+        });
+    } catch (error) {
+        console.error("Error creating notification:", error);
         return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
 }

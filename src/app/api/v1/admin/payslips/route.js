@@ -47,43 +47,106 @@ export async function POST(request) {
     await dbConnect();
 
     const body = await request.json();
-    const { employeeId, salary, month, year, deductions, bonuses } = body;
+    const { 
+      employee, 
+      month, 
+      year, 
+      basicSalary, 
+      earnings, 
+      deductions, 
+      grossSalary, 
+      totalDeductions, 
+      netSalary, 
+      workingDays, 
+      presentDays, 
+      leaveDays, 
+      paidLeaveDays, 
+      unpaidLeaveDays, 
+      overtimeHours, 
+      overtimeAmount, 
+      notes, 
+      organizationName, 
+      salaryType 
+    } = body;
 
-    if (!employeeId || !month || !year) {
+    // We can also allow 'employeeId' for backward compatibility
+    const empId = employee || body.employeeId;
+
+    if (!empId || !month || !year || basicSalary === undefined || grossSalary === undefined) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
+    // Pre-process earnings and deductions to match schema (e.g. name -> type if needed)
+    const formattedEarnings = (earnings || []).map(e => ({
+      type: e.type || e.name || 'Other',
+      amount: e.amount || 0,
+      percentage: e.percentage || 0,
+      calculationType: e.calculationType || 'percentage'
+    }));
+
+    const formattedDeductions = (deductions || []).map(d => ({
+      type: d.type || d.name || 'Other',
+      amount: d.amount || 0,
+      percentage: d.percentage || 0,
+      calculationType: d.calculationType || 'percentage'
+    }));
+
     // Check for existing payslip
     const existing = await Payslip.findOne({
-      employee: employeeId,
+      employee: empId,
       month,
       year,
       status: { $ne: "Cancelled" },
     });
 
     if (existing) {
-      return NextResponse.json({ success: false, error: "Payslip already exists for this period" }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        error: "DUPLICATE_PAYSLIP", 
+        message: "Payslip already exists for this period",
+        existingPayslipId: existing._id
+      }, { status: 400 });
     }
 
-    const employeeRecord = await Employee.findById(employeeId);
+    const employeeRecord = await Employee.findById(empId);
     if (!employeeRecord) {
       return NextResponse.json({ success: false, error: "Employee not found" }, { status: 404 });
     }
 
+    // Verify organization name is provided; if not, fetch from employee or auth user
+    let orgName = organizationName || employeeRecord.jobDetails?.organization;
+    let orgId = employeeRecord.jobDetails?.organizationId || authUser.organizationId;
+
+    if (!orgName && employeeRecord.jobDetails?.organizationId?.name) {
+      orgName = employeeRecord.jobDetails?.organizationId?.name;
+    }
+    if (!orgName) orgName = "Unknown Organization";
+    
     // Prepare payslip data
     const payslipData = {
-      employee: employeeId,
+      employee: empId,
       month,
       year,
-      netSalary: salary || 0,
-      deductions: deductions || [],
-      bonuses: bonuses || [],
-      organizationId: employeeRecord.jobDetails?.organizationId || authUser.organizationId,
+      basicSalary,
+      earnings: formattedEarnings,
+      deductions: formattedDeductions,
+      grossSalary,
+      totalDeductions,
+      netSalary,
+      workingDays: workingDays || 30,
+      presentDays: presentDays || 30,
+      leaveDays: leaveDays || 0,
+      paidLeaveDays: paidLeaveDays || 0,
+      unpaidLeaveDays: unpaidLeaveDays || 0,
+      overtimeHours: overtimeHours || 0,
+      overtimeAmount: overtimeAmount || 0,
       status: "Generated",
+      notes: notes || "",
+      organizationId: orgId,
+      organizationName: orgName,
+      salaryType: salaryType || employeeRecord.payslipStructure?.salaryType || "monthly",
       generatedBy: authUser.id,
-      payslipId: `PSL-${Date.now()}`,
-      salaryType: "monthly",
-      organizationName: "Company", // Placeholder or fetch from org
+      payslipId: `PSL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
 
     const payslip = await Payslip.create(payslipData);

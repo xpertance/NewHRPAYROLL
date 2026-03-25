@@ -4,6 +4,7 @@ import Payslip from "@/lib/db/models/payroll/Payslip";
 import Employee from "@/lib/db/models/payroll/Employee";
 import PayrollRun from "@/lib/db/models/payroll/PayrollRun";
 import StatutoryConfig from "@/lib/db/models/payroll/StatutoryConfig";
+import mongoose from "mongoose";
 import { logActivity } from "@/lib/logger";
 import { getAuthUser, authorize } from "@/lib/auth-util";
 
@@ -40,10 +41,22 @@ export async function POST(request) {
       status: "Active"
     })
     .populate("jobDetails.departmentId")
-    .lean(); // Use lean for performance, we'll instantiate Mongoose models if needed for methods
+    .lean();
 
     if (employees.length === 0) {
       return NextResponse.json({ error: "No active employees found for this organization." }, { status: 404 });
+    }
+
+    // 2.5 Filter out employees who already have a Payslip for this month/year
+    const existingPayslips = await Payslip.find({ month, year, organizationId: orgId }).select('employee');
+    const existingEmpIds = existingPayslips.map(p => p.employee.toString());
+    
+    const eligibleEmployees = employees.filter(emp => !existingEmpIds.includes(emp._id.toString()));
+
+    if (eligibleEmployees.length === 0) {
+      return NextResponse.json({ 
+        error: "All active employees already have payslips generated for this period." 
+      }, { status: 409 });
     }
 
     // 3. Create the Master PayrollRun Document (Draft state)
@@ -68,8 +81,8 @@ export async function POST(request) {
     // Cache statutory config to avoid repeated DB calls
     const stateConfigs = {};
 
-    // 4. Loop through each employee and generate a Draft Payslip
-    for (const empData of employees) {
+    // 4. Loop through each eligible employee and generate a Draft Payslip
+    for (const empData of eligibleEmployees) {
       try {
         // Instantiate Mongoose Document to use `calculateSalaryComponents` method
         const employeeDoc = await Employee.findById(empData._id);
@@ -123,7 +136,7 @@ export async function POST(request) {
           basicSalary: salaryCalc.basicSalary,
           earnings: salaryCalc.earnings,
           deductions: salaryCalc.deductions,
-          totalDays: totalDays,
+          workingDays: totalDays,
           presentDays: totalDays - (salaryCalc.lopDays || 0),
           leaveDays: salaryCalc.lopDays || 0,
           paidLeaveDays: 0, // Should be fetched if needed separately, but LOP is key for deduction
@@ -151,6 +164,20 @@ export async function POST(request) {
     if (generatedPayslips.length > 0) {
       await Payslip.insertMany(generatedPayslips);
       
+      // Update Retro Adjustments to 'Applied' for all processed employees in this run
+      const RetroAdjustment = mongoose.models.RetroAdjustment || mongoose.model("RetroAdjustment");
+      await RetroAdjustment.updateMany(
+        { 
+          employeeId: { $in: generatedPayslips.map(p => p.employee) },
+          status: 'Pending'
+        },
+        { 
+          status: 'Applied', 
+          appliedInMonth: month, 
+          appliedInYear: year 
+        }
+      );
+
       // Update Payroll Run aggregate metrics
       payrollRun.totalGrossSalary = totalGross;
       payrollRun.totalNetSalary = totalNet;

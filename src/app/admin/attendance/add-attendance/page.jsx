@@ -25,10 +25,11 @@ export default function AddAttendance() {
       const res = await fetch("/api/v1/admin/employees");
       const data = await res.json();
       if (data.success) {
-        setEmployees(data.employees);
+        const empList = data.data || data.employees || [];
+        setEmployees(empList);
         // Initialize attendance data for all employees
         const initialData = {};
-        data.employees.forEach(emp => {
+        empList.forEach(emp => {
           initialData[emp._id] = {
             status: "Present",
             checkIn: "09:00",
