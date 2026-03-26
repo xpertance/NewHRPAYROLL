@@ -490,11 +490,9 @@ employeeSchema.virtual('fullName').get(function () {
 // Method to calculate salary components (Async to pull from other modules)
 employeeSchema.methods.calculateSalaryComponents = async function (statutoryConfig = null, params = {}) {
   const now = new Date();
-  const { 
-    month = params.month || now.getMonth() + 1, 
-    year = params.year || now.getFullYear(),
-    workingDaysInMonth = new Date(year, month, 0).getDate()
-  } = params;
+  const month = Number(params.month || now.getMonth() + 1);
+  const year = Number(params.year || now.getFullYear());
+  const workingDaysInMonth = Number(params.workingDaysInMonth || new Date(year, month, 0).getDate());
 
   const structure = this.payslipStructure;
   if (!structure) {
@@ -510,8 +508,8 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     // a. Get Unpaid Leaves
     const leaveRecord = await Leave.findOne({ 
       employeeId: this._id, 
-      month, 
-      year,
+      month: Number(month), 
+      year: Number(year),
       status: "Approved" 
     });
     if (leaveRecord && leaveRecord.summary) {
@@ -519,21 +517,23 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     }
 
     // b. Get Absent Days from Attendance (that are not covered by leaves)
+    // b. Get Absent Days from Attendance (that are not covered by leaves)
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
     
+    // Explicitly cast to ObjectId for robustness
+    const empId = new mongoose.Types.ObjectId(this._id);
     const absentRecords = await Attendance.find({
-      employee: this._id,
+      employee: empId,
       date: { $gte: startDate, $lte: endDate },
       status: "Absent"
     });
 
-    // Each 'Absent' day counts as 1 LOP day if not already counted via Leave
-    // Usually system ensures one status per day, so we can just add them or use a Set of dates
+    console.log(`[Diagnostic] EMP=${this.employeeId} | Month=${month}/${year} | absentCount=${absentRecords.length}`);
     lopDays += absentRecords.length;
 
   } catch (err) {
-    console.error("Error fetching leaves/attendance for salary calc:", err);
+    console.error(`Error fetching leaves/attendance for ${this.employeeId}:`, err);
   }
 
   // 2. INTEGRATE OVERTIME
@@ -661,8 +661,9 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
   }
 
   // ===== LOP CALCULATION =====
-  if (lopDays > 0 && workingDaysInMonth > 0 && basicSalary > 0) {
-    lopAmount = (standardBasic / workingDaysInMonth) * lopDays;
+  if (lopDays > 0 && workingDaysInMonth > 0 && standardBasic > 0) {
+    lopAmount = Math.round((standardBasic / workingDaysInMonth) * lopDays);
+    // basicSalary already takes proration into account; LOP is subtracted from that
     basicSalary = Math.max(0, basicSalary - lopAmount);
   }
 
@@ -720,7 +721,7 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
   // Calculate Gross Salary (Sum of all earnings including basic)
   const grossSalary = basicSalary + calculatedEarnings.reduce((sum, e) => sum + e.calculatedAmount, 0);
 
-  // Calculate configured deductions
+  // Calculate ALL configured deductions first (keep everything)
   const deductions = structure.deductions || [];
   let calculatedDeductions = deductions
     .filter(d => d.enabled)
@@ -770,10 +771,24 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
   }
 
   // ========== AUTO-CALCULATED STATUTORY DEDUCTIONS (India Compliance) ==========
+  // Strategy: When auto-calculation fires, REPLACE any manually configured entries
+  // to avoid duplicates. If auto-calculation doesn't fire, keep manual entries.
+
+  // Helper to remove existing entries by partial name match
+  const removeByName = (keywords) => {
+    calculatedDeductions = calculatedDeductions.filter(
+      d => !keywords.some(kw => d.name?.toLowerCase().includes(kw.toLowerCase()))
+    );
+  };
 
   // 1. PF (Provident Fund)
   if (this.pfApplicable === 'yes') {
-    const pfWage = Math.min(basicSalary, 15000);
+    // Remove any manually configured PF entries first
+    removeByName(['Provident Fund', 'PF']);
+
+    // Pro-rate the wage ceiling based on present days (Keka/Compliance Standard)
+    const pfWageLimit = 15000 * (proratedDays / workingDaysInMonth);
+    const pfWage = Math.min(basicSalary, pfWageLimit);
     const pfEmployee = Math.round(pfWage * 0.12);
     const pfEmployer = Math.round(pfWage * 0.13);
 
@@ -785,8 +800,12 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     });
   }
 
-  // 2. ESIC (Only if Gross Salary <= 21,000)
-  if (this.esicApplicable === 'yes' && grossSalary <= 21000) {
+  // 2. ESIC (Only if Contracted Gross Salary <= 21,000)
+  const contractedGross = this.payslipStructure.grossSalary || 0;
+  if (this.esicApplicable === 'yes' && contractedGross <= 21000) {
+    // Remove any manually configured ESIC entries first
+    removeByName(['ESIC', 'Employee State Insurance']);
+
     const esicEmployee = Math.ceil(grossSalary * 0.0075);
     const esicEmployer = Math.ceil(grossSalary * 0.0325);
 
@@ -800,9 +819,12 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
 
   // 3. Professional Tax (PT)
   const workState = this.jobDetails?.workState || 'Maharashtra';
-  const ptAmount = StatutoryCalculator.calculateProfessionalTax(grossSalary, workState, statutoryConfig);
+  const ptAmount = StatutoryCalculator.calculateProfessionalTax(grossSalary, workState, { ...statutoryConfig, month });
 
   if (ptAmount > 0) {
+    // Remove any manually configured PT entries first
+    removeByName(['Professional Tax', 'PT']);
+
     calculatedDeductions.push({
       name: 'Professional Tax (PT)',
       calculatedAmount: ptAmount,

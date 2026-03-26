@@ -11,7 +11,7 @@ export async function PUT(request, { params }) {
     authorize(authUser, ["admin", "super_admin"]);
 
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     const run = await PayrollRun.findById(id);
     if (!run) {

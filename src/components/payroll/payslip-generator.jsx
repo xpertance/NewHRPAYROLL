@@ -469,56 +469,83 @@ export default function PayslipGenerator() {
     let earnings = [...formData.earnings];
     let deductions = [...formData.deductions];
 
-    let totalEarnings = 0;
-    let totalDeductions = 0;
     let overtimeAmount =
       (parseFloat(formData.overtimeHours) || 0) *
       (parseFloat(formData.overtimeRate) || 0);
 
     if (salaryType === "monthly") {
-      // Calculate totals from current formData state
-      totalEarnings = earnings.reduce(
+      // 1. Full Month Calculations
+      const totalFullMonthEarnings = earnings.reduce(
         (sum, e) => sum + (e.enabled ? (parseFloat(e.amount) || 0) : 0),
         0
       );
-
-      totalDeductions = deductions.reduce(
+      
+      const totalFullMonthDeductions = deductions.reduce(
         (sum, d) => sum + (d.enabled ? (parseFloat(d.amount) || 0) : 0),
         0
       );
 
-      // Use the stored CTC (user-entered grossSalary) if available, otherwise calculate
       const storedCTC = parseFloat(formData.ctcGrossSalary) || 0;
-      const calculatedGross = fullBasicSalary + totalEarnings;
+      const calculatedGross = fullBasicSalary + totalFullMonthEarnings;
       const fullMonthGrossSalary = storedCTC > 0 ? storedCTC : calculatedGross;
+      const fullMonthNetSalary = fullMonthGrossSalary - totalFullMonthDeductions;
 
-      // Net Salary = CTC - Deductions (not Basic + Earnings - Deductions)
-      const fullMonthNetSalary = fullMonthGrossSalary - totalDeductions;
-
-      // Calculate pro-rated values based on present days
-      const effectiveBasicSalary =
-        (fullBasicSalary / formData.totalDays) * formData.presentDays;
-      const effectiveEarnings =
-        (totalEarnings / formData.totalDays) * formData.presentDays;
-      const effectiveDeductions =
-        (totalDeductions / formData.totalDays) * formData.presentDays;
-      const effectiveOvertime = overtimeAmount;
-
-      // Calculate final values using CTC pro-rated
+      // 2. Pro-rated Effective Calculations based on Present Days
+      const effectiveBasicSalary = (fullBasicSalary / formData.totalDays) * formData.presentDays;
       const effectiveCTC = (fullMonthGrossSalary / formData.totalDays) * formData.presentDays;
-      const grossSalary = effectiveCTC + effectiveOvertime;
-      const netSalary = grossSalary - effectiveDeductions;
+      const grossSalary = effectiveCTC + overtimeAmount;
 
-      // ONLY update calculatedValues, NOT formData (prevents loop)
+      const effectiveEarningsList = earnings.map((e) => ({
+        ...e,
+        amount: e.enabled ? ((parseFloat(e.amount) || 0) / formData.totalDays) * formData.presentDays : 0,
+      }));
+      const totalEffectiveEarnings = effectiveEarningsList.reduce((sum, e) => sum + e.amount, 0);
+
+      // Calculate Deductions based on Effective amounts 
+      const effectiveDeductionsList = deductions.map((d) => {
+        if (!d.enabled) return { ...d, amount: 0 };
+        
+        let amt = 0;
+        if (d.name === "Professional Tax" || d.type === "Professional Tax") {
+          amt = calculateProfessionalTax(
+            grossSalary,
+            employeeData.personalDetails?.gender || "Male",
+            formData.month
+          );
+        } else if (d.name.includes("Provident Fund")) {
+          // PF limit is practically pro-rated natively via totalDays ratio
+          amt = ((parseFloat(d.fixedAmount || d.amount) || 0) / formData.totalDays) * formData.presentDays;
+        } else if (d.name.includes("ESIC") || d.name.includes("Employee State Insurance")) {
+          // ESIC follows the actual earned Gross Salary
+          let percentage = 0.75;
+          if (d.name.includes("Employer")) percentage = 3.25;
+          if (d.calculationType === "percentage" && d.percentage > 0) percentage = d.percentage;
+          amt = calculateESIC(grossSalary, percentage);
+        } else if (d.calculationType === "percentage") {
+          // General percentage deduction calculated on pro-rated Basic Salary
+          amt = (effectiveBasicSalary * (parseFloat(d.percentage) || 0)) / 100;
+        } else {
+          // Fixed deductions remain fully charged
+          amt = parseFloat(d.fixedAmount || d.amount) || 0;
+        }
+
+        return { ...d, amount: parseFloat(amt.toFixed(2)) };
+      });
+      
+      const totalEffectiveDeductions = effectiveDeductionsList.reduce((sum, d) => sum + d.amount, 0);
+      const netSalary = grossSalary - totalEffectiveDeductions;
+
       setCalculatedValues({
         effectiveBasicSalary: parseFloat(effectiveBasicSalary.toFixed(2)),
         grossSalary: parseFloat(grossSalary.toFixed(2)),
-        totalEarnings: parseFloat(effectiveEarnings.toFixed(2)),
-        totalDeductions: parseFloat(effectiveDeductions.toFixed(2)),
+        totalEarnings: parseFloat(totalEffectiveEarnings.toFixed(2)),
+        totalDeductions: parseFloat(totalEffectiveDeductions.toFixed(2)),
         netSalary: parseFloat(netSalary.toFixed(2)),
         overtimeAmount: parseFloat(overtimeAmount.toFixed(2)),
         fullMonthGrossSalary: parseFloat(fullMonthGrossSalary.toFixed(2)),
         fullMonthNetSalary: parseFloat(fullMonthNetSalary.toFixed(2)),
+        effectiveEarningsList,   // Save for submission
+        effectiveDeductionsList  // Save for submission
       });
     } else {
       // Per day salary calculation
@@ -535,6 +562,8 @@ export default function PayslipGenerator() {
         overtimeAmount: parseFloat(overtimeAmount.toFixed(2)),
         fullMonthGrossSalary: parseFloat(grossSalary.toFixed(2)),
         fullMonthNetSalary: parseFloat(netSalary.toFixed(2)),
+        effectiveEarningsList: [],
+        effectiveDeductionsList: []
       });
     }
   };
@@ -689,17 +718,20 @@ export default function PayslipGenerator() {
         document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Get employees based on selectedOrg, selectedDept, and selectedEmpType
-    const filteredEmployees =
-      selectedOrg && selectedDept && selectedEmpType
-        ? (getGroupedEmployees()[selectedOrg]?.[selectedDept]?.[
-          selectedEmpType
-        ] || []).filter((emp) =>
-          `${emp.employeeId} ${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName}`
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-        )
-        : [];
+    // Get employees based on selected filters (make them optional)
+    const filteredEmployees = employees.filter((emp) => {
+      const org = emp.jobDetails?.organization || emp.jobDetails?.organizationId?.name || "Unassigned Organization";
+      const dept = emp.jobDetails?.department || "Unassigned Department";
+      const empType = emp.jobDetails?.employeeType || "Unassigned Type";
+      
+      if (selectedOrg && org !== selectedOrg) return false;
+      if (selectedDept && dept !== selectedDept) return false;
+      if (selectedEmpType && empType !== selectedEmpType) return false;
+      
+      return `${emp.employeeId || ''} ${emp.personalDetails?.firstName || ''} ${emp.personalDetails?.lastName || ''}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    });
 
     const handleSelectEmployee = (empId) => {
       setFormData((prev) => ({ ...prev, employee: empId }));
@@ -803,9 +835,9 @@ export default function PayslipGenerator() {
         employee: formData.employee,
         month: formData.month,
         year: formData.year,
-        basicSalary: formData.basicSalary,
-        earnings: formData.earnings,
-        deductions: formData.deductions,
+        basicSalary: calculatedValues.effectiveBasicSalary || formData.basicSalary,
+        earnings: calculatedValues.effectiveEarningsList || formData.earnings,
+        deductions: calculatedValues.effectiveDeductionsList || formData.deductions,
         grossSalary: calculatedValues.grossSalary,
         totalDeductions: calculatedValues.totalDeductions,
         netSalary: calculatedValues.netSalary,
@@ -1291,15 +1323,10 @@ export default function PayslipGenerator() {
                       setSelectedEmpType("");
                       setFormData((prev) => ({ ...prev, employee: "" }));
                     }}
-                    disabled={!selectedOrg}
-                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white ${selectedOrg
-                      ? "border-slate-300"
-                      : "border-slate-200 bg-slate-50"
-                      }`}
+                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white border-slate-300`}
                   >
-                    <option value="">Select Department...</option>
-                    {selectedOrg &&
-                      Object.keys(getGroupedEmployees()[selectedOrg] || {}).map(
+                    <option value="">All Departments...</option>
+                    {Array.from(new Set(employees.map(emp => emp.jobDetails?.department || "Unassigned Department"))).map(
                         (dept) => (
                           <option key={dept} value={dept}>
                             🏢 {dept}
@@ -1319,26 +1346,12 @@ export default function PayslipGenerator() {
                       setSelectedEmpType(e.target.value);
                       setFormData((prev) => ({ ...prev, employee: "" }));
                     }}
-                    disabled={!selectedDept}
-                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white ${selectedDept
-                      ? "border-slate-300"
-                      : "border-slate-200 bg-slate-50"
-                      }`}
+                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white border-slate-300`}
                   >
-                    <option value="">Select Employee Type...</option>
-                    {selectedDept &&
-                      selectedOrg &&
-                      Object.keys(
-                        getGroupedEmployees()[selectedOrg]?.[selectedDept] || {}
-                      ).map((type) => (
+                    <option value="">All Employee Types...</option>
+                    {Array.from(new Set(employees.map(emp => emp.jobDetails?.employeeType || "Unassigned Type"))).map((type) => (
                         <option key={type} value={type}>
-                          👤 {type} (
-                          {
-                            getGroupedEmployees()[selectedOrg]?.[selectedDept]?.[
-                              type
-                            ]?.length || 0
-                          }
-                          )
+                          👤 {type}
                         </option>
                       ))}
                   </select>

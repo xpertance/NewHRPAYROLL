@@ -7,8 +7,12 @@ import StatutoryConfig from "@/lib/db/models/payroll/StatutoryConfig";
 import mongoose from "mongoose";
 import { logActivity } from "@/lib/logger";
 import { getAuthUser, authorize } from "@/lib/auth-util";
+import RetroAdjustment from "@/lib/db/models/payroll/RetroAdjustment";
+import VariablePayConfig from "@/lib/db/models/payroll/VariablePayConfig";
+import PayrollVariableInput from "@/lib/db/models/payroll/PayrollVariableInput";
 
 export async function POST(request) {
+  let payrollRun = null;
   try {
     const authUser = await getAuthUser();
     authorize(authUser, ["admin", "super_admin"]);
@@ -22,6 +26,12 @@ export async function POST(request) {
       orgId = authUser.organizationId;
     }
 
+    if (!orgId || orgId === "undefined" || orgId === "null") {
+      const Organization = mongoose.models.Organization || mongoose.model('Organization', new mongoose.Schema({}));
+      const firstOrg = await Organization.findOne({});
+      if (firstOrg) orgId = firstOrg._id.toString();
+    }
+
     if (!month || !year || !orgId) {
       return NextResponse.json({ error: "Missing required fields (month, year, orgId)" }, { status: 400 });
     }
@@ -30,7 +40,10 @@ export async function POST(request) {
     const existingRun = await PayrollRun.findOne({ month, year, organizationId: orgId });
     if (existingRun) {
       return NextResponse.json(
-        { error: "A Payroll Run already exists for this period. Please delete it first if you want to regenerate." },
+        { 
+          error: "A Payroll Run already exists for this period.", 
+          existingRunId: existingRun._id 
+        },
         { status: 409 }
       );
     }
@@ -61,7 +74,7 @@ export async function POST(request) {
 
     // 3. Create the Master PayrollRun Document (Draft state)
     const runId = `PRUN-${year}${String(month).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const payrollRun = await PayrollRun.create({
+    payrollRun = await PayrollRun.create({
       runId,
       month,
       year,
@@ -134,8 +147,18 @@ export async function POST(request) {
           status: "Draft",
           salaryType: salaryCalc.salaryType || "monthly",
           basicSalary: salaryCalc.basicSalary,
-          earnings: salaryCalc.earnings,
-          deductions: salaryCalc.deductions,
+          earnings: salaryCalc.earnings.map(e => ({
+            type: e.name,
+            amount: e.calculatedAmount,
+            percentage: e.percentage || 0,
+            calculationType: e.calculationType || "percentage"
+          })),
+          deductions: salaryCalc.deductions.map(d => ({
+            type: d.name,
+            amount: d.calculatedAmount,
+            percentage: d.percentage || 0,
+            calculationType: d.calculationType || "percentage"
+          })),
           workingDays: totalDays,
           presentDays: totalDays - (salaryCalc.lopDays || 0),
           leaveDays: salaryCalc.lopDays || 0,
@@ -165,7 +188,6 @@ export async function POST(request) {
       await Payslip.insertMany(generatedPayslips);
       
       // Update Retro Adjustments to 'Applied' for all processed employees in this run
-      const RetroAdjustment = mongoose.models.RetroAdjustment || mongoose.model("RetroAdjustment");
       await RetroAdjustment.updateMany(
         { 
           employeeId: { $in: generatedPayslips.map(p => p.employee) },
@@ -182,7 +204,8 @@ export async function POST(request) {
       payrollRun.totalGrossSalary = totalGross;
       payrollRun.totalNetSalary = totalNet;
       payrollRun.totalDeductions = totalDeductions;
-      payrollRun.employeesProcessed = generatedPayslips.length;
+      payrollRun.totalEmployees = generatedPayslips.length;
+      payrollRun.processedEmployees = generatedPayslips.length;
       await payrollRun.save();
     } else {
       // If none generated successfully, remove the draft run
@@ -209,6 +232,14 @@ export async function POST(request) {
 
   } catch (error) {
     console.error("Batch Payroll Error:", error);
+    if (payrollRun && payrollRun._id) {
+      try {
+        const PayrollRunModel = mongoose.models.PayrollRun || mongoose.model("PayrollRun");
+        await PayrollRunModel.findByIdAndDelete(payrollRun._id);
+      } catch (cleanupErr) {
+        console.error("Failed to cleanup empty PayrollRun:", cleanupErr);
+      }
+    }
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
