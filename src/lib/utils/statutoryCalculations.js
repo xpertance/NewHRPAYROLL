@@ -63,8 +63,17 @@ export class StatutoryCalculator {
 
     // If dynamic config is provided, use it
     if (ptConfig && Array.isArray(ptConfig.ptSlabs) && ptConfig.ptSlabs.length > 0) {
+      const currentMonth = ptConfig.month || (new Date().getMonth() + 1);
       const applicableSlab = ptConfig.ptSlabs.find(slab => grossSalary >= slab.minSalary && grossSalary <= slab.maxSalary);
-      return applicableSlab ? applicableSlab.taxAmount : 0;
+      
+      if (applicableSlab) {
+        // Handle monthly exceptions (e.g., Maharashtra Feb: 300)
+        if (applicableSlab.exceptionMonth === currentMonth && applicableSlab.exceptionTaxAmount !== null) {
+          return applicableSlab.exceptionTaxAmount;
+        }
+        return applicableSlab.taxAmount;
+      }
+      return 0;
     }
 
     // Fallback to hardcoded rates if no config provided
@@ -93,7 +102,15 @@ export class StatutoryCalculator {
     const rates = stateRates[state] || stateRates['Maharashtra'];
     const applicableRate = rates.find(rate => grossSalary >= rate.min && grossSalary <= rate.max);
 
-    return applicableRate ? applicableRate.tax : 0;
+    if (applicableRate) {
+      // Hardcoded Fallback for Maharashtra Feb exception if ptConfig.month is passed or if current month is Feb
+      const currentMonth = (ptConfig && ptConfig.month) || (new Date().getMonth() + 1);
+      if (state === 'Maharashtra' && currentMonth === 2 && applicableRate.tax === 200) {
+        return 300;
+      }
+      return applicableRate.tax;
+    }
+    return 0;
   }
 
   static calculateGratuity(basicSalary) {

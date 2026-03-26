@@ -6,8 +6,9 @@ import toast from "react-hot-toast";
 import { 
   ArrowLeft, Lock, Send, FileText, CheckCircle, 
   AlertTriangle, DollarSign, Calculator, Users, Clock,
-  Download, ChevronDown
+  Download, ChevronDown, Trash2, Banknote
 } from "lucide-react";
+import BankPayoutModal from "@/components/payroll/bank-transfer-modal";
 
 export function PayrollRunReview({ runId }) {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function PayrollRunReview({ runId }) {
   const [publishing, setPublishing] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showBankDropdown, setShowBankDropdown] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [run, setRun] = useState(null);
   const [payslips, setPayslips] = useState([]);
 
@@ -26,7 +28,14 @@ export function PayrollRunReview({ runId }) {
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`/api/v1/admin/payroll/run/${runId}`);
+      setLoading(true);
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) throw new Error("Failed to load payroll run");
       const data = await res.json();
       setRun(data.run);
@@ -108,7 +117,40 @@ export function PayrollRunReview({ runId }) {
       if (!res.ok) throw new Error(data.error || "Failed to recalculate run");
       
       toast.success("Recalculation complete!", { id: toastId });
-      fetchData(); // Refresh UI
+      
+      // Use the returned data to update state immediately before re-fetching
+      if (data.run) {
+        setRun(data.run);
+      }
+      if (data.payslips) {
+        setPayslips(data.payslips);
+      }
+      
+      fetchData(); // Final background sync
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirm = window.confirm(
+      "Are you sure you want to DELETE this Draft Payroll Run?\n\nThis will remove all generated payslips and return you to the dashboard so you can regenerate if needed."
+    );
+    if (!confirm) return;
+
+    setProcessing(true);
+    const toastId = toast.loading("Deleting payroll run...");
+    try {
+      const res = await fetch(`/api/v1/admin/payroll/run/${runId}`, { method: "DELETE" });
+      if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to delete run");
+      }
+      
+      toast.success("Run deleted successfully!", { id: toastId });
+      router.push('/admin/payroll/run');
     } catch (error) {
       toast.error(error.message, { id: toastId });
     } finally {
@@ -145,6 +187,7 @@ export function PayrollRunReview({ runId }) {
   const isDraft = run.status === 'Draft';
   const isLocked = run.status === 'Locked';
   const isPublished = run.status === 'Published';
+  const isPaid = run.status === 'Paid';
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -199,6 +242,14 @@ export function PayrollRunReview({ runId }) {
                Recalculate
              </button>
              <button 
+               onClick={handleDelete}
+               disabled={processing || locking}
+               className="flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-medium rounded-lg transition-colors shadow-sm"
+             >
+               <Trash2 className="w-4 h-4" />
+               Delete Run
+             </button>
+             <button 
                onClick={handleLock}
                disabled={locking || processing}
                className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 font-medium rounded-lg transition-colors shadow-sm"
@@ -221,12 +272,21 @@ export function PayrollRunReview({ runId }) {
          )}
          
          {isPublished && (
-           <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
-             <CheckCircle className="w-5 h-5" />
-             <span className="font-medium">Fully Published</span>
-           </div>
-         )}
-      </div>
+            <button 
+              onClick={() => setShowPayoutModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-medium rounded-lg transition-colors shadow-sm"
+            >
+              <Banknote className="w-4 h-4" />
+              Bank Payout
+            </button>
+          )}
+
+          {isPaid && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Fully Paid</span>
+            </div>
+          )}      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -235,7 +295,7 @@ export function PayrollRunReview({ runId }) {
             <Users className="w-5 h-5" />
             <span className="font-medium text-sm">Employees Paid</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{run.employeesProcessed}</p>
+          <p className="text-2xl font-bold text-slate-900">{run.processedEmployees ?? 0}</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 text-slate-600 mb-2">
@@ -327,6 +387,13 @@ export function PayrollRunReview({ runId }) {
         </div>
       </div>
 
+      {/* Bank Payout Modal */}
+      <BankPayoutModal
+        isOpen={showPayoutModal}
+        onClose={() => setShowPayoutModal(false)}
+        payrollRun={run}
+        onUpdate={fetchData}
+      />
     </div>
   );
 }

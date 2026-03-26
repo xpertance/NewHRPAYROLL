@@ -24,7 +24,7 @@ export async function POST(request, { params }) {
         }
 
         run.status = 'Processing';
-        run.logs.push({ message: "Started batch processing...", level: 'info' });
+        run.logs.push({ message: "Started recalculation...", level: 'info' });
         await run.save();
 
         // Fetch active employees for this organization
@@ -94,7 +94,7 @@ export async function POST(request, { params }) {
                     organizationId: run.organizationId,
                     organizationName: employee.jobDetails?.organizationId?.name || "N/A",
                     salaryType: salaryCalc.salaryType,
-                    generatedBy: performedBy,
+                    generatedBy: run.generatedBy,
                     overtimeHours: salaryCalc.overtimeHours || 0,
                     overtimeAmount: salaryCalc.overtimeAmount || 0,
                     loanDeductions: salaryCalc.loanDeductions || 0,
@@ -119,9 +119,9 @@ export async function POST(request, { params }) {
                     );
                 }
 
-                totalGross += finalGross;
-                totalDeductions += finalDeductions;
-                totalNet += finalNet;
+                totalGross += Math.round(salaryCalc.totalEarnings);
+                totalDeductions += Math.round(salaryCalc.totalDeductions);
+                totalNet += Math.round(salaryCalc.netSalary);
                 processedCount++;
 
             } catch (err) {
@@ -135,21 +135,28 @@ export async function POST(request, { params }) {
             }
         }
 
-        run.status = 'Completed';
-        run.totalEmployees = employees.length;
-        run.processedEmployees = processedCount;
-        run.failedEmployeesCount = failedCount;
-        run.totalGrossSalary = Math.round(totalGross);
-        run.totalDeductions = Math.round(totalDeductions);
-        run.totalNetSalary = Math.round(totalNet);
-        run.logs.push({ message: `Processing finished. ${processedCount} succeeded, ${failedCount} failed.`, level: 'info' });
-
-        await run.save();
+        // Final Update to PayrollRun Document (Use findByIdAndUpdate for total reliability)
+        const updatedRun = await PayrollRun.findByIdAndUpdate(id, {
+            $set: {
+                status: 'Draft',
+                totalEmployees: employees.length,
+                processedEmployees: processedCount,
+                employeesProcessed: processedCount, // For UI compatibility
+                failedEmployeesCount: failedCount,
+                totalGrossSalary: Math.round(totalGross),
+                totalDeductions: Math.round(totalDeductions),
+                totalNetSalary: Math.round(totalNet)
+            },
+            $push: {
+                logs: { message: `Recalculation finished. ${processedCount} succeeded, ${failedCount} failed.`, level: 'info' }
+            }
+        }, { new: true });
 
         return NextResponse.json({
             message: "Batch processing completed",
             processedCount,
             failedCount,
+            run: updatedRun,
             totals: { totalGross, totalDeductions, totalNet }
         });
 

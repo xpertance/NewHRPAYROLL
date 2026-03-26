@@ -16,7 +16,7 @@ const payrollRunSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Draft', 'Processing', 'Completed', 'Approved', 'Locked', 'Cancelled'],
+        enum: ['Draft', 'Processing', 'Completed', 'Approved', 'Locked', 'Published', 'Paid', 'Cancelled'],
         default: 'Draft'
     },
     organizationId: {

@@ -15,11 +15,11 @@ export async function GET(request) {
 
         let filter = {};
         
-        // SaaS PROTECTION: Admin restricted to their org
-        if (authUser.role === "admin") {
-            filter.organizationId = authUser.organizationId;
-        } else if (orgId) {
+        // SaaS PROTECTION: Allow explicitly passed orgId or fallback to admin's own org
+        if (orgId) {
             filter.organizationId = orgId;
+        } else if (authUser.role === "admin") {
+            filter.organizationId = authUser.organizationId;
         }
         
         if (year) filter.year = parseInt(year);
