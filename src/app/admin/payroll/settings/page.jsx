@@ -46,9 +46,12 @@ export default function ComplianceSettingsPage() {
             if (orgsData.length > 0) {
                 setSelectedOrg(orgsData[0]._id);
                 fetchConfig(orgsData[0]._id);
+            } else {
+                setLoading(false);
             }
         } catch (error) {
             toast.error("Failed to load organizations");
+            setLoading(false);
         }
     };
 

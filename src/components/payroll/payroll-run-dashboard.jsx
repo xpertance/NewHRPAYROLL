@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "@/context/SessionContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { CalendarDays, PlayCircle, Loader2, AlertCircle, RefreshCw, FileText, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
+import { CalendarDays, PlayCircle, Loader2, AlertCircle, RefreshCw, FileText, ShieldCheck, ShieldAlert, AlertTriangle, Info, Trash2 } from "lucide-react";
 
 export default function PayrollRunDashboard() {
   const router = useRouter();
@@ -26,9 +26,10 @@ export default function PayrollRunDashboard() {
 
   const fetchPayrollHistory = async () => {
     try {
+      if (!user?.organizationId) return;
       setFetchingHistory(true);
-      // Fetching all past runs (API filters by org automatically for admins)
-      const res = await fetch("/api/v1/admin/payroll/run");
+      // Fetching all past runs for this specific organization
+      const res = await fetch(`/api/v1/admin/payroll/run?orgId=${user?.organizationId}`);
       const data = await res.json();
       if (res.ok) {
         setPayrollHistory(data || []);
@@ -41,14 +42,19 @@ export default function PayrollRunDashboard() {
   };
 
   useEffect(() => {
-    fetchPayrollHistory();
-  }, []);
+    if (user?.organizationId) {
+      fetchPayrollHistory();
+    }
+  }, [user?.organizationId]);
 
   const handleGenerateBatch = async () => {
-    // Confirm before running batch
-    const confirm = window.confirm(
-      `Are you sure you want to run payroll for ${months[formData.month - 1]} ${formData.year}?\n\nThis will generate Draft payslips for ALL active employees.`
-    );
+    console.log("Starting batch generation for month:", formData.month, "year:", formData.year, "org:", user?.organizationId);
+    
+    // Safety check for month index
+    const mIndex = (parseInt(formData.month) || 1) - 1;
+    const confirmText = `Are you sure you want to run payroll for ${months[mIndex] || "selected month"} ${formData.year}?\n\nThis will generate Draft payslips for ALL active employees.`;
+    
+    const confirm = window.confirm(confirmText);
     if (!confirm) return;
 
     setLoading(true);
@@ -68,6 +74,27 @@ export default function PayrollRunDashboard() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 409 && data.existingRunId) {
+          toast.dismiss(toastId);
+          toast.error(
+            (t) => (
+              <div className="flex flex-col gap-2 p-1">
+                <span className="font-semibold text-sm">Conflict: A payroll run already exists.</span>
+                <button
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    router.push(`/admin/payroll/run/${data.existingRunId}`);
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-700 transition-colors self-start"
+                >
+                  View & Fix Existing Run
+                </button>
+              </div>
+            ),
+            { duration: 6000 }
+          );
+          return;
+        }
         toast.error(data.error || "Failed to generate payroll batch", { id: toastId });
         return;
       }
@@ -102,6 +129,35 @@ export default function PayrollRunDashboard() {
       toast.error(error.message);
     } finally {
       setValidating(false);
+    }
+  };
+
+  const handleDeleteRun = async (id, runId) => {
+    const confirm = window.confirm(
+      `Are you sure you want to DELETE Payroll Run ${runId}?\n\nThis will remove all associated draft payslips so you can regenerate it again for this month.`
+    );
+    if (!confirm) return;
+
+    setLoading(true);
+    const toastId = toast.loading("Deleting payroll run...");
+
+    try {
+      const res = await fetch(`/api/v1/admin/payroll/run/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete payroll run");
+      }
+
+      toast.success("Payroll run deleted successfully", { id: toastId });
+      fetchPayrollHistory(); // Refresh the list
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -210,7 +266,7 @@ export default function PayrollRunDashboard() {
               {/* Summary Bar */}
               <div className={`flex items-center gap-3 p-4 rounded-lg border ${validationResult.isReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
                 {validationResult.isReady ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-                <div>
+                <div className="flex-1">
                   <p className="font-semibold">
                     {validationResult.isReady ? 'All Clear — Ready to Process' : `${validationResult.summary.criticalIssues} Critical Issue(s) Found`}
                   </p>
@@ -218,6 +274,32 @@ export default function PayrollRunDashboard() {
                     {validationResult.summary.readyCount}/{validationResult.summary.totalEmployees} employees ready • {validationResult.summary.warnings} warnings • {validationResult.summary.infoNotices} notices
                   </p>
                 </div>
+                <div className="hidden md:flex flex-col items-end border-l pl-4 border-current border-opacity-20 gap-1 text-right">
+                    <div className="text-xs uppercase font-bold opacity-60">Estimated Net Payout</div>
+                    <div className="text-xl font-black">₹{(validationResult.summary.estimatedProratedGross || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+
+              {/* Quick Analytics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="text-xs font-bold text-slate-500 uppercase">Headcount</div>
+                      <div className="text-lg font-bold text-slate-900">{validationResult.summary.totalEmployees}</div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="text-xs font-bold text-slate-500 uppercase">Compliant</div>
+                      <div className="text-lg font-bold text-emerald-600">
+                          {validationResult.summary.totalEmployees - (validationResult.summary.missingCompliance || 0)}
+                      </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="text-xs font-bold text-slate-500 uppercase">Non-Compliant</div>
+                      <div className="text-lg font-bold text-red-600">{validationResult.summary.missingCompliance || 0}</div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="text-xs font-bold text-slate-500 uppercase">Est. Net Payable (Prorated)</div>
+                      <div className="text-lg font-bold text-slate-900">₹{(validationResult.summary.estimatedProratedGross || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
               </div>
 
               {/* Critical Issues */}
@@ -338,12 +420,23 @@ export default function PayrollRunDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
-                      <button
-                        onClick={() => router.push(`/admin/payroll/run/${run._id}`)}
-                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
-                      >
-                        View Summary
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => router.push(`/admin/payroll/run/${run._id}`)}
+                          className="text-indigo-600 hover:text-indigo-900 hover:underline"
+                        >
+                          View Summary
+                        </button>
+                        {run.status === 'Draft' && (
+                          <button
+                            onClick={() => handleDeleteRun(run._id, run.runId)}
+                            className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                            title="Delete Run (Regenerate)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

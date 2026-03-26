@@ -31,6 +31,11 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Forbidden: Not your organization' }, { status: 403 });
         }
 
+        // Status guard: Payout only allowed after publishing
+        if (payrollRun.status !== 'Published' && payrollRun.status !== 'Paid') {
+            return NextResponse.json({ error: 'Payroll must be Published before initiating bank payout.' }, { status: 400 });
+        }
+
         if (action === 'generate_advice') {
             // Fetch all payslips for this run with employee bank details
             const payslips = await Payslip.find({ payrollRunId })
@@ -57,10 +62,17 @@ export async function POST(request) {
                 fileName: `Salary_Payout_${payrollRun.month}_${payrollRun.year}.csv`
             });
         } else if (action === 'mark_paid') {
-            // Update status
+            // Update run status to Paid (final state)
+            payrollRun.status = 'Paid';
             payrollRun.payoutStatus = 'Completed';
             payrollRun.payoutDate = new Date();
             await payrollRun.save();
+
+            // Update all payslips to Paid
+            await Payslip.updateMany(
+                { payrollRunId: payrollRun._id },
+                { $set: { status: 'Paid', paymentDate: new Date() } }
+            );
 
             // NOTIFICATION LOGIC
             const payslips = await Payslip.find({ payrollRunId }).populate('employee');

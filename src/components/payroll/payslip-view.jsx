@@ -18,7 +18,7 @@ import {
   Receipt,
   Loader2,
 } from "lucide-react";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+// import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import toast, { Toaster } from "react-hot-toast";
 export default function PayslipView({ payslipId }) {
   const [payslip, setPayslip] = useState(null);
@@ -49,24 +49,7 @@ export default function PayslipView({ payslipId }) {
     }
   };
 
-  const wrapText = (text, maxWidth, font, fontSize) => {
-    const words = text.split(" ");
-    const lines = [];
-    let currentLine = "";
 
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const width = font.widthOfTextAtSize(testLine, fontSize);
-      if (width <= maxWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = word;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-    return lines;
-  };
 
   // ================== FORMATTERS ==================
   const fmtInt = (v = 0) => Number(v || 0).toFixed(0);
