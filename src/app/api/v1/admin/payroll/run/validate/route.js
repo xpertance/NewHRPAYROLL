@@ -24,6 +24,12 @@ export async function GET(request) {
             orgId = authUser.organizationId;
         }
 
+        if (!orgId || orgId === "undefined" || orgId === "null") {
+            const Organization = mongoose.models.Organization || mongoose.model('Organization', new mongoose.Schema({}));
+            const defaultOrg = await Organization.findOne({});
+            if (defaultOrg) orgId = defaultOrg._id.toString();
+        }
+
         if (!month || !year || !orgId) {
             return NextResponse.json({ error: "Missing month, year, or orgId" }, { status: 400 });
         }
@@ -42,6 +48,14 @@ export async function GET(request) {
             critical: [],   // Blocks payroll
             warnings: [],   // Should fix but can proceed
             info: []        // FYI
+        };
+
+        const analytics = {
+            newJoiners: 0,
+            missingCompliance: 0, // Counts critical issues
+            estimatedFullBasic: 0,
+            estimatedFullGross: 0,
+            estimatedProratedGross: 0,
         };
 
         let readyCount = 0;
@@ -117,6 +131,26 @@ export async function GET(request) {
             }
 
             if (!hasIssue) readyCount++;
+            
+            // Accumulate estimates
+            const fullBasic = (emp.payslipStructure?.basicSalary || 0);
+            const fullGross = (emp.payslipStructure?.grossSalary || 0);
+            analytics.estimatedFullBasic += fullBasic;
+            analytics.estimatedFullGross += fullGross;
+
+            // Pro-rated estimates for joiners (using already defined joiningDate)
+            let proratedGross = fullGross;
+            if (joiningDate && joiningDate >= startDate && joiningDate <= endDate) {
+                const joiningDay = joiningDate.getDate();
+                const workingDays = daysInMonth - joiningDay + 1;
+                proratedGross = (fullGross / daysInMonth) * workingDays;
+                analytics.newJoiners++;
+            }
+            analytics.estimatedProratedGross += proratedGross;
+
+            // Compliance check (specifically critical issues)
+            const hasCritical = issues.critical.some(i => i.employeeId === empId);
+            if (hasCritical) analytics.missingCompliance++;
         }
 
         const totalEmployees = employees.length;
@@ -129,7 +163,8 @@ export async function GET(request) {
                 readyCount,
                 criticalIssues: issues.critical.length,
                 warnings: issues.warnings.length,
-                infoNotices: issues.info.length
+                infoNotices: issues.info.length,
+                ...analytics
             },
             issues
         });

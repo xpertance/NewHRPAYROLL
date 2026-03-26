@@ -1118,7 +1118,7 @@ export default function PayslipList() {
                 </button>
 
                 <Link
-                  href="/payroll/payslip/generate"
+                  href="/admin/payroll/payslip/generate"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl"
                 >
                   <Plus className="w-4 h-4" />
@@ -1396,7 +1396,7 @@ export default function PayslipList() {
                                 <td className="py-4 px-6 text-right">
                                   <div className="flex items-center justify-center space-x-1">
                                     <Link
-                                      href={`/payroll/payslip/${payslip._id}`}
+                                      href={`/admin/payroll/payslip/${payslip._id}`}
                                       className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                       title="View Details"
                                     >
@@ -1478,7 +1478,7 @@ export default function PayslipList() {
                           <td className="py-4 px-6 text-right">
                             <div className="flex items-center justify-center space-x-1">
                               <Link
-                                href={`/payroll/payslip/${payslip._id}`}
+                                href={`/admin/payroll/payslip/${payslip._id}`}
                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                 title="View Details"
                               >

@@ -470,14 +470,14 @@ export default function EmployeeList() {
                 <TrendingUp className="w-4 h-4" />
               </button>
               <Link
-                href={`/admin/payroll/employees/${employee._id}`}
+                href={`/admin/employees/${employee._id}`}
                 className="p-2 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
                 title="View Details"
               >
                 <Eye className="w-4 h-4" />
               </Link>
               <Link
-                href={`/admin/payroll/employees/${employee._id}/edit`}
+                href={`/admin/employees/${employee._id}/edit`}
                 className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
                 title="Edit"
               >
@@ -941,7 +941,7 @@ export default function EmployeeList() {
                   </button>
                 ) : (
                   <a
-                    href="/admin/payroll/employees/new"
+                    href="/admin/employees/new"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
                   >
                     <Plus className="w-4 h-4" />
