@@ -613,7 +613,7 @@ export default function SetupWizard({ user, onComplete }) {
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Setup Wizard</span>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">Welcome to Bizmate! 👋</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Welcome to PeopleStack! 👋</h2>
             <p className="text-slate-500 text-sm mt-1">
               Let's set up your workspace in just a few steps.
             </p>
