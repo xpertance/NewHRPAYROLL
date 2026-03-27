@@ -227,7 +227,7 @@ export default function RegisterPage() {
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">Bizmate</span>
+            <span className="text-xl font-bold text-slate-900 tracking-tight">PeopleStack</span>
           </Link>
 
           {/* Header */}
@@ -463,7 +463,7 @@ export default function RegisterPage() {
           {/* Testimonial card */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
             <p className="text-white text-sm leading-relaxed italic mb-4">
-              "Switched from spreadsheets to Bizmate in a day. Payroll now takes 10 minutes instead of 2 days."
+              "Switched from spreadsheets to PeopleStack in a day. Payroll now takes 10 minutes instead of 2 days."
             </p>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
