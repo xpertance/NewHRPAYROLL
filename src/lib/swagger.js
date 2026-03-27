@@ -3,12 +3,12 @@ import swaggerJsdoc from 'swagger-jsdoc';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'BizMate HRMS API Reference',
+    title: 'PeopleStack HRMS API Reference',
     version: '1.0.0',
-    description: 'Complete API documentation for the BizMate Human Resource Management System.',
+    description: 'Complete API documentation for the PeopleStack Human Resource Management System.',
     contact: {
-      name: 'BizMate Support',
-      email: 'support@bizmate.in',
+      name: 'PeopleStack Support',
+      email: 'support@peoplestack.in',
     },
   },
   servers: [
@@ -17,7 +17,7 @@ const swaggerDefinition = {
       description: 'Development Server',
     },
     {
-      url: 'https://api.bizmate.in',
+      url: 'https://api.peoplestack.in',
       description: 'Production Server',
     },
   ],
@@ -61,7 +61,7 @@ const swaggerDefinition = {
             properties: {
               firstName: { type: 'string', example: 'Rahul' },
               lastName: { type: 'string', example: 'Sharma' },
-              email: { type: 'string', example: 'rahul.sharma@bizmate.in' },
+              email: { type: 'string', example: 'rahul.sharma@peoplestack.in' },
             }
           },
           jobDetails: {
@@ -197,7 +197,7 @@ const swaggerDefinition = {
               schema: {
                 type: 'object',
                 properties: {
-                  username: { type: 'string', example: 'rahul.sharma@bizmate.in' },
+                  username: { type: 'string', example: 'rahul.sharma@peoplestack.in' },
                   password: { type: 'string', example: 'SecureP@ssw0rd' },
                   role: { type: 'string', example: 'employee' }
                 },
@@ -265,7 +265,7 @@ const swaggerDefinition = {
             'application/json': {
               schema: {
                 type: 'object',
-                example: { employeeId: 'EMP002', personalDetails: { firstName: 'Priya', lastName: 'Patel', email: 'priya.patel@bizmate.in', phone: '9876543210' }, jobDetails: { department: 'Marketing', designation: 'Manager' }, salaryDetails: { bankAccount: { accountNumber: '1234', bankName: 'HDFC', ifscCode: 'HDFC001' } }, workingHr: 9 },
+                example: { employeeId: 'EMP002', personalDetails: { firstName: 'Priya', lastName: 'Patel', email: 'priya.patel@peoplestack.in', phone: '9876543210' }, jobDetails: { department: 'Marketing', designation: 'Manager' }, salaryDetails: { bankAccount: { accountNumber: '1234', bankName: 'HDFC', ifscCode: 'HDFC001' } }, workingHr: 9 },
               },
             },
           },
