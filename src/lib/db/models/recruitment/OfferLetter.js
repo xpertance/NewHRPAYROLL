@@ -21,7 +21,7 @@ const offerLetterSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Draft', 'Sent', 'Accepted', 'Declined', 'Expired'],
+        enum: ['Draft', 'Pending Internal Approval', 'Approved', 'Sent', 'Accepted', 'Declined', 'Expired'],
         default: 'Draft'
     },
     expiryDate: Date,
@@ -33,11 +33,22 @@ const offerLetterSchema = new mongoose.Schema({
         ref: 'User'
     },
     signedAt: Date,
+    aiGenerated: {
+        type: Boolean,
+        default: false
+    },
     organizationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Organization',
         default: null
-    }
+    },
+    approvalChain: [{
+        role: { type: String, required: true }, // e.g., 'HR Admin', 'Finance'
+        status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        approvedAt: Date,
+        remarks: String
+    }]
 }, {
     timestamps: true
 });

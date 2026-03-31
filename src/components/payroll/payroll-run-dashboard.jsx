@@ -405,7 +405,7 @@ export default function PayrollRunDashboard() {
                       {months[run.month - 1]} {run.year}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {run.employeesProcessed || 0}
+                      {run.processedEmployees || 0}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-900 text-right">
                       ₹{(run.totalNetSalary || 0).toLocaleString('en-IN')}
