@@ -36,7 +36,16 @@ export async function POST(request) {
         await dbConnect();
         const body = await request.json();
         const orgId = authUser.role !== 'super_admin' ? authUser.organizationId : body.organizationId;
-        const offer = await OfferLetter.create({ ...body, organizationId: orgId, sentBy: authUser.id });
+        const offer = await OfferLetter.create({ 
+            ...body, 
+            status: 'Pending Internal Approval',
+            approvalChain: [
+                { role: 'HR Admin', status: 'Pending' },
+                { role: 'Finance', status: 'Pending' }
+            ],
+            organizationId: orgId, 
+            sentBy: authUser.id 
+        });
         return NextResponse.json({ success: true, offer, message: "Offer letter generated successfully" }, { status: 201 });
     } catch (error) {
         console.error("POST OFFER ERROR:", error);
@@ -50,10 +59,38 @@ export async function PUT(request) {
         authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
         await dbConnect();
         const body = await request.json();
-        const { id, ...updateData } = body;
+        const { id, approvalRole, approvalStatus, remarks, ...updateData } = body;
 
-        const offer = await OfferLetter.findByIdAndUpdate(id, updateData, { new: true });
-        return NextResponse.json({ success: true, offer, message: "Offer status updated" });
+        const offer = await OfferLetter.findById(id);
+        if (!offer) return NextResponse.json({ success: false, error: 'Offer not found' }, { status: 404 });
+
+        if (approvalRole && approvalStatus) {
+            const levelIndex = offer.approvalChain.findIndex(c => c.role === approvalRole);
+            if (levelIndex > -1) {
+                offer.approvalChain[levelIndex].status = approvalStatus;
+                offer.approvalChain[levelIndex].approvedBy = authUser.id;
+                offer.approvalChain[levelIndex].approvedAt = new Date();
+                offer.approvalChain[levelIndex].remarks = remarks || '';
+                
+                const allApproved = offer.approvalChain.every(c => c.status === 'Approved');
+                const anyRejected = offer.approvalChain.some(c => c.status === 'Rejected');
+                
+                if (anyRejected) {
+                    offer.status = 'Rejected';
+                } else if (allApproved) {
+                    offer.status = 'Approved';
+                }
+            }
+            await offer.save();
+            return NextResponse.json({ success: true, offer, message: "Approval status updated" });
+        }
+
+        if (Object.keys(updateData).length > 0) {
+            Object.assign(offer, updateData);
+            await offer.save();
+        }
+
+        return NextResponse.json({ success: true, offer, message: "Offer updated successfully" });
     } catch (error) {
         console.error("PUT OFFER ERROR:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

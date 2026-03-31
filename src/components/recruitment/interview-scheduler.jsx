@@ -7,7 +7,7 @@ import {
     Plus, Search, Filter, Mail,
     Phone, ChevronRight, MessageSquare,
     Star, ArrowUpRight, Loader2, Link as LinkIcon,
-    Briefcase, Building2, MapPin
+    Briefcase, Building2, MapPin, Sparkles, Bot, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
@@ -31,6 +31,8 @@ export default function InterviewScheduler() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [selectedInterviewForFeedback, setSelectedInterviewForFeedback] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     const fetchData = useCallback(async () => {
@@ -201,6 +203,10 @@ export default function InterviewScheduler() {
                                         <InterviewCard
                                             interview={int}
                                             onStatusUpdate={updateStatus}
+                                            onAddFeedback={(interviewItem) => {
+                                                setSelectedInterviewForFeedback(interviewItem);
+                                                setShowFeedbackModal(true);
+                                            }}
                                         />
                                     </motion.div>
                                 ))
@@ -234,6 +240,10 @@ export default function InterviewScheduler() {
                                         key={int.interviewId}
                                         interview={int}
                                         onStatusUpdate={updateStatus}
+                                        onAddFeedback={(interviewItem) => {
+                                            setSelectedInterviewForFeedback(interviewItem);
+                                            setShowFeedbackModal(true);
+                                        }}
                                         minimal
                                     />
                                 ))}
@@ -287,12 +297,22 @@ export default function InterviewScheduler() {
                         }}
                     />
                 )}
+                {showFeedbackModal && selectedInterviewForFeedback && (
+                    <FeedbackModal
+                        onClose={() => setShowFeedbackModal(false)}
+                        interview={selectedInterviewForFeedback}
+                        onSuccess={() => {
+                            setShowFeedbackModal(false);
+                            fetchData();
+                        }}
+                    />
+                )}
             </AnimatePresence>
         </div>
     );
 }
 
-function InterviewCard({ interview, onStatusUpdate, minimal = false }) {
+function InterviewCard({ interview, onStatusUpdate, onAddFeedback, minimal = false }) {
     const isComp = interview.status === 'Completed';
     const isCanc = interview.status === 'Cancelled';
     const date = new Date(interview.date);
@@ -374,6 +394,15 @@ function InterviewCard({ interview, onStatusUpdate, minimal = false }) {
                             <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${isComp ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-100 text-slate-300'}`}>
                                 {isComp ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
                             </div>
+                            {isComp && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => onAddFeedback && onAddFeedback(interview)}
+                                    className="h-10 rounded-[14px] bg-purple-50 text-purple-600 hover:bg-purple-100 font-black uppercase tracking-widest text-[9px] px-4 hidden lg:flex border border-purple-100 shadow-sm transition-all"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5 mr-1.5" /> AI Feedback
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -569,6 +598,201 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                         </Button>
                     </div>
                 </form>
+            </motion.div>
+        </div>
+    );
+}
+
+function FeedbackModal({ onClose, interview, onSuccess }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [rawNotes, setRawNotes] = useState("");
+    const [structuredFeedback, setStructuredFeedback] = useState(null);
+
+    const handleAISummarize = async () => {
+        if (!rawNotes || rawNotes.length < 10) {
+            toast.error("Please enter at least 10 characters of raw notes first");
+            return;
+        }
+
+        try {
+            setAiGenerating(true);
+            const res = await fetch('/api/v1/admin/recruitment/ai/summarize-feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: interview.candidateId,
+                    interviewId: interview.interviewId,
+                    rawNotes: rawNotes,
+                    round: interview.round,
+                    candidateName: interview.candidateName,
+                    interviewerName: interview.interviewer?.name
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setStructuredFeedback(data.data.structured);
+                toast.success("✨ AI perfectly summarized your feedback!");
+            } else {
+                toast.error(data.error || "Failed to parse feedback");
+            }
+        } catch (error) {
+            toast.error("AI summarization failed");
+        } finally {
+            setAiGenerating(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-[12px]"
+                onClick={onClose}
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                className="bg-white rounded-[48px] w-full max-w-4xl shadow-4xl border border-white/20 overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
+            >
+                <div className="p-10 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-5">
+                            <div className="w-16 h-16 rounded-[28px] bg-purple-600 flex items-center justify-center text-white shadow-2xl shadow-purple-100">
+                                <MessageSquare className="w-7 h-7" />
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">Interview Feedback</h2>
+                                <p className="text-slate-500 text-sm font-medium mt-2">
+                                    {interview.candidateName} — {interview.round || 'Assessment'}
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-2xl">
+                            <XCircle className="w-6 h-6 text-slate-400" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-10 bg-slate-50/50">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-start">
+                        {/* Left: Input */}
+                        <div className="space-y-4">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block">Interviewer Notes</label>
+                            <textarea
+                                value={rawNotes}
+                                onChange={(e) => setRawNotes(e.target.value)}
+                                placeholder="Paste your raw, unorganized notes here..."
+                                className="w-full h-48 lg:h-[400px] p-6 rounded-3xl border border-slate-200 focus:border-purple-300 focus:ring-4 focus:ring-purple-500/10 text-slate-700 bg-white resize-none shadow-sm transition-all"
+                            />
+                            <Button
+                                onClick={handleAISummarize}
+                                disabled={aiGenerating || !rawNotes}
+                                className="w-full h-16 rounded-[24px] bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black uppercase tracking-widest text-[11px] shadow-xl shadow-purple-200 hover:shadow-2xl hover:-translate-y-0.5 transition-all text-left flex justify-center items-center gap-3 disabled:opacity-50"
+                            >
+                                {aiGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                {aiGenerating ? "Summarizing..." : "✨ Ask AI to Summarize"}
+                            </Button>
+                        </div>
+
+                        {/* Right: Output */}
+                        <div className="space-y-4 relative">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block">Structured Assessment</label>
+                            {structuredFeedback ? (
+                                <div className="space-y-4 h-48 lg:h-[480px] overflow-y-auto pr-2 custom-scrollbar pb-6">
+                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                                        {/* Overall Rating & Recommendation */}
+                                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                                            <div>
+                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Recommendation</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
+                                                        structuredFeedback.recommendation === 'Strong Hire' ? 'bg-emerald-100 text-emerald-700' :
+                                                        structuredFeedback.recommendation === 'Hire' ? 'bg-green-100 text-green-700' :
+                                                        structuredFeedback.recommendation === 'Maybe' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-rose-100 text-rose-700'
+                                                    }`}>
+                                                        {structuredFeedback.recommendation}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Overall</p>
+                                                <div className="flex items-center justify-end gap-1 text-2xl font-black text-slate-800">
+                                                    {structuredFeedback.overallRating} <span className="text-slate-300 text-sm">/ 5</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed italic border-l-4 border-purple-200 pl-4 py-1">
+                                            "{structuredFeedback.summary}"
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-4 pt-2">
+                                            {/* Strengths */}
+                                            <div className="bg-emerald-50 rounded-2xl p-4">
+                                                <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Key Strengths</h4>
+                                                <ul className="list-disc pl-4 space-y-1">
+                                                {(structuredFeedback.strengths || []).map((s, i) => (
+                                                    <li key={i} className="text-xs text-emerald-800 leading-tight">{s}</li>
+                                                ))}
+                                                </ul>
+                                            </div>
+                                            {/* Concerns */}
+                                            <div className="bg-rose-50 rounded-2xl p-4">
+                                                <h4 className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-2 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5"/> Concerns</h4>
+                                                <ul className="list-disc pl-4 space-y-1">
+                                                {(structuredFeedback.concerns || []).map((s, i) => (
+                                                    <li key={i} className="text-xs text-rose-800 leading-tight">{s}</li>
+                                                ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4 pt-2">
+                                            {Object.entries({
+                                                "Technical Skills": structuredFeedback.technicalSkills,
+                                                "Communication": structuredFeedback.communication,
+                                                "Problem Solving": structuredFeedback.problemSolving,
+                                                "Culture Fit": structuredFeedback.cultureFit
+                                            }).filter(([_, val]) => val).map(([key, val]) => (
+                                                <div key={key}>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-xs font-bold text-slate-700">{key}</span>
+                                                        <div className="flex gap-0.5">
+                                                            {[1, 2, 3, 4, 5].map(star => (
+                                                                <Star key={star} className={`w-3.5 h-3.5 ${star <= (val.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500">{val.notes}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => {
+                                            toast.success("Feedback finalized and submitted!");
+                                            onSuccess();
+                                        }}
+                                        className="w-full h-14 rounded-[20px] bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest"
+                                    >
+                                        Submit Final Assessment
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="h-48 lg:h-[480px] flex flex-col items-center justify-center p-8 bg-white/50 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-200">
+                                    <Bot className="w-12 h-12 text-slate-300 mb-4" />
+                                    <p className="font-black text-slate-400 uppercase tracking-widest text-xs text-center max-w-[200px]">Waiting for raw notes</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </motion.div>
         </div>
     );

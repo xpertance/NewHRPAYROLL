@@ -6,6 +6,13 @@ import Employee from '@/lib/db/models/payroll/Employee';
 import OnboardingChecklist from '@/lib/db/models/recruitment/OnboardingChecklist';
 import { getAuthUser, authorize } from '@/lib/auth-util';
 import { z } from 'zod';
+import { sendEmail } from '@/lib/email/service';
+import {
+    getApplicationReceivedTemplate,
+    getRejectionEmailTemplate,
+    getOnboardingWelcomeTemplate
+} from '@/lib/email/templates/recruitment';
+import { generateOnboardingTasks } from '@/lib/ai/gemini';
 
 const candidateSchema = z.object({
     name: z.string().min(1),
@@ -15,7 +22,8 @@ const candidateSchema = z.object({
     jobRequisition: z.string().optional(),
     appliedRole: z.string().optional(),
     source: z.enum(['LinkedIn', 'Indeed', 'Referral', 'Website', 'Other']).default('Website'),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    parsedResume: z.any().optional()
 });
 
 export async function GET(request) {
@@ -42,7 +50,7 @@ export async function GET(request) {
 
         const candidates = await Candidate.find(query)
             .populate('jobRequisition', 'title department')
-            .sort({ createdAt: -1 });
+            .sort({ fitScore: -1, createdAt: -1 }); // Sort by fit score first
 
         return NextResponse.json({ success: true, candidates });
     } catch (error) {
@@ -62,12 +70,45 @@ export async function POST(request) {
         // SaaS PROTECTION: Attach org to candidate record
         const orgId = authUser.role === 'admin' ? authUser.organizationId : body.organizationId;
 
+        // Gap Fix #9: Duplicate detection
+        const existingCandidate = await Candidate.findOne({ 
+            email: validatedData.email.toLowerCase(), 
+            organizationId: orgId 
+        });
+        if (existingCandidate) {
+            return NextResponse.json({ 
+                success: false, 
+                error: `Candidate with email ${validatedData.email} already exists in the pipeline (Status: ${existingCandidate.status})`,
+                existingCandidate: { id: existingCandidate._id, status: existingCandidate.status, name: existingCandidate.name }
+            }, { status: 409 });
+        }
+
         const candidate = await Candidate.create({ ...validatedData, organizationId: orgId });
+
+        // Gap Fix #7: Send application received email (non-blocking)
+        try {
+            const jobTitle = validatedData.appliedRole || 'the open position';
+            await sendEmail({
+                to: candidate.email,
+                subject: `Application Received — ${jobTitle}`,
+                html: getApplicationReceivedTemplate(candidate.name, jobTitle)
+            });
+        } catch (emailErr) {
+            console.log("Email send skipped (no SMTP configured):", emailErr.message);
+        }
+
         return NextResponse.json({ success: true, candidate, message: "Candidate application received" }, { status: 201 });
     } catch (error) {
         console.error("POST CANDIDATE ERROR:", error);
         if (error instanceof z.ZodError) {
             return NextResponse.json({ success: false, error: 'Validation failed', details: error.errors }, { status: 400 });
+        }
+        // Handle MongoDB duplicate key error
+        if (error.code === 11000) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'A candidate with this email already exists in your organization' 
+            }, { status: 409 });
         }
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
@@ -93,7 +134,21 @@ export async function PUT(request) {
         Object.assign(candidate, updateData);
         await candidate.save();
 
-        // 🚀 AUTO-ONBOARDING TRIGGER
+        // Gap Fix #7: Send rejection email
+        if (newStatus === 'Rejected' && prevStatus !== 'Rejected') {
+            try {
+                const jobTitle = candidate.appliedRole || candidate.jobRequisition?.title || 'the position';
+                await sendEmail({
+                    to: candidate.email,
+                    subject: `Application Update — ${jobTitle}`,
+                    html: getRejectionEmailTemplate(candidate.name, jobTitle)
+                });
+            } catch (emailErr) {
+                console.log("Rejection email skipped:", emailErr.message);
+            }
+        }
+
+        // 🚀 AUTO-ONBOARDING TRIGGER with AI-powered smart tasks (Gap #12)
         if (newStatus === 'Hired' && prevStatus !== 'Hired') {
             try {
                 // 1. Check if employee already exists by email
@@ -104,10 +159,13 @@ export async function PUT(request) {
                     const firstName = nameParts[0];
                     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Hired';
 
+                    const department = candidate.jobRequisition?.department || "General";
+                    const designation = candidate.appliedRole || candidate.jobRequisition?.title || "New Joiner";
+
                     // 2. Create basic Employee record
                     employee = await Employee.create({
                         employeeId: `EMP-${Date.now().toString().slice(-6)}`,
-                        password: 'welcome_to_team', // Default password
+                        password: 'welcome_to_team',
                         personalDetails: {
                             firstName,
                             lastName,
@@ -116,13 +174,13 @@ export async function PUT(request) {
                             dateOfJoining: new Date(),
                         },
                         jobDetails: {
-                            department: candidate.jobRequisition?.department || "General",
-                            designation: candidate.appliedRole || candidate.jobRequisition?.title || "New Joiner",
+                            department,
+                            designation,
                             workLocation: "Remote / Office"
                         },
                         payslipStructure: {
                             salaryType: 'monthly',
-                            basicSalary: 30000, // Placeholder
+                            basicSalary: 30000,
                             earnings: [],
                             deductions: []
                         },
@@ -135,10 +193,22 @@ export async function PUT(request) {
                 const existingChecklist = await OnboardingChecklist.findOne({ employee: employee._id });
 
                 if (!existingChecklist) {
-                    // 4. Create Onboarding Checklist with default tasks
-                    await OnboardingChecklist.create({
-                        employee: employee._id,
-                        tasks: [
+                    // Gap Fix #12: AI-generated smart onboarding tasks
+                    let onboardingTasks;
+                    try {
+                        const aiResult = await generateOnboardingTasks({
+                            department: candidate.jobRequisition?.department || 'General',
+                            role: candidate.appliedRole || candidate.jobRequisition?.title || 'New Joiner',
+                            location: candidate.jobRequisition?.location || 'Office'
+                        });
+                        onboardingTasks = (aiResult.tasks || []).map(t => ({
+                            category: t.category || 'Documentation',
+                            task: t.task,
+                            status: 'Pending'
+                        }));
+                    } catch (aiErr) {
+                        console.log("AI onboarding failed, using defaults:", aiErr.message);
+                        onboardingTasks = [
                             { category: 'Documentation', task: 'Submit Personal Documents (ID/Address Proof)', status: 'Pending' },
                             { category: 'Documentation', task: 'Sign Employment Agreement & Policies', status: 'Pending' },
                             { category: 'IT Setup', task: 'Set up System & Corporate Email', status: 'Pending' },
@@ -146,21 +216,36 @@ export async function PUT(request) {
                             { category: 'Orientation', task: 'Company Culture & Values Introduction', status: 'Pending' },
                             { category: 'Orientation', task: 'Team Introduction & Department Briefing', status: 'Pending' },
                             { category: 'Finance', task: 'Submit Bank Details & Tax Declaration', status: 'Pending' }
-                        ],
+                        ];
+                    }
+
+                    await OnboardingChecklist.create({
+                        employee: employee._id,
+                        tasks: onboardingTasks,
                         status: 'Not Started'
                     });
                 }
+
+                // Gap Fix #7: Send welcome email
+                try {
+                    const joiningDate = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+                    await sendEmail({
+                        to: candidate.email,
+                        subject: `🚀 Welcome Aboard — ${candidate.appliedRole || 'New Role'}`,
+                        html: getOnboardingWelcomeTemplate(candidate.name, joiningDate, candidate.appliedRole)
+                    });
+                } catch (emailErr) {
+                    console.log("Welcome email skipped:", emailErr.message);
+                }
             } catch (triggerError) {
                 console.error("Auto-onboarding trigger failed:", triggerError);
-                // We don't fail the main candidate update if the trigger fails, 
-                // but we should log it or handle it.
             }
         }
 
         return NextResponse.json({
             success: true,
             candidate,
-            message: newStatus === 'Hired' ? "Candidate Hired & Onboarding Initiated!" : "Candidate updated successfully"
+            message: newStatus === 'Hired' ? "Candidate Hired & AI Onboarding Initiated!" : "Candidate updated successfully"
         });
     } catch (error) {
         console.error("PUT CANDIDATE ERROR:", error);
