@@ -390,6 +390,12 @@ function CandidateCard({ candidate, onDragStart, onDragEnd, isSelected, onStatus
                                 <span className={`text-base font-black tracking-tighter uppercase ${isRejected ? 'text-slate-400' : 'text-slate-400 group-hover:text-white'}`}>{candidate.name.charAt(0)}</span>
                             </div>
                         </div>
+                        {/* AI Fit Score Badge */}
+                        {candidate.fitScore != null && (
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black ${candidate.fitScore >= 80 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : candidate.fitScore >= 60 ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                🤖 {candidate.fitScore}% Match
+                            </div>
+                        )}
 
                         {/* Info Grid */}
                         <div className="space-y-3 bg-slate-50/30 p-5 rounded-2xl border border-slate-100 group-hover:bg-white group-hover:border-indigo-50 transition-all duration-500">

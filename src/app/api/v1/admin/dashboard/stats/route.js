@@ -31,7 +31,7 @@ export async function GET(request) {
             Project.countDocuments({ organizationId, status: { $ne: 'Completed' } }),
             Task.countDocuments({ organizationId }),
             Task.countDocuments({ organizationId, status: 'Completed' }),
-            Employee.countDocuments({ organizationId }),
+            Employee.countDocuments({ 'jobDetails.organizationId': organizationId, status: 'Active' }),
             Timesheet.countDocuments({ organizationId, status: 'Submitted' }),
             Task.find({ organizationId }, 'progress')
         ]);

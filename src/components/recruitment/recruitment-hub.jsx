@@ -8,7 +8,8 @@ import {
     Clock, MapPin, Building2, TrendingUp,
     ChevronRight, ArrowUpRight, Loader2,
     Calendar, CheckCircle2, XCircle, AlertCircle,
-    Layers, Star, Target
+    Layers, Star, Target, Sparkles, Bot, Upload,
+    BarChart3, Gauge, FileText, Brain, Share2, Linkedin, Link, Rss
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -25,6 +26,8 @@ export default function RecruitmentHub() {
     const [offerModalData, setOfferModalData] = useState(null); // For pre-filling from candidate pipeline
     const [pipelineFilter, setPipelineFilter] = useState(null); // { jobId, jobTitle }
     const [selectedCandidate, setSelectedCandidate] = useState(null);
+    const [showSyndicateModal, setShowSyndicateModal] = useState(false);
+    const [syndicateJobData, setSyndicateJobData] = useState(null);
     const [stats, setStats] = useState({
         totalJobs: 0,
         activePositions: 0,
@@ -167,6 +170,10 @@ export default function RecruitmentHub() {
                                 setPipelineFilter({ jobId, jobTitle });
                                 setActiveTab("candidates");
                             }}
+                            onSyndicate={(job) => {
+                                setSyndicateJobData(job);
+                                setShowSyndicateModal(true);
+                            }}
                         />
                     )}
                     {activeTab === "candidates" && (
@@ -243,11 +250,21 @@ export default function RecruitmentHub() {
                     }}
                 />
             )}
+
+            {showSyndicateModal && syndicateJobData && (
+                <SyndicateModal
+                    job={syndicateJobData}
+                    onClose={() => {
+                        setShowSyndicateModal(false);
+                        setSyndicateJobData(null);
+                    }}
+                />
+            )}
         </div>
     );
 }
 
-function JobBoard({ jobs, onRefresh, onViewPipeline }) {
+function JobBoard({ jobs, onRefresh, onViewPipeline, onSyndicate }) {
     if (jobs.length === 0) {
         return (
             <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
@@ -260,17 +277,43 @@ function JobBoard({ jobs, onRefresh, onViewPipeline }) {
         );
     }
 
+    const handleApproveJob = async (jobId) => {
+        try {
+            const res = await fetch(`/api/v1/admin/recruitment/jobs`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId, status: 'Open' })
+            });
+            if (res.ok) {
+                onRefresh();
+            }
+        } catch (e) {
+            console.error('Failed to approve job');
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {jobs.map((job) => (
                 <div key={job._id} className="p-6 bg-white border border-slate-100 rounded-3xl hover:shadow-xl hover:shadow-indigo-100/30 transition-all group border-l-4 border-l-indigo-500">
                     <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${job.status === 'Open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                                }`}>
+                        <div className="flex items-center">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${
+                                job.status === 'Open' ? 'bg-emerald-50 text-emerald-600' :
+                                job.status === 'Pending Approval' ? 'bg-amber-50 text-amber-600' :
+                                'bg-slate-100 text-slate-500'
+                            }`}>
                                 {job.status}
                             </span>
-                            <h4 className="text-lg font-black text-slate-900 mt-2">{job.title}</h4>
+                            {job.status === 'Pending Approval' && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleApproveJob(job._id); }}
+                                    className="ml-3 px-3 py-1 bg-indigo-600 outline-none focus:ring focus:ring-indigo-200 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                    Approve & Publish
+                                </button>
+                            )}
+                            <h4 className="text-lg font-black text-slate-900 mt-2 block w-full">{job.title}</h4>
                         </div>
                         <button className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"><MoreVertical className="w-4 h-4" /></button>
                     </div>
@@ -300,12 +343,22 @@ function JobBoard({ jobs, onRefresh, onViewPipeline }) {
                             ))}
                             <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 flex items-center justify-center text-[10px] font-black text-indigo-600 italic">+5</div>
                         </div>
-                        <button
-                            onClick={() => onViewPipeline(job._id, job.title)}
-                            className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest flex items-center gap-1"
-                        >
-                            Review Pipeline <ArrowUpRight className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-4">
+                            {job.status === 'Open' && (
+                                <button
+                                    onClick={() => onSyndicate(job)}
+                                    className="text-[10px] font-black text-emerald-600 hover:underline uppercase tracking-widest flex items-center gap-1"
+                                >
+                                    <Share2 className="w-3 h-3" /> Syndicate & Share
+                                </button>
+                            )}
+                            <button
+                                onClick={() => onViewPipeline(job._id, job.title)}
+                                className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest flex items-center gap-1"
+                            >
+                                Review Pipeline <ArrowUpRight className="w-3 h-3" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             ))}
@@ -369,6 +422,7 @@ function CandidatePipeline({ candidates, onRefresh, onSelectCandidate, activeFil
                             <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Candidate</th>
                             <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Position</th>
                             <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Status</th>
+                            <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">AI Score</th>
                             <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Applied</th>
                             <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 text-right">Actions</th>
                         </tr>
@@ -395,6 +449,15 @@ function CandidatePipeline({ candidates, onRefresh, onSelectCandidate, activeFil
                                     <span className="px-2 py-1 bg-white border border-indigo-100 rounded-lg text-[10px] font-black text-indigo-600 uppercase">
                                         {cand.status}
                                     </span>
+                                </td>
+                                <td className="py-4 px-4">
+                                    {cand.fitScore != null ? (
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${cand.fitScore >= 80 ? 'bg-emerald-50 text-emerald-600' : cand.fitScore >= 60 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                                            {cand.fitScore}%
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-slate-300 italic">—</span>
+                                    )}
                                 </td>
                                 <td className="py-4 px-4 text-xs text-slate-500 font-medium">
                                     {format(new Date(cand.appliedDate), 'MMM dd, yyyy')}
@@ -517,9 +580,42 @@ function AddCandidateModal({ jobs, onClose, onSuccess }) {
 
 function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }) {
     const [submitting, setSubmitting] = useState(false);
+    const [scoringAI, setScoringAI] = useState(false);
+    const [questionsLoading, setQuestionsLoading] = useState(false);
+    const [aiQuestions, setAiQuestions] = useState(null);
     const stages = [
         'Applied', 'Screening', 'Technical Interview', 'Managerial Interview', 'HR Interview', 'Offer Sent', 'Hired', 'Rejected'
     ];
+
+    const handleCalculateFitScore = async () => {
+        try {
+            setScoringAI(true);
+            const res = await fetch('/api/v1/admin/recruitment/ai/fit-score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ candidateId: candidate._id, jobId: candidate.jobRequisition?._id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`AI Score: ${data.data.fitScore}/100 — ${data.data.recommendation}`);
+                onRefresh();
+            } else toast.error(data.error);
+        } catch (e) { toast.error('Scoring failed'); } finally { setScoringAI(false); }
+    };
+
+    const handleGenerateQuestions = async () => {
+        try {
+            setQuestionsLoading(true);
+            const res = await fetch('/api/v1/admin/recruitment/ai/generate-questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId: candidate.jobRequisition?._id, round: candidate.status })
+            });
+            const data = await res.json();
+            if (data.success) { setAiQuestions(data.data); toast.success('Interview questions generated!'); }
+            else toast.error(data.error);
+        } catch (e) { toast.error('Generation failed'); } finally { setQuestionsLoading(false); }
+    };
 
     const updateStatus = async (newStatus) => {
         try {
@@ -599,6 +695,49 @@ function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }
                                 <button className="mt-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">+ Schedule Interview</button>
                             </div>
                         </div>
+
+                        {/* AI Tools Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                            {/* AI Fit Score */}
+                            <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-indigo-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Brain className="w-4 h-4 text-purple-600" />
+                                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">AI Fit Score</span>
+                                </div>
+                                {candidate.fitScore != null ? (
+                                    <div>
+                                        <div className="flex items-end gap-2">
+                                            <span className={`text-3xl font-black ${candidate.fitScore >= 80 ? 'text-emerald-600' : candidate.fitScore >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{candidate.fitScore}</span>
+                                            <span className="text-slate-400 text-sm font-bold mb-1">/100</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">{candidate.fitAnalysis || candidate.fitRecommendation}</p>
+                                        <button onClick={handleCalculateFitScore} disabled={scoringAI} className="mt-2 text-[9px] font-black text-purple-600 uppercase tracking-widest hover:underline">↻ Recalculate</button>
+                                    </div>
+                                ) : (
+                                    <button onClick={handleCalculateFitScore} disabled={scoringAI} className="w-full py-2.5 bg-white text-purple-600 rounded-xl text-[10px] font-black border border-purple-200 hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                        {scoringAI ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} {scoringAI ? 'Analyzing...' : 'Calculate Fit Score'}
+                                    </button>
+                                )}
+                            </div>
+                            {/* AI Interview Questions */}
+                            <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border border-blue-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <FileText className="w-4 h-4 text-blue-600" />
+                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">AI Questions</span>
+                                </div>
+                                <button onClick={handleGenerateQuestions} disabled={questionsLoading} className="w-full py-2.5 bg-white text-blue-600 rounded-xl text-[10px] font-black border border-blue-200 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                    {questionsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />} {questionsLoading ? 'Generating...' : 'Generate Interview Qs'}
+                                </button>
+                                {aiQuestions && (
+                                    <div className="mt-3 max-h-32 overflow-y-auto space-y-1.5">
+                                        {aiQuestions.questions?.slice(0, 4).map((q, i) => (
+                                            <p key={i} className="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-50">{i + 1}. {q.question}</p>
+                                        ))}
+                                        {aiQuestions.questions?.length > 4 && <p className="text-[9px] text-blue-500 font-bold">+{aiQuestions.questions.length - 4} more questions</p>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {candidate.status === 'HR Interview' && (
@@ -620,6 +759,21 @@ function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }
 function OfferManagement({ onRefresh, onCreateOffer }) {
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const handleApproveOffer = async (offerId) => {
+        try {
+            const res = await fetch(`/api/v1/admin/recruitment/offers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: offerId, status: 'Sent' }) // Assuming HR/Finance approves and it automatically transitions to Sent for MVP
+            });
+            if (res.ok) {
+                onRefresh();
+            }
+        } catch (e) {
+            console.error('Failed to approve offer');
+        }
+    };
 
     useEffect(() => {
         const fetchOffers = async () => {
@@ -683,12 +837,24 @@ function OfferManagement({ onRefresh, onCreateOffer }) {
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Joining</p>
                                 <p className="text-xs font-bold text-slate-700">{format(new Date(offer.joiningDate), 'MMM d, yyyy')}</p>
                             </div>
-                            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${offer.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' :
-                                offer.status === 'Sent' ? 'bg-blue-50 text-blue-600' :
+                            <div className="flex items-center gap-3">
+                                <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                    offer.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' :
+                                    offer.status === 'Sent' ? 'bg-blue-50 text-blue-600' :
+                                    offer.status === 'Pending Internal Approval' ? 'bg-amber-50 text-amber-600' :
                                     'bg-slate-100 text-slate-500'
                                 }`}>
-                                {offer.status}
-                            </span>
+                                    {offer.status}
+                                </span>
+                                {offer.status === 'Pending Internal Approval' && (
+                                    <button
+                                        onClick={() => handleApproveOffer(offer._id)}
+                                        className="px-3 py-1 bg-indigo-600 outline-none focus:ring text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-sm"
+                                    >
+                                        Approve & Send
+                                    </button>
+                                )}
+                            </div>
                             <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400">
                                 <MoreVertical className="w-4 h-4" />
                             </button>
@@ -702,6 +868,8 @@ function OfferManagement({ onRefresh, onCreateOffer }) {
 
 function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
     const [submitting, setSubmitting] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiContent, setAiContent] = useState(null);
     const [formData, setFormData] = useState({
         candidate: initialData?.candidateId || '',
         jobTitle: initialData?.jobTitle || '',
@@ -710,6 +878,32 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
         expiryDate: '',
         status: 'Sent'
     });
+
+    const handleAIGenerateOffer = async () => {
+        const candName = initialData?.name || candidates.find(c => c._id === formData.candidate)?.name;
+        if (!candName || !formData.jobTitle || !formData.joiningDate) {
+            toast.error('Fill candidate, job title & joining date first');
+            return;
+        }
+        try {
+            setAiGenerating(true);
+            const res = await fetch('/api/v1/admin/recruitment/ai/generate-offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateName: candName,
+                    jobTitle: formData.jobTitle,
+                    salary: formData.amount,
+                    joiningDate: formData.joiningDate
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setAiContent(data.data);
+                toast.success('✨ AI offer letter generated!');
+            } else toast.error(data.error);
+        } catch (e) { toast.error('AI generation failed'); } finally { setAiGenerating(false); }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -725,7 +919,10 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
                 },
                 joiningDate: formData.joiningDate,
                 expiryDate: formData.expiryDate,
-                status: 'Sent' // Auto-send for now
+                content: aiContent?.content || '',
+                terms: aiContent?.terms || [],
+                aiGenerated: !!aiContent,
+                status: 'Sent'
             };
 
             const res = await fetch('/api/v1/admin/recruitment/offers', {
@@ -834,7 +1031,23 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
                     </div>
                 </form>
 
-                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+                {/* AI Generate Offer Button */}
+                <div className="px-8 pb-4">
+                    <button
+                        type="button"
+                        onClick={handleAIGenerateOffer}
+                        disabled={aiGenerating}
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {aiGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4" /> ✨ AI Generate Offer Letter</>}
+                    </button>
+                    {aiContent && (
+                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">✓ AI Content Ready</p>
+                            <p className="text-xs text-slate-600">{aiContent.terms?.length || 0} terms generated</p>
+                        </div>
+                    )}
+                </div>                <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
                     <button onClick={onClose} className="flex-1 py-3 px-6 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all">Cancel</button>
                     <button
                         onClick={handleSubmit}
@@ -851,6 +1064,7 @@ function CreateOfferModal({ candidates, initialData, onClose, onSuccess }) {
 
 function JobRequisitionModal({ onClose, onSuccess }) {
     const [submitting, setSubmitting] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         department: '',
@@ -865,6 +1079,41 @@ function JobRequisitionModal({ onClose, onSuccess }) {
             max: ''
         }
     });
+
+    const handleAIGenerate = async () => {
+        if (!formData.title || !formData.department) {
+            toast.error('Enter Job Title and Department first');
+            return;
+        }
+        try {
+            setAiGenerating(true);
+            const res = await fetch('/api/v1/admin/recruitment/ai/generate-jd', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: formData.title,
+                    department: formData.department,
+                    type: formData.type,
+                    location: formData.location
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    description: data.data.description || prev.description,
+                    requirements: (data.data.requirements || []).join(', ')
+                }));
+                toast.success('✨ AI generated JD successfully!');
+            } else {
+                toast.error(data.error || 'AI generation failed');
+            }
+        } catch (error) {
+            toast.error('AI generation failed');
+        } finally {
+            setAiGenerating(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1001,6 +1250,23 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                         </div>
 
                     </div>
+
+                    {/* AI Generate Button */}
+                    <div className="md:col-span-2 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={handleAIGenerate}
+                            disabled={aiGenerating || !formData.title || !formData.department}
+                            className="px-6 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        >
+                            {aiGenerating ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> AI Generating...</>
+                            ) : (
+                                <><Sparkles className="w-4 h-4 group-hover:animate-pulse" /> ✨ AI Generate JD</>
+                            )}
+                        </button>
+                    </div>
+
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Requirements (comma separated)</label>
                         <input
@@ -1011,11 +1277,11 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Description</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Job Description {formData.description && <span className="text-emerald-500 normal-case">({formData.description.length} chars)</span>}</label>
                         <textarea
                             required
                             minLength={10}
-                            rows={4}
+                            rows={6}
                             value={formData.description}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
@@ -1032,6 +1298,87 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                     >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post Opening"}
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SyndicateModal({ job, onClose }) {
+    const publicJobUrl = `${window.location.origin}/careers/${job._id}`;
+    const xmlFeedUrl = `${window.location.origin}/api/v1/public/careers/feed.xml`;
+
+    const handleCopy = (text, type) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${type} copied to clipboard!`);
+    };
+
+    const handleLinkedInShare = () => {
+        const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publicJobUrl)}`;
+        window.open(shareUrl, '_blank', 'width=600,height=600');
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3"><Share2 className="w-6 h-6 text-indigo-500" /> Syndicate & Share</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                        <XCircle className="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <div className="p-8 space-y-8 bg-slate-50/50">
+                    {/* LinkedIn Share */}
+                    <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Linkedin className="w-3.5 h-3.5" /> 1-Click Social Posting</h4>
+                        <button onClick={handleLinkedInShare} className="w-full flex items-center justify-between p-5 rounded-3xl bg-white border-2 border-[#0077B5]/20 hover:border-[#0077B5] hover:shadow-lg hover:shadow-[#0077B5]/10 transition-all group">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-[#0077B5]/10 flex items-center justify-center">
+                                    <Linkedin className="w-6 h-6 text-[#0077B5]" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-black text-slate-800">Share to LinkedIn Feed</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest mt-1">Post to your professional network</p>
+                                </div>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#0077B5] transition-colors">
+                                <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Direct Link */}
+                    <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Link className="w-3.5 h-3.5" /> Direct Public Link</h4>
+                        <div className="flex items-center gap-3 p-2 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
+                            <div className="flex-1 bg-slate-50 rounded-2xl px-4 py-3 flex items-center gap-3 overflow-hidden">
+                                <span className="text-xs font-mono text-indigo-600 truncate font-medium tracking-tight">{publicJobUrl}</span>
+                            </div>
+                            <button onClick={() => handleCopy(publicJobUrl, 'Job Link')} className="h-12 px-6 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 shrink-0">
+                                Copy Link
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* XML Feed */}
+                    <div className="pt-8 border-t-2 border-dashed border-slate-200">
+                        <div className="flex items-center gap-2 mb-3">
+                            <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Rss className="w-4 h-4 text-amber-500" /> Global XML Job Feed</h4>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest rounded-lg ml-auto border border-emerald-100">Live API</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mb-5 font-semibold leading-relaxed">Submit this XML feed URL to your Indeed or Naukri representative. They will automatically sync and scrape your open jobs every 24 hours.</p>
+                        
+                        <div className="bg-slate-900 rounded-3xl p-2 flex items-center gap-3 shadow-xl">
+                            <div className="flex-1 px-4 overflow-x-auto custom-scrollbar flex items-center">
+                                <span className="text-emerald-400 font-mono text-[10px] font-black mr-3">GET</span>
+                                <span className="text-slate-300 font-mono text-xs whitespace-nowrap">{xmlFeedUrl}</span>
+                            </div>
+                            <button onClick={() => handleCopy(xmlFeedUrl, 'XML Feed URL')} className="h-10 px-6 bg-white/10 text-white hover:bg-white text-[10px] hover:text-slate-900 font-black uppercase tracking-widest rounded-2xl transition-all shrink-0">
+                                Copy XML
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

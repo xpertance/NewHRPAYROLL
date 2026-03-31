@@ -409,11 +409,11 @@ export default function SetupWizard({ user, onComplete }) {
   const [createdBUs, setCreatedBUs] = useState([]);
   const [createdDepts, setCreatedDepts] = useState([]);
 
-  const STEPS = [
+  const [dynamicSteps, setDynamicSteps] = useState([
     { id: "bu", label: "Business Units", icon: Layers },
     { id: "dept", label: "Departments", icon: Users },
     { id: "done", label: "Complete", icon: CheckCircle2 },
-  ];
+  ]);
 
   // Check if wizard should show on mount
   useEffect(() => {
@@ -442,15 +442,23 @@ export default function SetupWizard({ user, onComplete }) {
             })
             .catch(() => setShow(true));
         } else {
-          // No org yet (shouldn't happen with approval flow, but handle gracefully)
-          localStorage.setItem(doneKey, "true");
+          // No org yet, we must show the org step
+          setDynamicSteps([
+            { id: "org", label: "Organization", icon: Building2 },
+            { id: "bu", label: "Business Units", icon: Layers },
+            { id: "dept", label: "Departments", icon: Users },
+            { id: "done", label: "Complete", icon: CheckCircle2 },
+          ]);
+          setShow(true);
         }
       })
       .catch(() => {}); // Silently fail
   }, [user]);
 
-  const dismiss = () => {
-    localStorage.setItem(WIZARD_KEY(user.id), "true");
+  const dismiss = (markAsDone = false) => {
+    if (markAsDone === true) {
+      localStorage.setItem(WIZARD_KEY(user?.id), "true");
+    }
     setShow(false);
     onComplete?.();
   };
@@ -512,7 +520,7 @@ export default function SetupWizard({ user, onComplete }) {
 
       setCreatedOrg({ _id: json._id, name: json.name });
       toast.success(`Organization "${json.name}" created!`);
-      setStep(1);
+      setStep((p) => p + 1);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -539,7 +547,7 @@ export default function SetupWizard({ user, onComplete }) {
       }
       setCreatedBUs(created);
       if (created.length > 0) toast.success(`${created.length} Business Unit(s) created!`);
-      setStep(1);
+      setStep((p) => p + 1);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -549,7 +557,7 @@ export default function SetupWizard({ user, onComplete }) {
 
   const skipBUs = () => {
     setCreatedBUs([]);
-    setStep(1);
+    setStep((p) => p + 1);
   };
 
   const submitDepts = async () => {
@@ -576,7 +584,7 @@ export default function SetupWizard({ user, onComplete }) {
       }
       setCreatedDepts(created);
       toast.success(`${created.length} Department(s) created!`);
-      setStep(2);
+      setStep((p) => p + 1);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -585,12 +593,14 @@ export default function SetupWizard({ user, onComplete }) {
   };
 
   const handleNext = () => {
-    if (step === 0) submitBUs();
-    else if (step === 1) submitDepts();
+    const currentStepId = dynamicSteps[step].id;
+    if (currentStepId === "org") submitOrg();
+    else if (currentStepId === "bu") submitBUs();
+    else if (currentStepId === "dept") submitDepts();
   };
 
   const handleGoToEmployees = () => {
-    dismiss();
+    dismiss(true);
     window.location.href = "/payroll/employees/new";
   };
 
@@ -618,9 +628,9 @@ export default function SetupWizard({ user, onComplete }) {
               Let's set up your workspace in just a few steps.
             </p>
           </div>
-          {step < 3 && (
+          {dynamicSteps[step]?.id !== "done" && (
             <button
-              onClick={dismiss}
+              onClick={() => dismiss(false)}
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors shrink-0 ml-4 mt-1"
               title="Skip setup (you can do this later)"
             >
@@ -630,11 +640,19 @@ export default function SetupWizard({ user, onComplete }) {
         </div>
 
         {/* Step Progress */}
-        <StepHeader steps={STEPS} current={step} />
+        <StepHeader steps={dynamicSteps} current={step} />
 
         {/* Step Content */}
         <div className="flex-1 overflow-y-auto px-8 pb-4">
-          {step === 0 && (
+          {dynamicSteps[step]?.id === "org" && (
+            <StepOrganization
+              data={orgData}
+              setData={setOrgData}
+              errors={orgErrors}
+              setErrors={setOrgErrors}
+            />
+          )}
+          {dynamicSteps[step]?.id === "bu" && (
             <StepBusinessUnit
               data={buData}
               setData={setBuData}
@@ -644,7 +662,7 @@ export default function SetupWizard({ user, onComplete }) {
               orgName={createdOrg?.name || user?.companyName || "Your Organization"}
             />
           )}
-          {step === 1 && (
+          {dynamicSteps[step]?.id === "dept" && (
             <StepDepartments
               data={deptData}
               setData={setDeptData}
@@ -655,23 +673,23 @@ export default function SetupWizard({ user, onComplete }) {
               businessUnits={createdBUs}
             />
           )}
-          {step === 2 && (
+          {dynamicSteps[step]?.id === "done" && (
             <StepComplete
               orgName={createdOrg?.name || user?.companyName || "Your Organization"}
               buCount={createdBUs.length}
               deptCount={createdDepts.length}
               onGoToEmployees={handleGoToEmployees}
-              onClose={dismiss}
+              onClose={() => dismiss(true)}
             />
           )}
         </div>
 
         {/* Footer Navigation */}
-        {step < 2 && (
+        {dynamicSteps[step]?.id !== "done" && (
           <div className="flex-shrink-0 px-8 py-5 border-t border-slate-100 flex items-center justify-between bg-slate-50/80">
             <div className="text-xs text-slate-400">
-              Step {step + 1} of {STEPS.length - 1}
-              {step === 0 && (
+              Step {step + 1} of {dynamicSteps.length - 1}
+              {dynamicSteps[step]?.id === "bu" && (
                 <span className="ml-2 text-violet-500 font-medium">· Optional</span>
               )}
             </div>
@@ -685,7 +703,7 @@ export default function SetupWizard({ user, onComplete }) {
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
               )}
-              {step === 0 && (
+              {dynamicSteps[step]?.id === "bu" && (
                 <button
                   onClick={skipBUs}
                   disabled={loading}
@@ -702,7 +720,7 @@ export default function SetupWizard({ user, onComplete }) {
                 {loading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
                 ) : (
-                  <>{step === 1 ? "Finish Setup" : "Continue"} <ArrowRight className="w-4 h-4" /></>
+                  <>{dynamicSteps[step]?.id === "dept" ? "Finish Setup" : "Continue"} <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
             </div>
