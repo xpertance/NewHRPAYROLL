@@ -21,8 +21,8 @@ const jobRequisitionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Draft', 'Open', 'Closed', 'On Hold'],
-        default: 'Open'
+        enum: ['Draft', 'Pending Approval', 'Open', 'Closed', 'On Hold', 'Rejected'],
+        default: 'Pending Approval'
     },
     priority: {
         type: String,
@@ -34,6 +34,11 @@ const jobRequisitionSchema = new mongoose.Schema({
         required: [true, 'Job description is required']
     },
     requirements: [String],
+    skillsRequired: [String],
+    aiGenerated: {
+        type: Boolean,
+        default: false
+    },
     salaryRange: {
         min: Number,
         max: Number,
@@ -52,7 +57,14 @@ const jobRequisitionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Organization',
         default: null
-    }
+    },
+    approvalChain: [{
+        role: { type: String, required: true }, // e.g., 'HR Admin', 'Department Head'
+        status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        approvedAt: Date,
+        remarks: String
+    }]
 }, {
     timestamps: true
 });

@@ -69,6 +69,11 @@ export async function POST(request) {
 
         const job = await JobRequisition.create({
             ...validatedData,
+            status: 'Pending Approval',
+            approvalChain: [
+                { role: 'HR Admin', status: 'Pending' },
+                { role: 'Department Head', status: 'Pending' }
+            ],
             organizationId: orgId,
             createdBy: authUser.id
         });
@@ -78,6 +83,54 @@ export async function POST(request) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ success: false, error: 'Validation failed', details: error.errors }, { status: 400 });
         }
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+export async function PUT(request) {
+    try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+        await dbConnect();
+        
+        const body = await request.json();
+        const { jobId, status, approvalRole, approvalStatus, remarks } = body;
+        const orgId = authUser.role === 'admin' ? authUser.organizationId : body.organizationId;
+
+        const job = await JobRequisition.findOne({ _id: jobId, organizationId: orgId });
+        if (!job) return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
+
+        if (approvalRole && approvalStatus) {
+            const levelIndex = job.approvalChain.findIndex(c => c.role === approvalRole);
+            if (levelIndex > -1) {
+                job.approvalChain[levelIndex].status = approvalStatus;
+                job.approvalChain[levelIndex].approvedBy = authUser.id;
+                job.approvalChain[levelIndex].approvedAt = new Date();
+                job.approvalChain[levelIndex].remarks = remarks || '';
+                
+                const allApproved = job.approvalChain.every(c => c.status === 'Approved');
+                const anyRejected = job.approvalChain.some(c => c.status === 'Rejected');
+                
+                if (anyRejected) {
+                    job.status = 'Rejected';
+                } else if (allApproved) {
+                    job.status = 'Open';
+                }
+            }
+            await job.save();
+            return NextResponse.json({ success: true, job });
+        }
+
+        if (status) {
+            job.status = status;
+            await job.save();
+            return NextResponse.json({ success: true, job });
+        }
+
+        return NextResponse.json({ success: false, error: 'Invalid update payload' }, { status: 400 });
+
+    } catch (error) {
+        console.error("PUT JOB ERROR:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

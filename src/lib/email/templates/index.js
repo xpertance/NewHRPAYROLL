@@ -30,3 +30,27 @@ export const getShoutOutTemplate = (authorName, content, dashboardUrl) => `
   <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 40px;">&copy; 2026 HR Portal. All rights reserved.</p>
 </div>
 `;
+
+export const getApplicationReceivedTemplate = ({ candidateName, jobTitle, applicationId }) => {
+    return {
+        subject: `Application Received: ${jobTitle}`,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <div style="border-bottom: 2px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;">
+                <h1 style="color: #4f46e5; margin: 0;">Application Received</h1>
+            </div>
+            <p>Hi <strong>${candidateName}</strong>,</p>
+            <p>Thank you for applying for the <strong>${jobTitle}</strong> position. We have safely received your application and resume.</p>
+            
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Your Application Tracking ID</p>
+                <p style="margin: 10px 0 0; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #4f46e5;">${applicationId}</p>
+            </div>
+            
+            <p>Our team will review your profile shortly. You can track your application status at any time by visiting our <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/careers/status">Status Portal</a> and entering your Email along with the Tracking ID above.</p>
+            
+            <p>Best regards,<br/><strong>Team Xpertance</strong></p>
+        </div>
+        `
+    };
+};

@@ -53,6 +53,39 @@ const candidateSchema = new mongoose.Schema({
         default: 'Website'
     },
     notes: String,
+    parsedResume: {
+        skills: [String],
+        experience: [{
+            company: String,
+            role: String,
+            duration: String,
+            years: Number,
+            highlights: [String]
+        }],
+        education: [{
+            institution: String,
+            degree: String,
+            year: String
+        }],
+        summary: String,
+        totalExperienceYears: Number,
+        currentRole: String,
+        currentCompany: String
+    },
+    fitScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null
+    },
+    fitAnalysis: String,
+    fitRecommendation: {
+        type: String,
+        enum: ['Strong Hire', 'Potential Fit', 'Weak Match', 'Not Recommended', null],
+        default: null
+    },
+    fitStrengths: [String],
+    fitGaps: [String],
     appliedDate: {
         type: Date,
         default: Date.now
@@ -65,6 +98,9 @@ const candidateSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+// Gap Fix #9: Prevent duplicate candidates by email within same organization
+candidateSchema.index({ email: 1, organizationId: 1 }, { unique: true });
 
 const Candidate = mongoose.models.Candidate || mongoose.model('Candidate', candidateSchema);
 
