@@ -10,6 +10,9 @@ const jobSchema = z.object({
     location: z.string().min(1, "Location is required"),
     type: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship']),
     priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
+    headcount: z.number().min(1).optional().default(1),
+    experienceLevel: z.enum(['Entry', 'Mid', 'Senior', 'Executive', 'Fresher', '1-3 years', '3-5 years', '5-10 years', '10+ years']).optional().nullable(),
+    hiringManagerName: z.string().optional(),
     description: z.string().min(10, "Description must be at least 10 characters"),
     requirements: z.array(z.string()).optional(),
     salaryRange: z.object({

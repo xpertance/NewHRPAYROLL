@@ -100,3 +100,20 @@ export const getOnboardingWelcomeTemplate = (employeeName, joiningDate, roleName
   </div>
 </div>
 `;
+export const getManualCommunicationTemplate = (candidateName, subject, message) => `
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 30px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Message from HR Department</h1>
+  </div>
+  <div style="padding: 30px;">
+    <p style="color: #1e293b; font-size: 16px; line-height: 1.6;">Dear <strong>${candidateName}</strong>,</p>
+    <div style="color: #475569; font-size: 15px; line-height: 1.8; margin-top: 20px;">
+      ${message.replace(/\n/g, '<br/>')}
+    </div>
+    <p style="color: #475569; font-size: 14px; line-height: 1.8; margin-top: 30px;">Best regards,<br/><strong>Human Resources Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+    <p style="color: #94a3b8; font-size: 12px; margin: 0;">© 2026 Bizmate Technologies. All rights reserved.</p>
+  </div>
+</div>
+`;
