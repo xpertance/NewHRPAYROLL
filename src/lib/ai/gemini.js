@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const API_KEY = process.env.GOOGLE_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 /**
  * Core: Generate content from Gemini
@@ -94,6 +94,58 @@ Return your response STRICTLY as valid JSON (no markdown, no code blocks) with t
     } catch (e) {
         console.error('AI Resume parse error:', e);
         return { name: '', email: '', phone: '', summary: text, skills: [], experience: [], education: [], totalExperienceYears: 0 };
+    }
+}
+
+/**
+ * AI Resume Parser from PDF Buffer (Native Gemini Document Understanding)
+ * Sends the raw PDF to Gemini so it reads the document directly — no pdf-parse needed.
+ */
+export async function parseResumeFromPDF(buffer, mimeType = 'application/pdf') {
+    const prompt = `You are an expert HR resume analyst. Read the attached resume document and extract structured data.
+
+Return your response STRICTLY as valid JSON (no markdown, no code blocks) with this exact structure:
+{
+  "name": "Full name of the candidate",
+  "email": "Email address if found, or empty string",
+  "phone": "Phone number if found, or empty string",
+  "summary": "A 2-3 sentence professional summary of the candidate",
+  "skills": ["skill1", "skill2", "...all technical and soft skills found"],
+  "experience": [
+    {
+      "company": "Company name",
+      "role": "Job title",
+      "duration": "e.g. Jan 2020 - Dec 2023",
+      "years": 3,
+      "highlights": ["key achievement 1", "key achievement 2"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University/College name",
+      "degree": "Degree name",
+      "year": "Graduation year"
+    }
+  ],
+  "totalExperienceYears": 5,
+  "currentRole": "Most recent job title",
+  "currentCompany": "Most recent company",
+  "rawText": "Return a complete plain-text dump of the entire resume content here so we can display it for human readability"
+}`;
+
+    const inlineData = {
+        data: buffer.toString('base64'),
+        mimeType
+    };
+
+    try {
+        const result = await model.generateContent([prompt, { inlineData }]);
+        const text = result.response.text();
+        const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.error('AI Resume parse (PDF native) error:', e);
+        return null;
     }
 }
 

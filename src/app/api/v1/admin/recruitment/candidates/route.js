@@ -12,6 +12,7 @@ import {
     getRejectionEmailTemplate,
     getOnboardingWelcomeTemplate
 } from '@/lib/email/templates/recruitment';
+import { getCandidateStatusChangeTemplate } from '@/lib/email/templates';
 import { generateOnboardingTasks } from '@/lib/ai/gemini';
 
 const candidateSchema = z.object({
@@ -21,7 +22,7 @@ const candidateSchema = z.object({
     resumeUrl: z.string().url().optional(),
     jobRequisition: z.string().optional(),
     appliedRole: z.string().optional(),
-    source: z.enum(['LinkedIn', 'Indeed', 'Referral', 'Website', 'Other']).default('Website'),
+    source: z.enum(['LinkedIn', 'Indeed', 'Referral', 'Website', 'Careers Portal', 'Other']).default('Website'),
     notes: z.string().optional(),
     parsedResume: z.any().optional()
 });
@@ -134,17 +135,20 @@ export async function PUT(request) {
         Object.assign(candidate, updateData);
         await candidate.save();
 
-        // Gap Fix #7: Send rejection email
-        if (newStatus === 'Rejected' && prevStatus !== 'Rejected') {
+        // Send status-change email notification for ALL pipeline transitions
+        if (newStatus && newStatus !== prevStatus) {
             try {
                 const jobTitle = candidate.appliedRole || candidate.jobRequisition?.title || 'the position';
-                await sendEmail({
-                    to: candidate.email,
-                    subject: `Application Update — ${jobTitle}`,
-                    html: getRejectionEmailTemplate(candidate.name, jobTitle)
+                const template = getCandidateStatusChangeTemplate({
+                    candidateName: candidate.name,
+                    jobTitle,
+                    newStatus
                 });
+                if (template) {
+                    await sendEmail({ to: candidate.email, subject: template.subject, html: template.html });
+                }
             } catch (emailErr) {
-                console.log("Rejection email skipped:", emailErr.message);
+                console.log(`Status email (${newStatus}) skipped:`, emailErr.message);
             }
         }
 
