@@ -2,18 +2,11 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Candidate from '@/lib/db/models/recruitment/Candidate';
 import JobRequisition from '@/lib/db/models/recruitment/JobRequisition';
-import { parseResume } from '@/lib/ai/gemini';
+import { parseResumeFromPDF, calculateFitScore } from '@/lib/ai/gemini';
 import { sendEmail } from '@/lib/email/service';
 import { getApplicationReceivedTemplate } from '@/lib/email/templates';
-
-// Polyfill missing DOM APIs expected by pdf-parse internal engine
-if (typeof global !== 'undefined') {
-    global.DOMMatrix = global.DOMMatrix || class DOMMatrix {};
-    global.ImageData = global.ImageData || class ImageData {};
-    global.Path2D = global.Path2D || class Path2D {};
-}
-const pdfParseModule = require('pdf-parse');
-const pdfParse = pdfParseModule.default || pdfParseModule;
+import fs from 'fs/promises';
+import path from 'path';
 
 export async function POST(request) {
     try {
@@ -25,67 +18,133 @@ export async function POST(request) {
         const phone = formData.get('phone');
         const jobId = formData.get('jobId');
         const resumeFile = formData.get('resume');
-        const source = formData.get('source');
         
         if (!name || !email || !jobId) return NextResponse.json({ success: false, error: 'Name, email, and Job ID are required' }, { status: 400 });
         
         const job = await JobRequisition.findById(jobId);
         if (!job) return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
         
-        const existing = await Candidate.findOne({ email, organizationId: job.organizationId });
+        const existing = await Candidate.findOne({ email: email.toLowerCase(), organizationId: job.organizationId });
         if (existing) {
             return NextResponse.json({ success: false, error: 'You have already applied.' }, { status: 400 });
         }
         
         let parsedResume = {};
+        let resumeUrl = null;
         let resumeText = '';
+        let buffer = null;
 
+        // Step 1: LOCAL STORAGE - Save the PDF file to the public/uploads/resumes folder
         if (resumeFile && typeof resumeFile.arrayBuffer === 'function') {
+            buffer = Buffer.from(await resumeFile.arrayBuffer());
+            
+            // Create a unique filename
+            const fileName = `resume_${Date.now()}_${name.replace(/\s+/g, '_').toLowerCase()}.pdf`;
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'resumes');
+            const filePath = path.join(uploadDir, fileName);
+
             try {
-                const buffer = Buffer.from(await resumeFile.arrayBuffer());
-                const pdfData = await pdfParse(buffer);
-                resumeText = pdfData.text;
-            } catch (err) {
-                console.error("Local PDF Extraction failed", err);
+                // Ensure directory exists
+                await fs.mkdir(uploadDir, { recursive: true });
+                // Write file to disk
+                await fs.writeFile(filePath, buffer);
+                // The URL that will be accessible via browser
+                resumeUrl = `/uploads/resumes/${fileName}`;
+                console.log(`💾 Resume saved locally: ${resumeUrl}`);
+            } catch (fsErr) {
+                console.error("❌ Failed to save resume locally:", fsErr.message);
             }
         }
 
-        if (resumeText && resumeText.length > 50) {
+        // Step 2: Use Gemini to parse resume + extract text fallback
+        if (buffer && buffer.length > 0) {
             try {
-                parsedResume = await parseResume(resumeText);
-            } catch (e) {
-                console.error("AI Parse failed on public apply", e);
+                console.log('🤖 AI Analysis: Reading PDF content...');
+                const aiResult = await parseResumeFromPDF(buffer, resumeFile.type || 'application/pdf');
+                
+                if (aiResult) {
+                    resumeText = aiResult.rawText || '';
+                    delete aiResult.rawText;
+                    parsedResume = aiResult;
+                    console.log(`✅ AI successfully parsed ${parsedResume.skills?.length || 0} skills.`);
+                }
+            } catch (err) {
+                console.error("⚠️ AI Parse failed:", err.message);
+            }
+        }
+
+        // Step 3: AI Fit Score
+        let fitScore = null;
+        let fitAnalysis = '';
+        let fitRecommendation = null;
+        let fitStrengths = [];
+        let fitGaps = [];
+
+        if (parsedResume && parsedResume.skills && parsedResume.skills.length > 0) {
+            try {
+                const candidateProfile = {
+                    skills: parsedResume.skills || [],
+                    totalExperienceYears: parsedResume.totalExperienceYears || 0,
+                    currentRole: parsedResume.currentRole || '',
+                    education: parsedResume.education || [],
+                    summary: parsedResume.summary || ''
+                };
+                const jobRequirements = {
+                    title: job.title,
+                    department: job.department,
+                    description: job.description,
+                    requirements: job.requirements,
+                    skillsRequired: job.skillsRequired
+                };
+                const fitResult = await calculateFitScore(candidateProfile, jobRequirements);
+                fitScore = fitResult.fitScore;
+                fitAnalysis = fitResult.analysis;
+                fitRecommendation = fitResult.recommendation;
+                fitStrengths = fitResult.strengths || [];
+                fitGaps = fitResult.gaps || [];
+            } catch (fitErr) {
+                console.error("⚠️ Fit Score skipped:", fitErr.message);
             }
         }
         
+        // Step 4: Create Candidate in MongoDB
         const candidate = await Candidate.create({
             name, email, phone,
             jobRequisition: jobId,
             organizationId: job.organizationId,
-            source: source || 'Website',
+            source: 'Careers Portal',
             status: 'Applied',
-            resumeUrl: 'pending',
-            parsedResume: parsedResume
+            resumeUrl, // Local path: /uploads/resumes/...
+            resumeText,
+            parsedResume,
+            fitScore,
+            fitAnalysis,
+            fitRecommendation,
+            fitStrengths,
+            fitGaps
         });
         
+        // Step 5: Formal Email Confirmation
         try {
-            const template = getApplicationReceivedTemplate({
-                candidateName: name,
-                jobTitle: job.title,
-                applicationId: candidate._id.toString()
+            const { sendEmail } = await import('@/lib/email/service');
+            const { getApplicationReceivedTemplate } = await import('@/lib/email/templates/recruitment');
+            
+            await sendEmail({
+                to: email,
+                subject: `Application Received — ${job?.title || 'the open position'}`,
+                html: getApplicationReceivedTemplate(name, job?.title || 'the open position')
             });
-            await sendEmail({ to: email, subject: template.subject, html: template.html });
-        } catch (emErr) {
-            console.error("Email failed on apply", emErr);
+        } catch (emailErr) {
+            console.warn("📧 Email skipping (SMTP not configured):", emailErr.message);
         }
-        
+
         return NextResponse.json({ 
             success: true, 
-            applicationId: candidate._id,
-            message: 'Application submitted successfully. Check your email for tracking details.' 
+            message: "Application submitted successfully",
+            candidateId: candidate._id 
         }, { status: 201 });
     } catch (error) {
-        console.error("PUBLIC APPLY ERROR:", error);
+        console.error("APPLY API ERROR:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

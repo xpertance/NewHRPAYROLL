@@ -14,6 +14,7 @@ const candidateSchema = new mongoose.Schema({
     },
     phone: String,
     resumeUrl: String,
+    resumeText: String,
     jobRequisition: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'JobRequisition',
@@ -49,7 +50,7 @@ const candidateSchema = new mongoose.Schema({
     }],
     source: {
         type: String,
-        enum: ['LinkedIn', 'Indeed', 'Referral', 'Website', 'Other'],
+        enum: ['LinkedIn', 'Indeed', 'Referral', 'Website', 'Careers Portal', 'Other'],
         default: 'Website'
     },
     notes: String,

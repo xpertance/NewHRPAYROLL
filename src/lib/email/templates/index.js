@@ -41,14 +41,69 @@ export const getApplicationReceivedTemplate = ({ candidateName, jobTitle, applic
             </div>
             <p>Hi <strong>${candidateName}</strong>,</p>
             <p>Thank you for applying for the <strong>${jobTitle}</strong> position. We have safely received your application and resume.</p>
-            
             <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Your Application Tracking ID</p>
                 <p style="margin: 10px 0 0; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #4f46e5;">${applicationId}</p>
             </div>
-            
-            <p>Our team will review your profile shortly. You can track your application status at any time by visiting our <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/careers/status">Status Portal</a> and entering your Email along with the Tracking ID above.</p>
-            
+            <p>Best regards,<br/><strong>Team Xpertance</strong></p>
+        </div>
+        `
+    };
+};
+
+export const getCandidateStatusChangeTemplate = ({ candidateName, jobTitle, newStatus }) => {
+    const statusMessages = {
+        'Screening': {
+            subject: `Profile Under Review: ${jobTitle}`,
+            heading: 'Your Profile is Being Reviewed',
+            body: `We are pleased to inform you that your application for <strong>${jobTitle}</strong> has advanced to the screening stage.`,
+            color: '#6366f1'
+        },
+        'Technical Interview': {
+            subject: `Interview Invitation: ${jobTitle}`,
+            heading: 'Interview Scheduled',
+            body: `Congratulations! Your application for <strong>${jobTitle}</strong> has been shortlisted. We will schedule a Technical Interview with you shortly.`,
+            color: '#0ea5e9'
+        },
+        'Managerial Interview': {
+            subject: `Next Round: ${jobTitle}`,
+            heading: 'Moving to the Next Round',
+            body: `Great news! You have cleared the previous round for <strong>${jobTitle}</strong>. A Managerial Interview will be scheduled soon.`,
+            color: '#8b5cf6'
+        },
+        'HR Interview': {
+            subject: `Final Round: ${jobTitle}`,
+            heading: 'Final Interview Round',
+            body: `Excellent progress! You are now in the final interview stage for <strong>${jobTitle}</strong>.`,
+            color: '#10b981'
+        },
+        'Offer Sent': {
+            subject: `Offer Letter: ${jobTitle}`,
+            heading: 'Your Offer is Ready!',
+            body: `We are thrilled to extend an offer for the <strong>${jobTitle}</strong> position. Details will follow shortly.`,
+            color: '#10b981'
+        },
+        'Rejected': {
+            subject: `Application Update: ${jobTitle}`,
+            heading: 'Application Update',
+            body: `Thank you for your interest in <strong>${jobTitle}</strong>. After careful review, we have decided to move forward with other candidates. We encourage you to apply for future openings.`,
+            color: '#64748b'
+        }
+    };
+    const config = statusMessages[newStatus];
+    if (!config) return null;
+    return {
+        subject: config.subject,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <div style="border-bottom: 3px solid ${config.color}; padding-bottom: 12px; margin-bottom: 24px;">
+                <h1 style="color: ${config.color}; margin: 0; font-size: 22px;">${config.heading}</h1>
+            </div>
+            <p>Hi <strong>${candidateName}</strong>,</p>
+            <p style="line-height: 1.6;">${config.body}</p>
+            <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; margin: 24px 0; border-left: 4px solid ${config.color};">
+                <p style="margin: 0; font-size: 13px; color: #64748b;">Current Stage: <strong style="color: ${config.color};">${newStatus}</strong></p>
+            </div>
             <p>Best regards,<br/><strong>Team Xpertance</strong></p>
         </div>
         `

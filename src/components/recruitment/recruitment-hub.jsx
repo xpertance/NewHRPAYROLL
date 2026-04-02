@@ -9,7 +9,7 @@ import {
     ChevronRight, ArrowUpRight, Loader2,
     Calendar, CheckCircle2, XCircle, AlertCircle,
     Layers, Star, Target, Sparkles, Bot, Upload,
-    BarChart3, Gauge, FileText, Brain, Share2, Linkedin, Link, Rss
+    BarChart3, Gauge, FileText, Brain, Share2, Linkedin, Link, Rss, Mail
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -305,6 +305,9 @@ function JobBoard({ jobs, onRefresh, onViewPipeline, onSyndicate }) {
                             }`}>
                                 {job.status}
                             </span>
+                            <span className="ml-2 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1">
+                                <Users className="w-3 h-3" /> {job.headcount || 1} Openings
+                            </span>
                             {job.status === 'Pending Approval' && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleApproveJob(job._id); }}
@@ -579,10 +582,17 @@ function AddCandidateModal({ jobs, onClose, onSuccess }) {
 }
 
 function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }) {
+    const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
     const [scoringAI, setScoringAI] = useState(false);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [aiQuestions, setAiQuestions] = useState(null);
+    const [showResume, setShowResume] = useState(false);
+    const [resumeViewMode, setResumeViewMode] = useState('parsed'); // 'parsed' or 'original'
+    const [showEmailForm, setShowEmailForm] = useState(false);
+    const [emailSubject, setEmailSubject] = useState("");
+    const [emailMessage, setEmailMessage] = useState("");
+    const [sendingEmail, setSendingEmail] = useState(false);
     const stages = [
         'Applied', 'Screening', 'Technical Interview', 'Managerial Interview', 'HR Interview', 'Offer Sent', 'Hired', 'Rejected'
     ];
@@ -636,6 +646,37 @@ function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }
         }
     };
 
+    const handleSendManualEmail = async (e) => {
+        e.preventDefault();
+        if (!emailSubject || !emailMessage) {
+            toast.error("Subject and message are required");
+            return;
+        }
+        try {
+            setSendingEmail(true);
+            const res = await fetch('/api/v1/admin/recruitment/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: candidate._id,
+                    subject: emailSubject,
+                    message: emailMessage
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Message sent to ${candidate.name}!`);
+                setShowEmailForm(false);
+                setEmailSubject("");
+                setEmailMessage("");
+            } else toast.error(data.error);
+        } catch (e) {
+            toast.error('Failed to send email');
+        } finally {
+            setSendingEmail(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-500">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden scale-in duration-300 grid grid-cols-1 md:grid-cols-3">
@@ -658,89 +699,314 @@ function CandidateDetailModal({ candidate, onClose, onRefresh, onGenerateOffer }
                         </div>
                     </div>
 
+                    {/* AI Fit Score Badge — shown immediately if available */}
+                    {candidate.fitScore != null && (
+                        <div className="w-full mt-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 text-center">
+                            <p className="text-[9px] font-black text-purple-500 uppercase tracking-widest mb-1">AI Fit Score</p>
+                            <p className={`text-3xl font-black ${candidate.fitScore >= 80 ? 'text-emerald-600' : candidate.fitScore >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                {candidate.fitScore}<span className="text-sm text-slate-400">/100</span>
+                            </p>
+                            {candidate.fitRecommendation && (
+                                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                    candidate.fitRecommendation === 'Strong Hire' ? 'bg-emerald-100 text-emerald-700' :
+                                    candidate.fitRecommendation === 'Potential Fit' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-rose-100 text-rose-700'
+                                }`}>{candidate.fitRecommendation}</span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Manual Email Tool */}
+                    <div className="w-full mt-4">
+                        <button 
+                            onClick={() => setShowEmailForm(!showEmailForm)}
+                            className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${showEmailForm ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <Mail className="w-4 h-4" /> {showEmailForm ? 'Cancel Message' : 'Send Message'}
+                        </button>
+
+                        {showEmailForm && (
+                            <div className="mt-4 p-4 bg-white border border-indigo-100 rounded-2xl shadow-sm space-y-3 animate-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Subject</label>
+                                    <input 
+                                        value={emailSubject}
+                                        onChange={(e) => setEmailSubject(e.target.value)}
+                                        placeholder="Formal subject..."
+                                        className="w-full p-2 bg-slate-50 border-none rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Message</label>
+                                    <textarea 
+                                        value={emailMessage}
+                                        onChange={(e) => setEmailMessage(e.target.value)}
+                                        placeholder="Type your message..."
+                                        rows={4}
+                                        className="w-full p-2 bg-slate-50 border-none rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleSendManualEmail}
+                                    disabled={sendingEmail || !emailSubject || !emailMessage}
+                                    className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2"
+                                >
+                                    {sendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />} Send Formal Email
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="mt-auto w-full pt-8 space-y-2">
-                        <button className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">View Resume</button>
+                        <button 
+                            onClick={() => setShowResume(!showResume)}
+                            className={`w-full py-3 border rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${showResume ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            {showResume ? '← Back to Pipeline' : 'View Resume'}
+                        </button>
                         <button className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all" onClick={() => updateStatus('Rejected')}>Reject</button>
                     </div>
                 </div>
 
-                {/* Right Pipeline Content */}
-                <div className="md:col-span-2 p-8 flex flex-col">
+                {/* Right Content — Pipeline or Resume */}
+                <div className="md:col-span-2 p-8 flex flex-col max-h-[80vh] overflow-y-auto">
                     <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Recruitment Pipeline</h3>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+                            {showResume ? 'Parsed Resume' : 'Recruitment Pipeline'}
+                        </h3>
                         <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400">&times;</button>
                     </div>
 
-                    <div className="space-y-6 flex-1">
-                        <div className="flex flex-wrap gap-2">
-                            {stages.map((stage) => (
-                                <button
-                                    key={stage}
-                                    disabled={submitting}
-                                    onClick={() => updateStatus(stage)}
-                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${candidate.status === stage
-                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                                        : "bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
-                                        }`}
+                    {showResume ? (
+                        /* ===== RESUME PANEL ===== */
+                        <div className="flex flex-col flex-1 h-full">
+                            <div className="flex mb-4 bg-slate-100 p-1 rounded-xl w-max">
+                                <button 
+                                    onClick={() => setResumeViewMode('parsed')} 
+                                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${resumeViewMode === 'parsed' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-500'}`}
                                 >
-                                    {stage}
+                                    Parsed Data
                                 </button>
-                            ))}
-                        </div>
-
-                        <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Interviews & Feedback</h4>
-                            <div className="text-center py-8">
-                                <p className="text-slate-400 text-xs italic font-medium">No interview feedback recorded yet.</p>
-                                <button className="mt-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">+ Schedule Interview</button>
+                                <button 
+                                    onClick={() => setResumeViewMode('original')} 
+                                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${resumeViewMode === 'original' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-500'}`}
+                                >
+                                    Original Document
+                                </button>
                             </div>
-                        </div>
-
-                        {/* AI Tools Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                            {/* AI Fit Score */}
-                            <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-indigo-100">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Brain className="w-4 h-4 text-purple-600" />
-                                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">AI Fit Score</span>
+                            
+                            {resumeViewMode === 'parsed' ? (
+                                <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            {/* AI Summary */}
+                            {candidate.parsedResume?.summary && (
+                                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                                    <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">AI Summary</h4>
+                                    <p className="text-sm text-slate-700 leading-relaxed">{candidate.parsedResume.summary}</p>
                                 </div>
-                                {candidate.fitScore != null ? (
-                                    <div>
-                                        <div className="flex items-end gap-2">
-                                            <span className={`text-3xl font-black ${candidate.fitScore >= 80 ? 'text-emerald-600' : candidate.fitScore >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{candidate.fitScore}</span>
-                                            <span className="text-slate-400 text-sm font-bold mb-1">/100</span>
-                                        </div>
-                                        <p className="text-xs text-slate-500 mt-1">{candidate.fitAnalysis || candidate.fitRecommendation}</p>
-                                        <button onClick={handleCalculateFitScore} disabled={scoringAI} className="mt-2 text-[9px] font-black text-purple-600 uppercase tracking-widest hover:underline">↻ Recalculate</button>
+                            )}
+
+                            {/* Skills */}
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Skills</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {(candidate.parsedResume?.skills || []).length > 0 ? (
+                                        candidate.parsedResume.skills.map((skill, i) => (
+                                            <span key={i} className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">{skill}</span>
+                                        ))
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic">No skills extracted yet.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Experience */}
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                                    Work Experience {candidate.parsedResume?.totalExperienceYears ? `(${candidate.parsedResume.totalExperienceYears} yrs)` : ''}
+                                </h4>
+                                {(candidate.parsedResume?.experience || []).length > 0 ? (
+                                    <div className="space-y-3">
+                                        {candidate.parsedResume.experience.map((exp, i) => (
+                                            <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <p className="text-sm font-black text-slate-800">{exp.role}</p>
+                                                <p className="text-xs text-slate-500 font-medium">{exp.company} • {exp.duration}</p>
+                                                {exp.highlights?.length > 0 && (
+                                                    <ul className="mt-2 space-y-1">
+                                                        {exp.highlights.map((h, j) => (
+                                                            <li key={j} className="text-[11px] text-slate-600 flex items-start gap-2">
+                                                                <span className="w-1 h-1 bg-indigo-400 rounded-full mt-1.5 shrink-0"></span> {h}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
-                                    <button onClick={handleCalculateFitScore} disabled={scoringAI} className="w-full py-2.5 bg-white text-purple-600 rounded-xl text-[10px] font-black border border-purple-200 hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
-                                        {scoringAI ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} {scoringAI ? 'Analyzing...' : 'Calculate Fit Score'}
-                                    </button>
+                                    <p className="text-xs text-slate-400 italic">No experience data extracted.</p>
                                 )}
                             </div>
-                            {/* AI Interview Questions */}
-                            <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border border-blue-100">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <FileText className="w-4 h-4 text-blue-600" />
-                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">AI Questions</span>
-                                </div>
-                                <button onClick={handleGenerateQuestions} disabled={questionsLoading} className="w-full py-2.5 bg-white text-blue-600 rounded-xl text-[10px] font-black border border-blue-200 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
-                                    {questionsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />} {questionsLoading ? 'Generating...' : 'Generate Interview Qs'}
-                                </button>
-                                {aiQuestions && (
-                                    <div className="mt-3 max-h-32 overflow-y-auto space-y-1.5">
-                                        {aiQuestions.questions?.slice(0, 4).map((q, i) => (
-                                            <p key={i} className="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-50">{i + 1}. {q.question}</p>
+
+                            {/* Education */}
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Education</h4>
+                                {(candidate.parsedResume?.education || []).length > 0 ? (
+                                    <div className="space-y-2">
+                                        {candidate.parsedResume.education.map((edu, i) => (
+                                            <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-black shrink-0">🎓</div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-800">{edu.degree}</p>
+                                                    <p className="text-[10px] text-slate-500">{edu.institution} {edu.year ? `• ${edu.year}` : ''}</p>
+                                                </div>
+                                            </div>
                                         ))}
-                                        {aiQuestions.questions?.length > 4 && <p className="text-[9px] text-blue-500 font-bold">+{aiQuestions.questions.length - 4} more questions</p>}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-slate-400 italic">No education data extracted.</p>
+                                )}
+                            </div>
+
+                            {/* Fit Score Summary */}
+                            {candidate.fitScore != null && (
+                                <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl border border-indigo-100">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest">AI Fit Analysis</h4>
+                                        <span className={`text-2xl font-black ${candidate.fitScore >= 80 ? 'text-emerald-600' : candidate.fitScore >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{candidate.fitScore}/100</span>
+                                    </div>
+                                    {candidate.fitStrengths?.length > 0 && (
+                                        <div className="mb-2">
+                                            <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Strengths</p>
+                                            {candidate.fitStrengths.map((s, i) => <p key={i} className="text-[11px] text-slate-600">✓ {s}</p>)}
+                                        </div>
+                                    )}
+                                    {candidate.fitGaps?.length > 0 && (
+                                        <div>
+                                            <p className="text-[9px] font-black text-rose-500 uppercase mb-1">Gaps</p>
+                                            {candidate.fitGaps.map((g, i) => <p key={i} className="text-[11px] text-slate-600">✗ {g}</p>)}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col mt-4">
+                                {candidate.resumeUrl && candidate.resumeUrl !== 'pending' ? (
+                                    <div className="flex-1 flex flex-col">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Original Uploaded Resume</p>
+                                            <a 
+                                                href={candidate.resumeUrl} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-colors"
+                                            >
+                                                ↓ Download PDF
+                                            </a>
+                                        </div>
+                                        <iframe 
+                                            src={candidate.resumeUrl} 
+                                            className="w-full flex-1 min-h-[500px] rounded-2xl border border-slate-200 shadow-sm bg-white" 
+                                            title="Original Resume" 
+                                        />
+                                    </div>
+                                ) : candidate.resumeText ? (
+                                    <div className="flex-1 flex flex-col">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Extracted Document Text</p>
+                                        </div>
+                                        <div className="p-8 bg-white border border-slate-200 rounded-2xl flex-1 overflow-y-auto whitespace-pre-wrap font-mono text-sm text-slate-600 leading-relaxed shadow-inner translate-z-0 custom-scrollbar max-h-[500px]">
+                                            {candidate.resumeText}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-12 text-center h-full bg-slate-50 rounded-2xl border border-slate-200">
+                                        <FileText className="w-12 h-12 text-slate-300 mb-4" />
+                                        <p className="text-sm font-bold text-slate-500">No original document available.</p>
+                                        <p className="text-xs text-slate-400 mt-1">Cloud storage is not configured, and no document text was extracted.</p>
                                     </div>
                                 )}
                             </div>
+                        )}
                         </div>
-                    </div>
+                    ) : (
+                        /* ===== PIPELINE VIEW ===== */
+                        <div className="space-y-6 flex-1">
+                            <div className="flex flex-wrap gap-2">
+                                {stages.map((stage) => (
+                                    <button
+                                        key={stage}
+                                        disabled={submitting}
+                                        onClick={() => updateStatus(stage)}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${candidate.status === stage
+                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                                            : "bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                                            }`}
+                                    >
+                                        {stage}
+                                    </button>
+                                ))}
+                            </div>
 
-                    {candidate.status === 'HR Interview' && (
+                            <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Interviews & Feedback</h4>
+                                <div className="text-center py-8">
+                                    <p className="text-slate-400 text-xs italic font-medium">No interview feedback recorded yet.</p>
+                                    <button 
+                                        onClick={() => router.push('/admin/recruitment/interviews')}
+                                        className="mt-4 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                                    >
+                                        + Schedule Interview
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* AI Tools Section */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                {/* AI Fit Score */}
+                                <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-indigo-100">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Brain className="w-4 h-4 text-purple-600" />
+                                        <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">AI Fit Score</span>
+                                    </div>
+                                    {candidate.fitScore != null ? (
+                                        <div>
+                                            <div className="flex items-end gap-2">
+                                                <span className={`text-3xl font-black ${candidate.fitScore >= 80 ? 'text-emerald-600' : candidate.fitScore >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{candidate.fitScore}</span>
+                                                <span className="text-slate-400 text-sm font-bold mb-1">/100</span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">{candidate.fitAnalysis || candidate.fitRecommendation}</p>
+                                            <button onClick={handleCalculateFitScore} disabled={scoringAI} className="mt-2 text-[9px] font-black text-purple-600 uppercase tracking-widest hover:underline">↻ Recalculate</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={handleCalculateFitScore} disabled={scoringAI} className="w-full py-2.5 bg-white text-purple-600 rounded-xl text-[10px] font-black border border-purple-200 hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                            {scoringAI ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} {scoringAI ? 'Analyzing...' : 'Calculate Fit Score'}
+                                        </button>
+                                    )}
+                                </div>
+                                {/* AI Interview Questions */}
+                                <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border border-blue-100">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <FileText className="w-4 h-4 text-blue-600" />
+                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">AI Questions</span>
+                                    </div>
+                                    <button onClick={handleGenerateQuestions} disabled={questionsLoading} className="w-full py-2.5 bg-white text-blue-600 rounded-xl text-[10px] font-black border border-blue-200 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                        {questionsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />} {questionsLoading ? 'Generating...' : 'Generate Interview Qs'}
+                                    </button>
+                                    {aiQuestions && (
+                                        <div className="mt-3 max-h-32 overflow-y-auto space-y-1.5">
+                                            {aiQuestions.questions?.slice(0, 4).map((q, i) => (
+                                                <p key={i} className="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-50">{i + 1}. {q.question}</p>
+                                            ))}
+                                            {aiQuestions.questions?.length > 4 && <p className="text-[9px] text-blue-500 font-bold">+{aiQuestions.questions.length - 4} more questions</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!showResume && candidate.status === 'HR Interview' && (
                         <div className="mt-8 pt-8 border-t border-slate-100">
                             <button
                                 onClick={() => onGenerateOffer(candidate)}
@@ -1071,9 +1337,12 @@ function JobRequisitionModal({ onClose, onSuccess }) {
         location: '',
         type: 'Full-time',
         priority: 'Medium',
+        experienceLevel: 'Mid',
+        hiringManager: '',
         description: '',
         requirements: '',
         targetDate: '',
+        headcount: 1,
         salaryRange: {
             min: '',
             max: ''
@@ -1124,6 +1393,8 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    hiringManagerName: formData.hiringManager,
+                    headcount: Number(formData.headcount) || 1,
                     requirements: formData.requirements.split(',').map(r => r.trim()).filter(Boolean),
                     salaryRange: {
                         min: Number(formData.salaryRange.min) || undefined,
@@ -1217,17 +1488,46 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                             </div>
                         </div>
 
-                        {/* Additional fields row: Target Date & Salary Range */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                             <div>
+                        {/* Additional fields row: Target Date, Hiring Manager & Experience */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Target Date</label>
                                 <input
                                     type="date"
+                                    required
                                     value={formData.targetDate}
                                     onChange={e => setFormData({ ...formData, targetDate: e.target.value })}
                                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
                                 />
                             </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Hiring Manager</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.hiringManager}
+                                    onChange={e => setFormData({ ...formData, hiringManager: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
+                                    placeholder="e.g. Sarah Connor"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Experience Level</label>
+                                <select
+                                    value={formData.experienceLevel}
+                                    onChange={e => setFormData({ ...formData, experienceLevel: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none h-[46px]"
+                                >
+                                    <option>Entry</option>
+                                    <option>Mid</option>
+                                    <option>Senior</option>
+                                    <option>Executive</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Additional fields row 2: Headcount & Salary Range */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Salary Range (Optional)</label>
                                 <div className="flex gap-2">
@@ -1246,6 +1546,17 @@ function JobRequisitionModal({ onClose, onSuccess }) {
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
                                     />
                                 </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Openings / Headcount</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    required
+                                    value={formData.headcount}
+                                    onChange={e => setFormData({ ...formData, headcount: e.target.value })}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 h-[46px]"
+                                />
                             </div>
                         </div>
 
