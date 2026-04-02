@@ -6,7 +6,10 @@ import './globals.css';
 import Script from "next/script";
 
 export const metadata = {
-  title: "Bizmate",
+  title: {
+    default: "PeopleStack",
+    template: "PeopleStack | %s",
+  },
   description: "XperHR - Efficient HR and Operations Management",
 };
 
