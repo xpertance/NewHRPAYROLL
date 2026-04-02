@@ -92,6 +92,40 @@ export async function POST(request) {
         candidate.interviews.push(interview);
         await candidate.save();
 
+        // 🚀 Gap Fix #10: Send Interview Invitation Email
+        try {
+            const { sendEmail } = await import('@/lib/email/service');
+            const { getInterviewInviteTemplate } = await import('@/lib/email/templates/recruitment');
+            
+            // Resolve interviewer name
+            const interviewer = await Employee.findById(interview.interviewer).lean();
+            const interviewerName = interviewer ? `${interviewer.personalDetails.firstName} ${interviewer.personalDetails.lastName}` : 'an HR Representative';
+            
+            // Format date for email
+            const formattedDate = new Date(interview.date).toLocaleString('en-IN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            await sendEmail({
+                to: candidate.email,
+                subject: `Interview Invitation: ${interview.round} — ${candidate.appliedRole || 'the position'}`,
+                html: getInterviewInviteTemplate(
+                    candidate.name, 
+                    interview.round, 
+                    formattedDate, 
+                    interview.meetingLink, 
+                    interviewerName
+                )
+            });
+        } catch (emailErr) {
+            console.warn("📧 Interview email skipped:", emailErr.message);
+        }
+
         return NextResponse.json({ success: true, message: "Interview scheduled successfully", candidate });
     } catch (error) {
         console.error("POST INTERVIEW ERROR:", error);

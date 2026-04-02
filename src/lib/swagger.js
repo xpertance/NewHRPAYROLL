@@ -61,7 +61,8 @@ const swaggerDefinition = {
             properties: {
               firstName: { type: 'string', example: 'Rahul' },
               lastName: { type: 'string', example: 'Sharma' },
-              email: { type: 'string', example: 'rahul.sharma@peoplestack.in' },
+              email: { type: 'string', example: 'rahul.sharma@bizmate.in' },
+              phone: { type: 'string', example: '9999999999' }
             }
           },
           jobDetails: {
@@ -95,6 +96,36 @@ const swaggerDefinition = {
             }
           }
         }
+      },
+      JobRequisition: {
+        type: 'object',
+        properties: {
+          _id: { type: 'string', example: '65f...job1' },
+          title: { type: 'string', example: 'AI/ML Engineer' },
+          department: { type: 'string', example: 'Engineering' },
+          location: { type: 'string', example: 'Remote' },
+          role: { type: 'string', example: 'Developer' },
+          priority: { type: 'string', example: 'High' },
+          status: { type: 'string', example: 'Open' },
+          experienceLevel: { type: 'string', example: 'Mid' },
+          hiringManagerName: { type: 'string', example: 'Aniket Patil' },
+          description: { type: 'string', example: 'Job description text...' },
+          requirements: { type: 'array', items: { type: 'string' } },
+        }
+      },
+      Candidate: {
+        type: 'object',
+        properties: {
+          _id: { type: 'string', example: '65f...cand1' },
+          name: { type: 'string', example: 'Jane Doe' },
+          email: { type: 'string', example: 'jane@example.com' },
+          phone: { type: 'string', example: '+91 9876543210' },
+          jobRequisition: { type: 'string', description: 'ID of the JobRequisition' },
+          status: { type: 'string', example: 'Applied' },
+          fitScore: { type: 'number', example: 85 },
+          parsedResume: { type: 'object' },
+          resumeUrl: { type: 'string', example: '/uploads/resumes/resume.pdf' }
+        }
       }
     },
   },
@@ -104,6 +135,98 @@ const swaggerDefinition = {
     { employeeAuth: [] }
   ],
   paths: {
+    // ==========================================
+    // 8. PUBLIC CAREERS (NEW)
+    // ==========================================
+    '/api/v1/public/careers/jobs': {
+      get: {
+        tags: ['Public Careers'],
+        summary: 'List Open Job Openings',
+        responses: { 200: { description: 'Success' } }
+      }
+    },
+    '/api/v1/public/careers/apply': {
+      post: {
+        tags: ['Public Careers'],
+        summary: 'Submit Job Application',
+        description: 'Upload resume and candidate details. Resume is processed by AI.',
+        requestBody: {
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  phone: { type: 'string' },
+                  jobId: { type: 'string' },
+                  resume: { type: 'string', format: 'binary' }
+                }
+              }
+            }
+          }
+        },
+        responses: { 201: { description: 'Created' } }
+      }
+    },
+    '/api/v1/public/careers/status': {
+      get: {
+        tags: ['Public Careers'],
+        summary: 'Check Application Status',
+        parameters: [{ name: 'email', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'Success' } }
+      }
+    },
+
+    // ==========================================
+    // 9. RECRUITMENT MANAGEMENT (ADMIN)
+    // ==========================================
+    '/api/v1/admin/recruitment/jobs': {
+      get: {
+        tags: ['Recruitment Admin'],
+        summary: 'List All Job Requisitions',
+        security: [{ adminAuth: [] }],
+        responses: { 200: { description: 'Success' } }
+      },
+      post: {
+        tags: ['Recruitment Admin'],
+        summary: 'Create Job Requisition',
+        security: [{ adminAuth: [] }],
+        responses: { 201: { description: 'Created' } }
+      }
+    },
+    '/api/v1/admin/recruitment/candidates': {
+      get: {
+        tags: ['Recruitment Admin'],
+        summary: 'List All Candidates',
+        security: [{ adminAuth: [] }],
+        responses: { 200: { description: 'Success' } }
+      }
+    },
+    '/api/v1/admin/recruitment/analytics': {
+      get: {
+        tags: ['Recruitment Admin'],
+        summary: 'Get Recruitment Dashboard Analytics',
+        security: [{ adminAuth: [] }],
+        responses: { 200: { description: 'Success' } }
+      }
+    },
+    '/api/v1/admin/recruitment/ai/fit-score': {
+      post: {
+        tags: ['AI Powered Recruitment'],
+        summary: 'Calculate AI Fit Score',
+        security: [{ adminAuth: [] }],
+        responses: { 200: { description: 'Score calculated' } }
+      }
+    },
+    '/api/v1/admin/recruitment/ai/generate-jd': {
+      post: {
+        tags: ['AI Powered Recruitment'],
+        summary: 'Generate AI Job Description',
+        security: [{ adminAuth: [] }],
+        responses: { 200: { description: 'JD Generated' } }
+      }
+    },
     // ==========================================
     // 0. PROJECT TRACKING (NEW)
     // ==========================================
@@ -135,7 +258,7 @@ const swaggerDefinition = {
       }
     },
     // ==========================================
-    // 0. COMPANY REGISTRATION
+    // 10. COMPANY REGISTRATION
     // ==========================================
     '/api/v1/register': {
       post: {
@@ -181,9 +304,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 1. AUTHENTICATION
-    // ==========================================
     '/api/v1/login': {
       post: {
         tags: ['Authentication'],
@@ -238,9 +358,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 2. EMPLOYEES
-    // ==========================================
     '/api/v1/admin/payroll/employees': {
       get: {
         tags: ['Employees'],
@@ -300,9 +417,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 3. ATTENDANCE
-    // ==========================================
     '/api/v1/admin/payroll/attendance/mark': {
       post: {
         tags: ['Attendance'],
@@ -349,9 +463,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 4. LEAVE MANAGEMENT
-    // ==========================================
     '/api/v1/admin/payroll/leaves': {
       get: {
         tags: ['Leave Management'],
@@ -386,9 +497,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 5. PAYROLL
-    // ==========================================
     '/api/v1/admin/payroll/run': {
       post: {
         tags: ['Payroll'],
@@ -427,9 +535,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 6. SUPER ADMIN
-    // ==========================================
     '/api/v1/super-admin/pending-requests': {
       get: {
         tags: ['Super Admin'],
@@ -451,9 +556,6 @@ const swaggerDefinition = {
       },
     },
 
-    // ==========================================
-    // 7. EMPLOYEE SELF-SERVICE
-    // ==========================================
     '/api/v1/employee/profile': {
       get: {
         tags: ['Employee'],

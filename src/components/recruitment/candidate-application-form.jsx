@@ -131,20 +131,16 @@ export default function CandidateApplicationForm({ isOpen, onClose, job }) {
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <UploadCloud className="w-3.5 h-3.5" /> Resume Document *
-                                    </label>
-                                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">Parsed by AI</span>
-                                </div>
-                                <p className="text-xs text-slate-500 mb-2">Upload your PDF resume below. Our AI system will extract your skills and experience automatically.</p>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    <UploadCloud className="w-3.5 h-3.5" /> Resume Document *
+                                </label>
                                 <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-300 rounded-2xl bg-white hover:bg-slate-50 hover:border-indigo-400 cursor-pointer transition-all shadow-sm">
                                     <div className="flex flex-col items-center justify-center pt-5 pb-6 text-slate-500">
                                         {formData.resumeFile ? (
                                             <>
-                                                <FileText className="w-10 h-10 text-indigo-500 mb-3" />
+                                                <FileText className="w-10 h-10 text-emerald-500 mb-3" />
                                                 <p className="text-sm font-bold text-slate-700">{formData.resumeFile.name}</p>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mt-2 bg-indigo-50 px-3 py-1 rounded-full">Ready for AI Processing</p>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-2 bg-emerald-50 px-3 py-1 rounded-full">Ready to Submit</p>
                                             </>
                                         ) : (
                                             <>

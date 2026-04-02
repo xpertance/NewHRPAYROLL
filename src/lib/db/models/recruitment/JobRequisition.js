@@ -19,6 +19,16 @@ const jobRequisitionSchema = new mongoose.Schema({
         enum: ['Full-time', 'Part-time', 'Contract', 'Internship'],
         default: 'Full-time'
     },
+    headcount: {
+        type: Number,
+        default: 1,
+        min: 1
+    },
+    experienceLevel: {
+        type: String,
+        enum: ['Entry', 'Mid', 'Senior', 'Executive', 'Fresher', '1-3 years', '3-5 years', '5-10 years', '10+ years'],
+        default: null
+    },
     status: {
         type: String,
         enum: ['Draft', 'Pending Approval', 'Open', 'Closed', 'On Hold', 'Rejected'],
@@ -43,6 +53,10 @@ const jobRequisitionSchema = new mongoose.Schema({
         min: Number,
         max: Number,
         currency: { type: String, default: 'INR' }
+    },
+    hiringManagerName: {
+        type: String,
+        trim: true
     },
     hiringManager: {
         type: mongoose.Schema.Types.ObjectId,
