@@ -426,14 +426,14 @@ export default function SetupWizard({ user, onComplete }) {
     fetch("/api/v1/admin/crm/organizations?limit=1")
       .then((r) => r.json())
       .then((data) => {
-        if (data.organizations && data.organizations.length > 0) {
-          const org = data.organizations[0];
+        if (data.data && data.data.length > 0) {
+          const org = data.data[0];
           setCreatedOrg({ _id: org._id, name: org.name });
           // Check if departments already exist for this org
           fetch(`/api/v1/admin/crm/departments?organizationId=${org._id}`)
             .then((r) => r.json())
             .then((deptData) => {
-              if (deptData.departments && deptData.departments.length > 0) {
+              if (deptData.data && deptData.data.length > 0) {
                 // Already set up, mark done
                 localStorage.setItem(doneKey, "true");
               } else {
@@ -442,13 +442,8 @@ export default function SetupWizard({ user, onComplete }) {
             })
             .catch(() => setShow(true));
         } else {
-          // No org yet, we must show the org step
-          setDynamicSteps([
-            { id: "org", label: "Organization", icon: Building2 },
-            { id: "bu", label: "Business Units", icon: Layers },
-            { id: "dept", label: "Departments", icon: Users },
-            { id: "done", label: "Complete", icon: CheckCircle2 },
-          ]);
+          // Even if no org record is found in CRM, we skip the Org step as requested
+          // and start with Business Units / Departments.
           setShow(true);
         }
       })
