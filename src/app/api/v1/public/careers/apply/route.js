@@ -59,52 +59,63 @@ export async function POST(request) {
         // Step 2: Use Gemini to parse resume + extract text fallback
         if (buffer && buffer.length > 0) {
             try {
-                console.log('🤖 AI Analysis: Reading PDF content...');
+                console.log('🤖 Starting AI Analysis for candidate:', name);
                 const aiResult = await parseResumeFromPDF(buffer, resumeFile.type || 'application/pdf');
                 
                 if (aiResult) {
                     resumeText = aiResult.rawText || '';
                     delete aiResult.rawText;
                     parsedResume = aiResult;
-                    console.log(`✅ AI successfully parsed ${parsedResume.skills?.length || 0} skills.`);
+                    console.log(`✅ AI success: Parsed ${parsedResume.skills?.length || 0} skills and ${parsedResume.experience?.length || 0} roles.`);
+                } else {
+                    console.warn("⚠️ AI returned empty result for resume parsing.");
                 }
             } catch (err) {
-                console.error("⚠️ AI Parse failed:", err.message);
+                console.error("❌ AI Parsing Step Failed:", err.message);
             }
         }
 
         // Step 3: AI Fit Score
-        let fitScore = null;
-        let fitAnalysis = '';
-        let fitRecommendation = null;
+        let fitScore = 0; // Default to 0 instead of null
+        let fitAnalysis = 'Analysis pending...';
+        let fitRecommendation = 'Pending Review';
         let fitStrengths = [];
         let fitGaps = [];
 
-        if (parsedResume && parsedResume.skills && parsedResume.skills.length > 0) {
+        // We run the fit score if we have any parsed content at all (not just skills)
+        if (parsedResume && (Object.keys(parsedResume).length > 0)) {
             try {
+                console.log('⚖️ Executing Fit Score calculation for:', name);
                 const candidateProfile = {
                     skills: parsedResume.skills || [],
                     totalExperienceYears: parsedResume.totalExperienceYears || 0,
                     currentRole: parsedResume.currentRole || '',
                     education: parsedResume.education || [],
-                    summary: parsedResume.summary || ''
+                    summary: parsedResume.summary || '',
+                    rawText: resumeText // Added rawText for better AI context
                 };
                 const jobRequirements = {
-                    title: job.title,
-                    department: job.department,
-                    description: job.description,
-                    requirements: job.requirements,
-                    skillsRequired: job.skillsRequired
+                    title: job.title || 'N/A',
+                    department: job.department || 'N/A',
+                    description: job.description || 'N/A',
+                    requirements: job.requirements || [],
+                    skillsRequired: job.skillsRequired || []
                 };
                 const fitResult = await calculateFitScore(candidateProfile, jobRequirements);
-                fitScore = fitResult.fitScore;
-                fitAnalysis = fitResult.analysis;
-                fitRecommendation = fitResult.recommendation;
-                fitStrengths = fitResult.strengths || [];
-                fitGaps = fitResult.gaps || [];
+                
+                if (fitResult) {
+                    fitScore = fitResult.fitScore || 0;
+                    fitAnalysis = fitResult.analysis || '';
+                    fitRecommendation = fitResult.recommendation || 'Weak Match';
+                    fitStrengths = fitResult.strengths || [];
+                    fitGaps = fitResult.gaps || [];
+                    console.log(`🎯 FIT SCORE GENERATED: ${fitScore}/100`);
+                }
             } catch (fitErr) {
-                console.error("⚠️ Fit Score skipped:", fitErr.message);
+                console.error("❌ Fit Score Calculation Crashed:", fitErr.message);
             }
+        } else {
+            console.warn("⏭️ Fit Score skipped: AI could not retrieve any profile data from PDF.");
         }
         
         // Step 4: Create Candidate in MongoDB

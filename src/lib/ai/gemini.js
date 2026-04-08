@@ -1,17 +1,49 @@
 // src/lib/ai/gemini.js — Central AI Service Layer (Google Gemini)
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const API_KEY = process.env.GOOGLE_API_KEY || '';
-const genAI = new GoogleGenerativeAI(API_KEY);
+let genAI = null;
+let model = null;
 
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+function getAIModel() {
+    if (!model) {
+        const apiKey = process.env.GOOGLE_API_KEY || '';
+        if (!apiKey) {
+            console.warn("⚠️ GOOGLE_API_KEY is missing from environment variables.");
+        }
+        genAI = new GoogleGenerativeAI(apiKey);
+        // Using the high-performance model found in your authorized list
+        model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+    }
+    return model;
+}
+
+/**
+ * Enhanced: Generate content with automatic model fallback
+ */
+async function generateWithFallback(prompt, inlineData = null) {
+    const aiModel = getAIModel();
+    try {
+        const payload = inlineData ? [prompt, { inlineData }] : prompt;
+        const result = await aiModel.generateContent(payload);
+        return result.response.text();
+    } catch (e) {
+        // If 404 or model error, try the next best model in your list: gemini-2.0-flash
+        if (e.message.includes('404') || e.message.includes('not found') || e.message.includes('not supported')) {
+            console.warn("🔄 Switching to fallback model (models/gemini-2.0-flash)...");
+            const fallbackModel = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash' });
+            const payloadFallback = inlineData ? [prompt, { inlineData }] : prompt;
+            const result = await fallbackModel.generateContent(payloadFallback);
+            return result.response.text();
+        }
+        throw e;
+    }
+}
 
 /**
  * Core: Generate content from Gemini
  */
 async function generateContent(prompt) {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return generateWithFallback(prompt);
 }
 
 /**
@@ -139,8 +171,8 @@ Return your response STRICTLY as valid JSON (no markdown, no code blocks) with t
     };
 
     try {
-        const result = await model.generateContent([prompt, { inlineData }]);
-        const text = result.response.text();
+        const text = await generateWithFallback(prompt, inlineData);
+        if (!text) return null;
         const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         return JSON.parse(cleaned);
     } catch (e) {

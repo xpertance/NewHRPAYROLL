@@ -7,7 +7,8 @@ import {
     Plus, Search, Filter, Mail,
     Phone, ChevronRight, MessageSquare,
     Star, ArrowUpRight, Loader2, Link as LinkIcon,
-    Briefcase, Building2, MapPin, Sparkles, Bot, AlertCircle
+    Briefcase, Building2, MapPin, Sparkles, Bot, AlertCircle,
+    Activity, Trophy, Archive, ArrowRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
@@ -32,6 +33,7 @@ export default function InterviewScheduler() {
     const [searchQuery, setSearchQuery] = useState("");
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [showActionModal, setShowActionModal] = useState(false);
     const [selectedInterviewForFeedback, setSelectedInterviewForFeedback] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -80,13 +82,45 @@ export default function InterviewScheduler() {
         }
     };
 
-    const filteredInterviews = interviews.filter(i =>
-        i.candidateName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.role?.toLowerCase().includes(searchQuery.toLowerCase())
+    // --- SMART PIPELINE GROUPING (Group by Candidate) ---
+    const candidatesMap = interviews.reduce((acc, current) => {
+        const cid = current.candidateId;
+        if (!acc[cid]) {
+            acc[cid] = {
+                candidateId: cid,
+                candidateName: current.candidateName,
+                role: current.role,
+                status: current.status, // Candidate's overall status
+                interviews: []
+            };
+        }
+        acc[cid].interviews.push(current);
+        return acc;
+    }, {});
+
+    const candidateList = Object.values(candidatesMap).map(c => {
+        // Find the latest/current interview
+        const sorted = [...c.interviews].sort((a, b) => new Date(b.date) - new Date(a.date));
+        return {
+            ...c,
+            latestInterview: sorted[0],
+            allInterviews: sorted
+        };
+    }).filter(c => 
+        c.candidateName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.role?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const upcomingInterviews = filteredInterviews.filter(i => !isPast(new Date(i.date)) && i.status !== 'Cancelled');
-    const pastInterviews = filteredInterviews.filter(i => isPast(new Date(i.date)) || i.status === 'Completed' || i.status === 'Cancelled');
+    // 🏆 Selection Vault (Hired / Offer Sent)
+    const hiredCandidates = candidateList.filter(c => ['Hired', 'Offer Sent', 'Confirmed'].includes(c.status));
+    
+    // ❌ Rejected Candidates
+    const rejectedCandidates = candidateList.filter(c => c.status === 'Rejected' || c.status === 'Declined');
+    
+    // 🚀 Active Pipeline (Everyone else)
+    const activeCandidates = candidateList.filter(c => 
+        !['Hired', 'Offer Sent', 'Confirmed', 'Rejected', 'Declined'].includes(c.status)
+    );
 
     return (
         <div className="pt-16 pb-20 px-10 space-y-12">
@@ -95,38 +129,25 @@ export default function InterviewScheduler() {
                 <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="bg-indigo-600 text-white p-1 rounded-lg">
-                            <Calendar className="w-4 h-4" />
+                            <Activity className="w-4 h-4" />
                         </span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Unified Interview Management</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Dynamic Recruitment Pipeline</span>
                     </div>
                     <h1 className="text-5xl font-black text-slate-900 tracking-tighter">
-                        Schedule <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Precision.</span>
+                        Talent <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 text-6xl">Command Centre.</span>
                     </h1>
                     <p className="text-slate-500 font-medium max-w-xl text-lg leading-relaxed">
-                        Manage candidate assessments and panel collaborations from a central, high-performance command center.
+                        Track candidate progress throughout the lifecycle. Manage assessments, feedback, and selection in one unified, high-performance flow.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="bg-white border-2 border-slate-100 p-2 rounded-[24px] shadow-sm flex items-center gap-2">
-                        <div className="flex -space-x-3 px-2">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center font-bold text-xs">
-                                    {String.fromCharCode(64 + i)}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="pr-4 border-l-2 border-slate-50 pl-4 py-1">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Panels</p>
-                            <p className="text-sm font-bold text-slate-900">12 Interviewers</p>
-                        </div>
-                    </div>
                     <Button
                         onClick={() => setShowScheduleModal(true)}
                         className="bg-indigo-600 hover:bg-indigo-700 h-16 rounded-[24px] px-8 text-white shadow-2xl shadow-indigo-200 font-black uppercase tracking-widest group transition-all"
                     >
                         <Plus className="w-5 h-5 mr-3 group-hover:rotate-90 transition-transform duration-500" />
-                        Book Round
+                        Book Initial Round
                     </Button>
                 </div>
             </div>
@@ -134,10 +155,10 @@ export default function InterviewScheduler() {
             {/* Stats Dashboard */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {[
-                    { label: "Today's Agenda", value: interviews.filter(i => isToday(new Date(i.date))).length, icon: Clock, color: "blue", gradient: "from-blue-600 to-indigo-600" },
-                    { label: "Pending Feedback", value: interviews.filter(i => isPast(new Date(i.date)) && i.status === 'Scheduled').length, icon: MessageSquare, color: "orange", gradient: "from-orange-500 to-amber-500" },
-                    { label: "Success Rate", value: "68%", icon: Star, color: "emerald", gradient: "from-emerald-500 to-teal-500" },
-                    { label: "Active Rounds", value: upcomingInterviews.length, icon: Users, color: "purple", gradient: "from-purple-600 to-violet-600" }
+                    { label: "Pipeline Depth", value: activeCandidates.length, icon: Users, color: "blue", gradient: "from-blue-600 to-indigo-600" },
+                    { label: "Pending Assessment", value: activeCandidates.filter(c => isPast(new Date(c.latestInterview?.date)) && !c.latestInterview?.decision).length, icon: MessageSquare, color: "orange", gradient: "from-orange-500 to-amber-500" },
+                    { label: "Selection Rate", value: hiredCandidates.length > 0 ? `${Math.round((hiredCandidates.length / (hiredCandidates.length + rejectedCandidates.length)) * 100)}%` : "0%", icon: Star, color: "emerald", gradient: "from-emerald-500 to-teal-500" },
+                    { label: "Upcoming Session", value: activeCandidates.filter(c => !isPast(new Date(c.latestInterview?.date))).length, icon: Clock, color: "purple", gradient: "from-purple-600 to-violet-600" }
                 ].map((stat, i) => (
                     <Card key={i} className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.04)] rounded-[40px] overflow-hidden group hover:scale-[1.03] transition-all duration-700 bg-white relative">
                         <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-[0.03] -mr-16 -mt-16 rounded-full group-hover:scale-150 transition-transform duration-1000`}></div>
@@ -158,103 +179,134 @@ export default function InterviewScheduler() {
 
             {/* Main Content Area */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                {/* Search & Filter Component */}
-                <div className="xl:col-span-12">
-                    <div className="bg-white/60 backdrop-blur-xl border border-white p-4 rounded-[40px] shadow-2xl shadow-slate-200/50 mb-8 flex flex-col md:flex-row gap-4 items-center">
-                        <div className="relative flex-1 group w-full">
-                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-                            <Input
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                placeholder="Search by candidate, role or interviewer..."
-                                className="h-16 pl-14 pr-8 border-none bg-slate-50/50 focus:bg-white rounded-[24px] text-base font-bold transition-all shadow-inner"
-                            />
-                        </div>
-                        <div className="flex gap-3 w-full md:w-auto">
-                            <Button variant="outline" className="h-16 rounded-[24px] border-slate-100 hover:bg-slate-50 px-8 font-black uppercase tracking-widest text-[10px] text-slate-600">
-                                <Filter className="w-4 h-4 mr-2" /> All Stages
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Left Column: Agenda View */}
-                <div className="xl:col-span-8 space-y-8">
-                    <div className="flex items-center justify-between px-4">
-                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
-                            <Clock className="w-5 h-5 text-indigo-500" />
-                            Priority Agenda
-                        </h3>
-                        <Badge className="bg-slate-100 text-slate-600 border-none font-bold py-1.5 px-4 rounded-full">
-                            {upcomingInterviews.length} Scheduled
-                        </Badge>
-                    </div>
-
-                    <div className="space-y-4">
-                        <AnimatePresence mode="popLayout">
-                            {upcomingInterviews.length > 0 ? (
-                                upcomingInterviews.map((int, index) => (
-                                    <motion.div
-                                        key={int.interviewId}
-                                        initial={{ opacity: 0, scale: 0.98, y: 20 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                    >
-                                        <InterviewCard
-                                            interview={int}
-                                            onStatusUpdate={updateStatus}
-                                            onAddFeedback={(interviewItem) => {
-                                                setSelectedInterviewForFeedback(interviewItem);
-                                                setShowFeedbackModal(true);
-                                            }}
-                                        />
-                                    </motion.div>
-                                ))
-                            ) : (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="py-20 flex flex-col items-center justify-center grayscale opacity-50 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-[40px]"
-                                >
-                                    <div className="w-20 h-20 rounded-[32px] bg-white shadow-xl flex items-center justify-center mb-6">
-                                        <Calendar className="w-10 h-10 text-slate-200" />
-                                    </div>
-                                    <p className="font-black text-slate-400 uppercase tracking-widest text-sm">Clear Horizon</p>
-                                    <p className="text-slate-400 text-xs mt-2 font-medium">No interviews scheduled in this pipeline</p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Past/Completed Section */}
-                    {pastInterviews.length > 0 && (
-                        <div className="pt-8 space-y-6">
-                            <div className="flex items-center gap-3 px-4">
-                                <div className="h-px flex-1 bg-slate-100"></div>
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Historical Archives</span>
-                                <div className="h-px flex-1 bg-slate-100"></div>
+                <div className="xl:col-span-8 space-y-16">
+                    {/* 1. ACTIVE PIPELINE SECTION */}
+                    <section className="space-y-8">
+                        <div className="flex items-center justify-between px-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                    <Activity className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">
+                                    Active Talent Pipeline
+                                </h3>
                             </div>
-                            <div className="space-y-4 opacity-70 hover:opacity-100 transition-opacity">
-                                {pastInterviews.slice(0, 3).map((int) => (
+                            <Badge className="bg-indigo-50 text-indigo-600 border-none font-black py-2 px-6 rounded-full text-xs uppercase tracking-widest">
+                                {activeCandidates.length} In Progress
+                            </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            <AnimatePresence mode="popLayout">
+                                {activeCandidates.length > 0 ? (
+                                    activeCandidates.map((cand, index) => (
+                                        <motion.div
+                                            key={cand.candidateId}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                        >
+                                            <InterviewCard
+                                                interview={cand.latestInterview}
+                                                onStatusUpdate={updateStatus}
+                                                onAddFeedback={(interviewItem) => {
+                                                    setSelectedInterviewForFeedback(interviewItem);
+                                                    setShowFeedbackModal(true);
+                                                }}
+                                                onAddAction={(interviewItem) => {
+                                                    setSelectedInterviewForFeedback(interviewItem);
+                                                    setShowActionModal(true);
+                                                }}
+                                            />
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <motion.div className="py-32 flex flex-col items-center justify-center bg-slate-50/50 border-4 border-dashed border-slate-100 rounded-[60px]">
+                                        <div className="w-24 h-24 rounded-[40px] bg-white shadow-xl flex items-center justify-center mb-8">
+                                            <Users className="w-10 h-10 text-slate-200" />
+                                        </div>
+                                        <p className="font-black text-slate-400 uppercase tracking-[0.3em] text-sm">Pipeline Clear</p>
+                                        <p className="text-slate-400 text-xs mt-3 font-medium">Ready to welcome new applications</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </section>
+
+                    {/* 2. SELECTION VAULT (HIRED) */}
+                    {hiredCandidates.length > 0 && (
+                        <section className="space-y-8 pt-8 border-t border-slate-100">
+                            <div className="flex items-center gap-4 px-4">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white">
+                                    <Trophy className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">
+                                    Selection Vault
+                                </h3>
+                                <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold ml-auto px-6 py-2 rounded-full uppercase tracking-widest text-[10px]">
+                                    {hiredCandidates.length} Secured
+                                </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {hiredCandidates.map((cand) => (
                                     <InterviewCard
-                                        key={int.interviewId}
-                                        interview={int}
+                                        key={cand.candidateId}
+                                        interview={cand.latestInterview}
                                         onStatusUpdate={updateStatus}
                                         onAddFeedback={(interviewItem) => {
                                             setSelectedInterviewForFeedback(interviewItem);
                                             setShowFeedbackModal(true);
                                         }}
+                                        onAddAction={(interviewItem) => {
+                                            setSelectedInterviewForFeedback(interviewItem);
+                                            setShowActionModal(true);
+                                        }}
                                         minimal
                                     />
                                 ))}
                             </div>
-                        </div>
+                        </section>
+                    )}
+
+                    {/* 3. DECLINED ARCHIVES (REJECTED) */}
+                    {rejectedCandidates.length > 0 && (
+                        <section className="space-y-8 pt-8 border-t border-slate-100">
+                            <div className="flex items-center gap-4 px-4 opacity-50">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-200 flex items-center justify-center text-slate-600">
+                                    <Archive className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-400 tracking-tight uppercase leading-none">
+                                    Rejected Candidates
+                                </h3>
+                                <span className="ml-auto text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">
+                                    {rejectedCandidates.length} Records
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 grayscale opacity-60 hover:opacity-100 transition-opacity">
+                                {rejectedCandidates.map((cand) => (
+                                    <InterviewCard
+                                        key={cand.candidateId}
+                                        interview={cand.latestInterview}
+                                        onStatusUpdate={updateStatus}
+                                        onAddFeedback={(interviewItem) => {
+                                            setSelectedInterviewForFeedback(interviewItem);
+                                            setShowFeedbackModal(true);
+                                        }}
+                                        onAddAction={(interviewItem) => {
+                                            setSelectedInterviewForFeedback(interviewItem);
+                                            setShowActionModal(true);
+                                        }}
+                                        minimal
+                                    />
+                                ))}
+                            </div>
+                        </section>
                     )}
                 </div>
 
                 {/* Right Column: Insights & Quick Actions */}
                 <div className="xl:col-span-4 space-y-8">
-
                     <Card className="rounded-[40px] border-slate-100 shadow-xl shadow-slate-100 bg-white">
                         <CardContent className="pt-12 pb-8 px-8">
                             <h5 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
@@ -291,6 +343,7 @@ export default function InterviewScheduler() {
                         onClose={() => setShowScheduleModal(false)}
                         candidates={candidates}
                         interviewers={interviewers}
+                        prefill={typeof showScheduleModal === 'object' ? showScheduleModal : null}
                         onSuccess={() => {
                             setShowScheduleModal(false);
                             fetchData();
@@ -301,9 +354,29 @@ export default function InterviewScheduler() {
                     <FeedbackModal
                         onClose={() => setShowFeedbackModal(false)}
                         interview={selectedInterviewForFeedback}
-                        onSuccess={() => {
+                        onSuccess={async () => {
                             setShowFeedbackModal(false);
-                            fetchData();
+                            await fetchData();
+                        }}
+                    />
+                )}
+                {showActionModal && selectedInterviewForFeedback && (
+                    <ActionModal
+                        onClose={() => setShowActionModal(false)}
+                        interview={selectedInterviewForFeedback}
+                        onSuccess={async (promoData) => {
+                            setShowActionModal(false);
+                            await fetchData();
+                            
+                            if (promoData && promoData.nextRound) {
+                                toast.success("Opening scheduler for next round...");
+                                setTimeout(() => {
+                                    setShowScheduleModal({
+                                        candidateId: promoData.candidateId,
+                                        round: promoData.nextRound
+                                    });
+                                }, 500);
+                            }
                         }}
                     />
                 )}
@@ -312,20 +385,36 @@ export default function InterviewScheduler() {
     );
 }
 
-function InterviewCard({ interview, onStatusUpdate, onAddFeedback, minimal = false }) {
+function InterviewCard({ interview, onStatusUpdate, onAddFeedback, onAddAction, minimal = false }) {
     const isComp = interview.status === 'Completed';
     const isCanc = interview.status === 'Cancelled';
+    const hasFeedback = !!interview.rawNotes;
+    const hasDecision = !!interview.decision;
     const date = new Date(interview.date);
+
+    // Decision display helper
+    const getDecisionBadge = () => {
+        if (!hasDecision) return null;
+        const d = interview.decision;
+        if (d === 'Offer Sent') return { label: 'OFFER SENT', color: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: '✉️' };
+        if (d === 'Confirmed') return { label: 'OFFER ACCEPTED ✅', color: 'bg-emerald-600 text-white border-emerald-700', icon: '🎉' };
+        if (d === 'Onboarded') return { label: 'ONBOARDED', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: '🚀' };
+        if (d === 'Rejected') return { label: 'REJECTED', color: 'bg-rose-50 text-rose-600 border-rose-100', icon: '✗' };
+        if (d === 'On Hold') return { label: 'ON HOLD', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: '⏸' };
+        if (d === 'Hired') return { label: 'HIRED', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: '🎉' };
+        return { label: d || 'PENDING', color: 'bg-slate-50 text-slate-600 border-slate-100', icon: '•' };
+    };
+    const decisionBadge = getDecisionBadge();
 
     return (
         <div className={`group relative bg-white rounded-[40px] border shadow-sm ${isComp ? 'border-emerald-100' : isCanc ? 'border-slate-100 grayscale' : 'border-slate-100'} hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-700 overflow-hidden min-h-[140px] flex items-stretch`}>
             {/* Status Indicator Strip */}
-            <div className={`absolute left-0 top-0 bottom-0 w-2.5 ${isComp ? 'bg-emerald-500' : isCanc ? 'bg-slate-300' : 'bg-indigo-600'} group-hover:w-4 transition-all duration-700`}></div>
+            <div className={`absolute left-0 top-0 bottom-0 w-2.5 ${hasDecision && interview.decision === 'Rejected' ? 'bg-rose-400' : hasDecision && interview.decision === 'On Hold' ? 'bg-amber-400' : isComp ? 'bg-emerald-500' : isCanc ? 'bg-slate-300' : 'bg-indigo-600'} group-hover:w-4 transition-all duration-700`}></div>
 
-            <div className={`p-6 pl-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6 w-full`}>
+            <div className="p-6 pl-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6 w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6">
                     {/* Time/Date Block */}
-                    <div className={`flex flex-col items-center justify-center min-w-[80px] h-[80px] rounded-[28px] bg-slate-50 border border-slate-100 group-hover:bg-indigo-600 group-hover:border-indigo-600 transition-all duration-700 shadow-sm group-hover:shadow-[0_12px_24px_rgba(79,70,229,0.3)] shrink-0`}>
+                    <div className="flex flex-col items-center justify-center min-w-[80px] h-[80px] rounded-[28px] bg-slate-50 border border-slate-100 group-hover:bg-indigo-600 group-hover:border-indigo-600 transition-all duration-700 shadow-sm group-hover:shadow-[0_12px_24px_rgba(79,70,229,0.3)] shrink-0">
                         <p className="text-[9px] font-black text-slate-400 group-hover:text-indigo-200 uppercase tracking-[0.2em] transition-colors">{format(date, 'MMM')}</p>
                         <p className="text-2xl font-black text-slate-900 group-hover:text-white leading-none py-1 transition-colors">{format(date, 'dd')}</p>
                         <p className="text-[10px] font-black text-indigo-600 group-hover:text-white mt-0.5 uppercase transition-colors">{format(date, 'HH:mm')}</p>
@@ -351,6 +440,12 @@ function InterviewCard({ interview, onStatusUpdate, onAddFeedback, minimal = fal
                                 </div>
                             </span>
                         </div>
+                        {/* Inline Decision Status */}
+                        {decisionBadge && (
+                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-widest mt-1 ${decisionBadge.color}`}>
+                                <span>{decisionBadge.icon}</span> {decisionBadge.label}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -363,46 +458,59 @@ function InterviewCard({ interview, onStatusUpdate, onAddFeedback, minimal = fal
                                 onClick={() => window.open(interview.meetingLink || '#', '_blank')}
                             >
                                 <Video className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
-                                Join Session
-                            </Button>
-                            <div className="h-10 w-px bg-slate-100 mx-1 hidden lg:block"></div>
-                            <Button
-                                variant="ghost"
-                                className="h-14 rounded-[20px] bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-black uppercase tracking-widest text-[10px] px-6"
-                                onClick={() => onStatusUpdate(interview.candidateId, interview.interviewId, 'Completed')}
-                            >
-                                <CheckCircle2 className="w-4 h-4 mr-1.5" /> Done
+                                Join
                             </Button>
                             <Button
                                 variant="ghost"
-                                size="icon"
-                                className="w-14 h-14 rounded-[20px] hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm hover:shadow-rose-100/50"
-                                onClick={() => onStatusUpdate(interview.candidateId, interview.interviewId, 'Cancelled')}
+                                className={`h-14 rounded-[20px] font-black uppercase tracking-widest text-[10px] px-5 flex items-center gap-1.5 ${hasFeedback ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'}`}
+                                onClick={() => onAddFeedback && onAddFeedback(interview)}
                             >
-                                <XCircle className="w-5 h-5 outline-none" />
+                                {hasFeedback ? <><Sparkles className="w-4 h-4" /> View Feedback</> : <><MessageSquare className="w-4 h-4" /> Feedback</>}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="h-14 rounded-[20px] bg-amber-50 text-amber-700 hover:bg-amber-100 font-black uppercase tracking-widest text-[10px] px-5 flex items-center gap-1.5 border border-amber-100"
+                                onClick={() => onAddAction && onAddAction(interview)}
+                            >
+                                <ArrowUpRight className="w-4 h-4" /> Action
                             </Button>
                         </>
                     )}
-                    {(isComp || isCanc) && (
-                        <div className="flex items-center gap-4 pr-4">
-                            <div className="text-right">
-                                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isComp ? 'text-emerald-500' : 'text-slate-400'}`}>
-                                    Result {isComp ? 'Validated' : 'Voided'}
-                                </p>
-                                <p className="text-[9px] text-slate-400 font-medium">Ref: #{interview.interviewId?.substring(0, 6)}</p>
-                            </div>
-                            <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${isComp ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-100 text-slate-300'}`}>
-                                {isComp ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
-                            </div>
-                            {isComp && (
+                    {isComp && (
+                        <div className="flex items-center gap-3 pr-4">
+                            <Button
+                                variant="ghost"
+                                onClick={() => onAddFeedback && onAddFeedback(interview)}
+                                className="h-12 rounded-[16px] bg-purple-50 text-purple-600 hover:bg-purple-100 font-black uppercase tracking-widest text-[9px] px-5 flex items-center gap-1.5 border border-purple-100 shadow-sm transition-all"
+                            >
+                                <Sparkles className="w-3.5 h-3.5" /> View Feedback
+                            </Button>
+                            {interview.decision === 'Confirmed' && (
                                 <Button
                                     variant="ghost"
-                                    onClick={() => onAddFeedback && onAddFeedback(interview)}
-                                    className="h-10 rounded-[14px] bg-purple-50 text-purple-600 hover:bg-purple-100 font-black uppercase tracking-widest text-[9px] px-4 hidden lg:flex border border-purple-100 shadow-sm transition-all"
+                                    className="h-12 rounded-[16px] bg-emerald-600 text-white hover:bg-emerald-700 font-black uppercase tracking-widest text-[9px] px-5 flex items-center gap-1.5 shadow-lg shadow-emerald-200 border-none transition-all hover:scale-105 active:scale-95"
+                                    onClick={() => onAddAction && onAddAction(interview)}
                                 >
-                                    <Sparkles className="w-3.5 h-3.5 mr-1.5" /> AI Feedback
+                                    <Sparkles className="w-3.5 h-3.5" /> HIRE / ONBOARD
                                 </Button>
                             )}
+                            {(interview.decision === 'On Hold' || !['Confirmed', 'Onboarded', 'Rejected'].includes(interview.decision)) && (
+                                <Button
+                                    variant="ghost"
+                                    className="h-12 rounded-[16px] bg-amber-50 text-amber-700 hover:bg-amber-100 font-black uppercase tracking-widest text-[9px] px-5 flex items-center gap-1.5 border border-amber-100 shadow-sm transition-all"
+                                    onClick={() => onAddAction && onAddAction(interview)}
+                                >
+                                    <ArrowUpRight className="w-3.5 h-3.5" /> Action
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                    {isCanc && (
+                        <div className="flex items-center gap-4 pr-4">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Cancelled</p>
+                            <div className="w-12 h-12 rounded-[18px] flex items-center justify-center bg-slate-100 text-slate-300">
+                                <XCircle className="w-6 h-6" />
+                            </div>
                         </div>
                     )}
                 </div>
@@ -411,16 +519,29 @@ function InterviewCard({ interview, onStatusUpdate, onAddFeedback, minimal = fal
     );
 }
 
-function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
+function ScheduleModal({ onClose, candidates, interviewers, onSuccess, prefill = null }) {
     const [submitting, setSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        candidateId: '',
-        round: 'Technical Interview',
+        candidateId: prefill?.candidateId || '',
+        round: prefill?.round || 'Technical Interview',
         interviewer: '',
         date: '',
+        mode: 'Online',
+        location: 'Company Corporate Office',
         meetingLink: '',
         notes: ''
     });
+
+    // Update if prefill changes while open
+    useEffect(() => {
+        if (prefill) {
+            setFormData(prev => ({
+                ...prev,
+                candidateId: prefill.candidateId || prev.candidateId,
+                round: prefill.round || prev.round
+            }));
+        }
+    }, [prefill]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -440,7 +561,9 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                         round: formData.round,
                         interviewer: formData.interviewer,
                         date: formData.date,
-                        meetingLink: formData.meetingLink,
+                        mode: formData.mode,
+                        location: formData.mode === 'Offline' ? formData.location : '',
+                        meetingLink: formData.mode === 'Online' ? formData.meetingLink : '',
                         status: 'Scheduled'
                     }
                 })
@@ -469,7 +592,7 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                 initial={{ opacity: 0, scale: 0.9, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 30 }}
-                className="bg-white rounded-[48px] w-full max-w-3xl shadow-4xl border border-white/20 overflow-hidden relative z-10 p-12"
+                className="bg-white rounded-[48px] w-full max-w-3xl shadow-4xl border border-white/20 overflow-hidden relative z-10 p-12 overflow-y-auto max-h-[90vh]"
             >
                 <div className="flex items-center justify-between mb-12">
                     <div className="flex items-center gap-5">
@@ -488,10 +611,7 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Target Candidate</label>
                         <Select
                             value={formData.candidateId}
-                            onValueChange={val => {
-                                console.log("Candidate selected:", val);
-                                setFormData({ ...formData, candidateId: val });
-                            }}
+                            onValueChange={val => setFormData({ ...formData, candidateId: val })}
                         >
                             <SelectTrigger className="h-16 rounded-[24px] border-slate-100 font-bold px-8 text-slate-700 bg-slate-50/50">
                                 <SelectValue placeholder="Identify candidate from pipeline...">
@@ -515,10 +635,7 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Round Specification</label>
                         <Select
                             value={formData.round}
-                            onValueChange={val => {
-                                console.log("Round selected:", val);
-                                setFormData({ ...formData, round: val });
-                            }}
+                            onValueChange={val => setFormData({ ...formData, round: val })}
                         >
                             <SelectTrigger className="h-16 rounded-[24px] border-slate-100 font-bold px-8 text-slate-700 bg-slate-50/50">
                                 <SelectValue placeholder="Select round type...">
@@ -534,13 +651,10 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                     </div>
 
                     <div>
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Session Commander (Interviewer)</label>
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Session Commander</label>
                         <Select
                             value={formData.interviewer}
-                            onValueChange={val => {
-                                console.log("Interviewer selected:", val);
-                                setFormData({ ...formData, interviewer: val });
-                            }}
+                            onValueChange={val => setFormData({ ...formData, interviewer: val })}
                         >
                             <SelectTrigger className="h-16 rounded-[24px] border-slate-100 font-bold px-8 text-slate-700 bg-slate-50/50">
                                 <SelectValue placeholder="Select from active panel...">
@@ -561,6 +675,24 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                     </div>
 
                     <div>
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Interview Mode</label>
+                        <Select
+                            value={formData.mode}
+                            onValueChange={val => setFormData({ ...formData, mode: val })}
+                        >
+                            <SelectTrigger className="h-16 rounded-[24px] border-slate-100 font-bold px-8 text-slate-700 bg-slate-50/50">
+                                <SelectValue>
+                                    {formData.mode}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl">
+                                <SelectItem value="Online" className="rounded-xl p-3">Online (Virtual)</SelectItem>
+                                <SelectItem value="Offline" className="rounded-xl p-3">Offline (In-Person)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div>
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Temporal coordinates</label>
                         <Input
                             type="datetime-local"
@@ -570,14 +702,28 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
                         />
                     </div>
 
-                    <div>
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Virtual Bridge (Meeting Link)</label>
-                        <Input
-                            placeholder="Zoom / Meet / Teams URL..."
-                            value={formData.meetingLink || ''}
-                            className="h-16 rounded-[24px] border-slate-100 font-bold px-8 bg-slate-50/50"
-                            onChange={e => setFormData({ ...formData, meetingLink: e.target.value })}
-                        />
+                    <div className="md:col-span-2">
+                        {formData.mode === 'Online' ? (
+                            <>
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">Virtual Bridge (Meeting Link)</label>
+                                <Input
+                                    placeholder="Zoom / Meet / Teams URL..."
+                                    value={formData.meetingLink || ''}
+                                    className="h-16 rounded-[24px] border-slate-100 font-bold px-8 bg-slate-50/50"
+                                    onChange={e => setFormData({ ...formData, meetingLink: e.target.value })}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-3">📍 Reporting Location</label>
+                                <Input
+                                    placeholder="Office Address / Meeting Room..."
+                                    value={formData.location || ''}
+                                    className="h-16 rounded-[24px] border-slate-100 font-bold px-8 bg-slate-50/50"
+                                    onChange={e => setFormData({ ...formData, location: e.target.value })}
+                                />
+                            </>
+                        )}
                     </div>
 
                     <div className="md:col-span-2 flex gap-4 pt-8">
@@ -605,195 +751,264 @@ function ScheduleModal({ onClose, candidates, interviewers, onSuccess }) {
 
 function FeedbackModal({ onClose, interview, onSuccess }) {
     const [submitting, setSubmitting] = useState(false);
-    const [aiGenerating, setAiGenerating] = useState(false);
-    const [rawNotes, setRawNotes] = useState("");
-    const [structuredFeedback, setStructuredFeedback] = useState(null);
+    const [feedbackText, setFeedbackText] = useState(interview.rawNotes || '');
+    const hasSavedFeedback = !!interview.rawNotes;
 
-    const handleAISummarize = async () => {
-        if (!rawNotes || rawNotes.length < 10) {
-            toast.error("Please enter at least 10 characters of raw notes first");
-            return;
-        }
-
+    const handleSaveFeedback = async () => {
+        if (!feedbackText.trim()) { toast.error("Please enter feedback notes"); return; }
         try {
-            setAiGenerating(true);
-            const res = await fetch('/api/v1/admin/recruitment/ai/summarize-feedback', {
-                method: 'POST',
+            setSubmitting(true);
+            const res = await fetch('/api/v1/admin/recruitment/interviews', {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     candidateId: interview.candidateId,
                     interviewId: interview.interviewId,
-                    rawNotes: rawNotes,
-                    round: interview.round,
-                    candidateName: interview.candidateName,
-                    interviewerName: interview.interviewer?.name
+                    updateData: { rawNotes: feedbackText, status: 'Completed' }
                 })
             });
-
             const data = await res.json();
             if (data.success) {
-                setStructuredFeedback(data.data.structured);
-                toast.success("✨ AI perfectly summarized your feedback!");
-            } else {
-                toast.error(data.error || "Failed to parse feedback");
-            }
-        } catch (error) {
-            toast.error("AI summarization failed");
-        } finally {
-            setAiGenerating(false);
-        }
+                toast.success("Feedback saved successfully!");
+                onSuccess(null);
+            } else { throw new Error(data.error); }
+        } catch (err) { toast.error(err.message); }
+        finally { setSubmitting(false); }
     };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-[12px]"
                 onClick={onClose}
             />
             <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 30 }}
-                className="bg-white rounded-[48px] w-full max-w-4xl shadow-4xl border border-white/20 overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
+                initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                className="bg-white rounded-[40px] w-full max-w-2xl shadow-4xl border border-white/20 overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
             >
-                <div className="p-10 border-b border-slate-100 shrink-0">
+                <div className="p-8 border-b border-slate-100 shrink-0">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 rounded-[28px] bg-purple-600 flex items-center justify-center text-white shadow-2xl shadow-purple-100">
-                                <MessageSquare className="w-7 h-7" />
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white">
+                                <MessageSquare className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">Interview Feedback</h2>
-                                <p className="text-slate-500 text-sm font-medium mt-2">
-                                    {interview.candidateName} — {interview.round || 'Assessment'}
+                                <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                                    {hasSavedFeedback ? 'View Feedback' : 'Save Feedback'}
+                                </h2>
+                                <p className="text-slate-500 text-xs font-medium uppercase tracking-widest mt-1">
+                                    {interview.candidateName} — {interview.round || 'Post Session'}
                                 </p>
                             </div>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-2xl">
-                            <XCircle className="w-6 h-6 text-slate-400" />
+                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl w-10 h-10 hover:bg-slate-50">
+                            <XCircle className="w-5 h-5 text-slate-400" />
                         </Button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10 bg-slate-50/50">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-start">
-                        {/* Left: Input */}
-                        <div className="space-y-4">
-                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block">Interviewer Notes</label>
+                <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50">
+                    <div className="space-y-6">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-2">
+                                📝 Interviewer Notes & Observations
+                            </label>
                             <textarea
-                                value={rawNotes}
-                                onChange={(e) => setRawNotes(e.target.value)}
-                                placeholder="Paste your raw, unorganized notes here..."
-                                className="w-full h-48 lg:h-[400px] p-6 rounded-3xl border border-slate-200 focus:border-purple-300 focus:ring-4 focus:ring-purple-500/10 text-slate-700 bg-white resize-none shadow-sm transition-all"
+                                value={feedbackText}
+                                readOnly={hasSavedFeedback}
+                                onChange={(e) => setFeedbackText(e.target.value)}
+                                placeholder="Enter the interviewer's detailed feedback here..."
+                                className={`w-full h-64 p-6 rounded-[32px] border border-slate-200 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/5 text-slate-700 bg-white resize-none shadow-sm transition-all text-sm leading-relaxed ${hasSavedFeedback ? 'opacity-70 cursor-not-allowed bg-slate-50' : ''}`}
                             />
+                        </div>
+
+                        {!hasSavedFeedback && (
                             <Button
-                                onClick={handleAISummarize}
-                                disabled={aiGenerating || !rawNotes}
-                                className="w-full h-16 rounded-[24px] bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black uppercase tracking-widest text-[11px] shadow-xl shadow-purple-200 hover:shadow-2xl hover:-translate-y-0.5 transition-all text-left flex justify-center items-center gap-3 disabled:opacity-50"
+                                onClick={handleSaveFeedback}
+                                disabled={submitting || !feedbackText.trim()}
+                                className="w-full h-14 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2"
                             >
-                                {aiGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                {aiGenerating ? "Summarizing..." : "✨ Ask AI to Summarize"}
+                                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                Save Feedback
                             </Button>
-                        </div>
+                        )}
 
-                        {/* Right: Output */}
-                        <div className="space-y-4 relative">
-                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] block">Structured Assessment</label>
-                            {structuredFeedback ? (
-                                <div className="space-y-4 h-48 lg:h-[480px] overflow-y-auto pr-2 custom-scrollbar pb-6">
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                                        {/* Overall Rating & Recommendation */}
-                                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                                            <div>
-                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Recommendation</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
-                                                        structuredFeedback.recommendation === 'Strong Hire' ? 'bg-emerald-100 text-emerald-700' :
-                                                        structuredFeedback.recommendation === 'Hire' ? 'bg-green-100 text-green-700' :
-                                                        structuredFeedback.recommendation === 'Maybe' ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-rose-100 text-rose-700'
-                                                    }`}>
-                                                        {structuredFeedback.recommendation}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Overall</p>
-                                                <div className="flex items-center justify-end gap-1 text-2xl font-black text-slate-800">
-                                                    {structuredFeedback.overallRating} <span className="text-slate-300 text-sm">/ 5</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <p className="text-sm text-slate-600 font-medium leading-relaxed italic border-l-4 border-purple-200 pl-4 py-1">
-                                            "{structuredFeedback.summary}"
-                                        </p>
-
-                                        <div className="grid grid-cols-2 gap-4 pt-2">
-                                            {/* Strengths */}
-                                            <div className="bg-emerald-50 rounded-2xl p-4">
-                                                <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Key Strengths</h4>
-                                                <ul className="list-disc pl-4 space-y-1">
-                                                {(structuredFeedback.strengths || []).map((s, i) => (
-                                                    <li key={i} className="text-xs text-emerald-800 leading-tight">{s}</li>
-                                                ))}
-                                                </ul>
-                                            </div>
-                                            {/* Concerns */}
-                                            <div className="bg-rose-50 rounded-2xl p-4">
-                                                <h4 className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-2 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5"/> Concerns</h4>
-                                                <ul className="list-disc pl-4 space-y-1">
-                                                {(structuredFeedback.concerns || []).map((s, i) => (
-                                                    <li key={i} className="text-xs text-rose-800 leading-tight">{s}</li>
-                                                ))}
-                                                </ul>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4 pt-2">
-                                            {Object.entries({
-                                                "Technical Skills": structuredFeedback.technicalSkills,
-                                                "Communication": structuredFeedback.communication,
-                                                "Problem Solving": structuredFeedback.problemSolving,
-                                                "Culture Fit": structuredFeedback.cultureFit
-                                            }).filter(([_, val]) => val).map(([key, val]) => (
-                                                <div key={key}>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-xs font-bold text-slate-700">{key}</span>
-                                                        <div className="flex gap-0.5">
-                                                            {[1, 2, 3, 4, 5].map(star => (
-                                                                <Star key={star} className={`w-3.5 h-3.5 ${star <= (val.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-xs text-slate-500">{val.notes}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <Button
-                                        onClick={() => {
-                                            toast.success("Feedback finalized and submitted!");
-                                            onSuccess();
-                                        }}
-                                        className="w-full h-14 rounded-[20px] bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest"
-                                    >
-                                        Submit Final Assessment
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="h-48 lg:h-[480px] flex flex-col items-center justify-center p-8 bg-white/50 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-200">
-                                    <Bot className="w-12 h-12 text-slate-300 mb-4" />
-                                    <p className="font-black text-slate-400 uppercase tracking-widest text-xs text-center max-w-[200px]">Waiting for raw notes</p>
-                                </div>
-                            )}
-                        </div>
+                        {hasSavedFeedback && (
+                            <div className="p-5 bg-emerald-50 rounded-3xl border border-emerald-100 text-center">
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center justify-center gap-2">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Feedback Recorded
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </motion.div>
         </div>
     );
 }
+
+function ActionModal({ onClose, interview, onSuccess }) {
+    const [submitting, setSubmitting] = useState(false);
+    const [showRoundPicker, setShowRoundPicker] = useState(false);
+
+    const handleSubmitDecision = async (decision, nextRound = null) => {
+
+        try {
+            setSubmitting(true);
+            console.log("SENDING DECISION:", { candidateId: interview.candidateId, interviewId: interview.interviewId, decision });
+            
+            if (decision === 'Offer Sent') {
+                toast("Generating offer letter and notifying candidate...", { icon: '📄' });
+            }
+
+            const res = await fetch('/api/v1/admin/recruitment/interviews', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: interview.candidateId,
+                    interviewId: interview.interviewId,
+                    updateData: {
+                        decision,
+                        status: 'Completed',
+                        ...(nextRound ? { nextRound } : {})
+                    }
+                })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Server Error (${res.status}): ${errText}`);
+            }
+
+            const data = await res.json();
+            if (data.success) {
+                const msg = decision === 'Promoted' ? 'Promoted to ' + nextRound 
+                    : decision === 'Offer Sent' ? 'Offer letter sent! Awaiting candidate response' 
+                    : decision;
+                toast.success(`${msg}`);
+                onSuccess(decision === 'Promoted' ? { candidateId: interview.candidateId, nextRound } : null);
+            } else { throw new Error(data.error || "Unknown server error"); }
+        } catch (err) { 
+            console.error("DECISION SUBMISSION FAILED:", err);
+            toast.error(err.message); 
+        }
+        finally { setSubmitting(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-[12px]"
+                onClick={onClose}
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                className="bg-white rounded-[40px] w-full max-w-lg shadow-4xl border border-white/20 overflow-hidden relative z-10"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-8 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white">
+                                <ArrowUpRight className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Take Action</h2>
+                                <p className="text-slate-500 text-xs font-medium uppercase tracking-widest mt-1">
+                                    {interview.candidateName} — {interview.round || 'Current Round'}
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl w-10 h-10 hover:bg-slate-50">
+                            <XCircle className="w-5 h-5 text-slate-400" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="p-8 space-y-4">
+                    {showRoundPicker ? (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest text-center border-b pb-4">Select Next Round</h4>
+                            <div className="grid grid-cols-1 gap-3">
+                                {['Screening', 'Technical Interview', 'Managerial Interview', 'HR Interview', 'Final Round'].map(round => (
+                                    <button 
+                                        key={round}
+                                        onClick={() => handleSubmitDecision('Promoted', round)}
+                                        disabled={submitting}
+                                        style={{ color: '#1e293b' }}
+                                        className="h-14 rounded-2xl border-2 border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50 font-bold text-sm shadow-sm flex items-center justify-between px-6 transition-all cursor-pointer disabled:opacity-50"
+                                    >
+                                        <span className="font-black text-slate-900">{round}</span> 
+                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <ArrowRight className="w-5 h-5 text-indigo-500" />}
+                                    </button>
+                                ))}
+                            </div>
+                            <Button variant="ghost" onClick={() => setShowRoundPicker(false)} className="w-full text-slate-400 font-bold uppercase text-[10px]">← Back</Button>
+                        </motion.div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-3">
+                            {interview.decision === 'Confirmed' ? (
+                                <button
+                                    onClick={() => {
+                                        const name = interview.candidateName.split(' ');
+                                        const query = new URLSearchParams({
+                                            firstName: name[0] || '',
+                                            lastName: name.slice(1).join(' ') || '',
+                                            email: interview.candidateEmail || '',
+                                            designation: interview.role || '',
+                                            candidateId: interview.candidateId
+                                        }).toString();
+                                        window.location.href = `/admin/employees/new?${query}`;
+                                    }}
+                                    style={{ color: '#fff', backgroundColor: '#059669', border: '2px solid #059669', boxSizing: 'border-box', height: '60px', borderRadius: '16px' }}
+                                    className="w-full hover:opacity-90 font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-3 pl-8 cursor-pointer transition-all"
+                                >
+                                    <Sparkles className="w-5 h-5 shrink-0" /> Onboard Candidate
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => setShowRoundPicker(true)}
+                                        disabled={submitting}
+                                        style={{ color: '#fff', backgroundColor: '#0f172a', border: '2px solid #0f172a', boxSizing: 'border-box', height: '60px', borderRadius: '16px' }}
+                                        className="w-full hover:opacity-90 font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-3 pl-8 cursor-pointer disabled:opacity-50 transition-all"
+                                    >
+                                        <ArrowUpRight className="w-5 h-5 shrink-0" /> Promote to Next Round
+                                    </button>
+                                    <button
+                                        onClick={() => handleSubmitDecision('Offer Sent')}
+                                        disabled={submitting}
+                                        style={{ color: '#fff', backgroundColor: '#059669', border: '2px solid #059669', boxSizing: 'border-box', height: '60px', borderRadius: '16px' }}
+                                        className="w-full hover:opacity-90 font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-3 pl-8 cursor-pointer disabled:opacity-50 transition-all"
+                                    >
+                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin shrink-0" /> : <Trophy className="w-5 h-5 shrink-0" />}
+                                        {submitting ? 'Processing...' : 'Send Offer Letter'}
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                onClick={() => handleSubmitDecision('On Hold')}
+                                disabled={submitting}
+                                style={{ color: '#92400e', backgroundColor: '#fffbeb', border: '2px solid #f59e0b', boxSizing: 'border-box', height: '60px', borderRadius: '16px' }}
+                                className="w-full hover:opacity-90 font-black text-xs uppercase tracking-widest flex items-center gap-3 pl-8 cursor-pointer disabled:opacity-50 transition-all font-bold"
+                            >
+                                <Clock className="w-5 h-5 shrink-0" /> Hold / Draft
+                            </button>
+                            <button
+                                onClick={() => handleSubmitDecision('Rejected')}
+                                disabled={submitting}
+                                style={{ color: '#dc2626', backgroundColor: '#fff1f2', border: '2px solid #fb7185', boxSizing: 'border-box', height: '60px', borderRadius: '16px' }}
+                                className="w-full hover:opacity-90 font-black text-xs uppercase tracking-widest flex items-center gap-3 pl-8 cursor-pointer disabled:opacity-50 transition-all font-bold"
+                            >
+                                <XCircle className="w-5 h-5 shrink-0" /> Reject Candidate
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
