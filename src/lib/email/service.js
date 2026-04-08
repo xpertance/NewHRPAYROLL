@@ -10,18 +10,20 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
     try {
         const info = await transporter.sendMail({
             from: `"HR Portal" <${process.env.EMAIL_USER}>`,
             to,
+            bcc: process.env.EMAIL_USER, // Optional: send a copy to the sender
             subject,
             html,
+            attachments
         });
-        console.log("Email sent: %s", info.messageId);
+        console.log("Email sent successfully: %s", info.messageId);
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error("Email send error:", error);
+        console.error("CRITICAL EMAIL FAILURE:", error);
         return { success: false, error: error.message };
     }
 };

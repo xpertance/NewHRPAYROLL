@@ -35,14 +35,26 @@ export async function GET(request) {
 
         // Flatten interviews for easy consumption by the UI
         const allInterviews = candidates.flatMap(candidate =>
-            (candidate.interviews || []).map(interview => ({
-                ...interview,
-                candidateId: candidate._id,
-                candidateName: candidate.name,
-                candidateEmail: candidate.email,
-                role: candidate.appliedRole || candidate.jobRequisition?.title || "N/A",
-                interviewId: interview._id
-            }))
+            (candidate.interviews || []).map(interview => {
+                // Format interviewer name if populated
+                let interviewerData = interview.interviewer;
+                if (interviewerData && interviewerData.personalDetails) {
+                    interviewerData = {
+                        ...interviewerData,
+                        name: `${interviewerData.personalDetails.firstName} ${interviewerData.personalDetails.lastName}`
+                    };
+                }
+
+                return {
+                    ...interview,
+                    interviewer: interviewerData, // Replace with object containing the name
+                    candidateId: candidate._id,
+                    candidateName: candidate.name,
+                    candidateEmail: candidate.email,
+                    role: candidate.appliedRole || candidate.jobRequisition?.title || "N/A",
+                    interviewId: interview._id
+                };
+            })
         ).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         return NextResponse.json({
@@ -72,9 +84,29 @@ export async function POST(request) {
         if (!candidateId || !interview) {
             return NextResponse.json({ error: "Candidate ID and interview details are required" }, { status: 400 });
         }
+        console.log("PUT INTERVIEW UPDATE RECEIVED:", { candidateId, interviewId, decision: updateData.decision });
 
         const candidate = await Candidate.findById(candidateId);
-        if (!candidate) return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+        if (!candidate) {
+            console.error("CANDIDATE NOT FOUND:", candidateId);
+            return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+        }
+
+        console.log("CANDIDATE FOUND:", candidate.name, "Current Status:", candidate.status);
+
+        // Update the specific interview in the array
+        const interviewIndex = candidate.interviews.findIndex(i => i._id.toString() === interviewId);
+        if (interviewIndex !== -1) {
+            console.log("UPDATING INTERVIEW AT INDEX:", interviewIndex, "with", updateData);
+            candidate.interviews[interviewIndex] = {
+                ...candidate.interviews[interviewIndex].toObject(),
+                ...updateData
+            };
+            // Mark as modified for Mongoose if it's a nested array of subdocs
+            candidate.markModified('interviews');
+        } else {
+            console.warn("INTERVIEW ID NOT FOUND IN CANDIDATE RECORD:", interviewId);
+        }
 
         // Logic to sync status with the round type
         const roundToStageMap = {
@@ -119,7 +151,9 @@ export async function POST(request) {
                     interview.round, 
                     formattedDate, 
                     interview.meetingLink, 
-                    interviewerName
+                    interviewerName,
+                    interview.mode,
+                    interview.location
                 )
             });
         } catch (emailErr) {
@@ -145,20 +179,119 @@ export async function PUT(request) {
             return NextResponse.json({ error: "Missing required identifiers" }, { status: 400 });
         }
 
+        console.log("PUT INTERVIEW UPDATE RECEIVED:", { candidateId, interviewId, decision: updateData.decision });
+
         const candidate = await Candidate.findById(candidateId);
-        if (!candidate) return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+        if (!candidate) {
+            console.error("CANDIDATE NOT FOUND:", candidateId);
+            return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+        }
+
+        console.log("CANDIDATE FOUND:", candidate.name, "Current Status:", candidate.status);
 
         // Update the specific interview in the array
         const interviewIndex = candidate.interviews.findIndex(i => i._id.toString() === interviewId);
         if (interviewIndex === -1) return NextResponse.json({ error: "Interview not found" }, { status: 404 });
 
+        const originalInterview = candidate.interviews[interviewIndex];
+        const decision = updateData.decision;
+
+        // Merge updates
         candidate.interviews[interviewIndex] = {
-            ...candidate.interviews[interviewIndex].toObject(),
+            ...originalInterview.toObject(),
             ...updateData
         };
 
+        // Decision-Driven Pipeline Updates
+        // --- PIPELINE AUTOMATION LOGIC ---
+        // 1. Handle Promotion (Next Stage)
+        if (updateData.decision === 'Promoted') {
+            const rounds = ['Applied', 'Screening', 'Technical Interview', 'Managerial Interview', 'HR Interview', 'Offer Sent', 'Hired'];
+            const currentIndex = rounds.indexOf(candidate.status);
+            if (currentIndex !== -1 && currentIndex < rounds.length - 1) {
+                candidate.status = rounds[currentIndex + 1];
+            }
+        }
+
+        // 2. Handle Rejection (Closed)
+        if (updateData.decision === 'Rejected') {
+            candidate.status = 'Rejected';
+            try {
+                const { sendEmail } = await import('@/lib/email/service');
+                const { getRejectionEmailTemplate } = await import('@/lib/email/templates/recruitment');
+                
+                await sendEmail({
+                    to: candidate.email,
+                    subject: `Update regarding your application - ${candidate.appliedRole || 'Team Member'}`,
+                    html: getRejectionEmailTemplate(
+                        candidate.name || 'Candidate', 
+                        candidate.appliedRole || 'Team Member'
+                    )
+                });
+            } catch (err) {
+                console.error("Auto-rejection email failed:", err);
+            }
+        }
+
+        // 3. Handle Hiring & Offers
+        if (updateData.decision === 'Hired' || updateData.decision === 'Offer Sent') {
+            candidate.status = updateData.decision;
+            
+            try {
+                const { sendEmail } = await import('@/lib/email/service');
+                const { getOfferLetterEmailTemplate } = await import('@/lib/email/templates/recruitment');
+                const { generateOfferLetter } = await import('@/lib/pdf/offer-generator');
+
+                console.log("GENERATING OFFER FOR:", candidate.name);
+                const pdfDataUri = generateOfferLetter({
+                    candidateName: candidate.name || 'Candidate',
+                    jobTitle: candidate.appliedRole || 'Team Member',
+                    salary: "As per Discussion",
+                    joiningDate: "Immediate"
+                });
+
+                const attachments = [];
+                if (pdfDataUri && pdfDataUri.includes('base64,')) {
+                    attachments.push({
+                        filename: `Offer_Letter_${(candidate.name || 'Candidate').replace(/\s+/g, '_')}.pdf`,
+                        content: pdfDataUri.split('base64,')[1],
+                        encoding: 'base64'
+                    });
+                }
+
+                console.log("SENDING EMAIL TO:", candidate.email, "Attachments:", attachments.length);
+                const emailResult = await sendEmail({
+                    to: candidate.email,
+                    subject: `Offer Letter: ${candidate.appliedRole || 'Team Member'} position at Bizmate Technologies`,
+                    html: getOfferLetterEmailTemplate(
+                        candidate.name || 'Candidate', 
+                        candidate.appliedRole || 'Team Member',
+                        null,
+                        candidateId,
+                        candidate.email
+                    ),
+                    attachments
+                });
+                console.log("EMAIL RESULT:", emailResult.success ? "SUCCESS" : "FAILED", emailResult.error || "");
+            } catch (err) {
+                console.error("CRITICAL OFFER ERROR:", err);
+            }
+        } else if (updateData.decision === 'On Hold') {
+            candidate.status = 'On Hold';
+        }
+
+            // Mark as modified for Mongoose tracking
+            candidate.markModified('interviews');
+            console.log("INTERVIEW RECORD UPDATED:", interviewId);
+
+        console.log("SAVING CANDIDATE:", candidate.name, "Final Status:", candidate.status);
         await candidate.save();
-        return NextResponse.json({ success: true, message: "Interview updated successfully" });
+        
+        return NextResponse.json({ 
+            success: true, 
+            message: `Decision '${updateData.decision}' processed successfully`,
+            newStatus: candidate.status 
+        });
     } catch (error) {
         console.error("PUT INTERVIEW ERROR:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

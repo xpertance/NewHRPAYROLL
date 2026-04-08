@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, CheckCircle2, ChevronRight, Briefcase, Mail, KeyRound, Loader2, User, Building2, Calendar, FileText } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, Briefcase, Mail, KeyRound, Loader2, User, Building2, Calendar, FileText, PartyPopper, XCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { format } from "date-fns";
 
-const PIPELINE_STAGES = ['Applied', 'Screening', 'Interview', 'Offered', 'Hired'];
+const PIPELINE_STAGES = ['Applied', 'Screening', 'Interview', 'Offered', 'Confirmed'];
 
 export default function StatusPage() {
     const [loading, setLoading] = useState(false);
+    const [responding, setResponding] = useState(false);
     const [email, setEmail] = useState("");
     const [trackingId, setTrackingId] = useState("");
     const [application, setApplication] = useState(null);
     const [error, setError] = useState("");
+    const [successMsg, setSuccessMsg] = useState("");
 
     const handleCheck = async (e) => {
         e.preventDefault();
         setError("");
+        setSuccessMsg("");
         
         if (!email || !trackingId) {
             setError("Both tracking ID and email are required.");
@@ -42,12 +45,51 @@ export default function StatusPage() {
         }
     };
 
+    const handleOfferResponse = async (action) => {
+        try {
+            setResponding(true);
+            setError("");
+            setSuccessMsg("");
+
+            const res = await fetch('/api/v1/public/careers/offer-response', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: application._id,
+                    email: email,
+                    action: action
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setSuccessMsg(data.message);
+                // Update local state to reflect the new status
+                setApplication(prev => ({ ...prev, status: data.newStatus }));
+            } else {
+                setError(data.error || "Something went wrong. Please try again.");
+            }
+        } catch (err) {
+            setError("Network error. Please try again.");
+        } finally {
+            setResponding(false);
+        }
+    };
+
     const getStageIndex = (status) => {
-        if (status === 'Rejected' || status === 'Hold' || status === 'Withdrawn') return -1;
-        return PIPELINE_STAGES.indexOf(status);
+        if (status === 'Rejected' || status === 'On Hold' || status === 'Withdrawn' || status === 'Declined') return -1;
+        if (status === 'Confirmed') return 4;
+        if (status === 'Hired' || status === 'Offer Sent') return 3;
+        if (['Technical Interview', 'Managerial Interview', 'HR Interview'].includes(status)) return 2;
+        if (status === 'Screening') return 1;
+        return 0; // Applied
     };
 
     const currentStageIndex = application ? getStageIndex(application.status) : -1;
+    const isOfferPending = application && ['Hired', 'Offer Sent'].includes(application.status);
+    const isConfirmed = application?.status === 'Confirmed';
+    const isDeclined = application?.status === 'Declined';
+    const isRejected = application?.status === 'Rejected';
 
     return (
         <div className="min-h-screen bg-slate-50 selection:bg-indigo-200 py-20 px-4 md:px-8">
@@ -101,6 +143,12 @@ export default function StatusPage() {
                     </motion.div>
                 )}
 
+                {successMsg && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-50 text-emerald-700 p-5 rounded-2xl text-center text-sm font-bold border border-emerald-100">
+                        {successMsg}
+                    </motion.div>
+                )}
+
                 {/* Application Details */}
                 <AnimatePresence>
                     {application && (
@@ -125,8 +173,9 @@ export default function StatusPage() {
                                 </div>
 
                                 <div className={`px-6 py-3 rounded-2xl flex items-center gap-2 ${
-                                    application.status === 'Rejected' ? 'bg-rose-50 text-rose-600' :
-                                    application.status === 'Hired' ? 'bg-emerald-50 text-emerald-600' :
+                                    isRejected || isDeclined ? 'bg-rose-50 text-rose-600' :
+                                    isConfirmed ? 'bg-emerald-50 text-emerald-600' :
+                                    isOfferPending ? 'bg-amber-50 text-amber-600' :
                                     'bg-indigo-50 text-indigo-600'
                                 }`}>
                                     <span className="text-[10px] font-black uppercase tracking-widest block">Current Status</span>
@@ -152,6 +201,84 @@ export default function StatusPage() {
                                 </div>
                             </div>
 
+                            {/* === OFFER ACCEPTANCE SECTION === */}
+                            {isOfferPending && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-8 border-b border-slate-100"
+                                >
+                                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[32px] border-2 border-emerald-200 p-8 text-center space-y-6">
+                                        <div className="w-16 h-16 rounded-3xl bg-emerald-100 flex items-center justify-center mx-auto">
+                                            <PartyPopper className="w-8 h-8 text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">🎉 Congratulations!</h3>
+                                            <p className="text-slate-600 font-medium mt-2 max-w-md mx-auto">
+                                                You have received an offer for the <strong>{application.jobRequisition?.title || application.appliedRole || 'position'}</strong> role. 
+                                                Please review the offer letter sent to your email and respond below.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+                                            <button
+                                                onClick={() => handleOfferResponse('accept')}
+                                                disabled={responding}
+                                                className="h-14 px-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-200"
+                                            >
+                                                {responding ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+                                                Accept Offer
+                                            </button>
+                                            <button
+                                                onClick={() => handleOfferResponse('decline')}
+                                                disabled={responding}
+                                                className="h-14 px-10 rounded-2xl bg-white hover:bg-rose-50 border-2 border-rose-200 text-rose-600 font-black uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {responding ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
+                                                Decline Offer
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Confirmed Banner */}
+                            {isConfirmed && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-8 border-b border-slate-100"
+                                >
+                                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-[32px] border-2 border-emerald-200 p-8 text-center space-y-4">
+                                        <div className="w-16 h-16 rounded-3xl bg-emerald-500 flex items-center justify-center mx-auto">
+                                            <CheckCircle2 className="w-8 h-8 text-white" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-emerald-700 tracking-tight">Offer Accepted ✅</h3>
+                                        <p className="text-emerald-600 font-medium max-w-md mx-auto">
+                                            Welcome aboard! Our HR team will be in touch shortly with onboarding details and next steps.
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Declined Banner */}
+                            {isDeclined && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-8 border-b border-slate-100"
+                                >
+                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-[32px] border border-slate-200 p-8 text-center space-y-4">
+                                        <div className="w-16 h-16 rounded-3xl bg-slate-200 flex items-center justify-center mx-auto">
+                                            <XCircle className="w-8 h-8 text-slate-400" />
+                                        </div>
+                                        <h3 className="text-xl font-black text-slate-500 tracking-tight">Offer Declined</h3>
+                                        <p className="text-slate-400 font-medium max-w-md mx-auto">
+                                            Thank you for your time throughout the process. We wish you the very best in your career.
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             {/* Visual Pipeline */}
                             <div className="p-8 md:p-12">
                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 text-center text-balance">Hiring Pipeline Progress</h3>
@@ -174,7 +301,6 @@ export default function StatusPage() {
                                         {PIPELINE_STAGES.map((stage, idx) => {
                                             const isPast = currentStageIndex > idx;
                                             const isCurrent = currentStageIndex === idx;
-                                            const isRejected = application.status === 'Rejected';
 
                                             return (
                                                 <div key={stage} className="flex md:flex-col items-center gap-4 md:gap-3 z-10 w-full md:w-auto relative">
@@ -185,11 +311,11 @@ export default function StatusPage() {
                                                     
                                                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-colors duration-500 ${
                                                         isPast ? 'bg-indigo-500 border-indigo-500 text-white' : 
-                                                        isCurrent && !isRejected ? 'bg-white border-indigo-500 text-indigo-600 shadow-lg shadow-indigo-100' :
-                                                        isCurrent && isRejected ? 'bg-rose-50 border-rose-500 text-rose-500' :
+                                                        isCurrent && !isRejected && !isDeclined ? 'bg-white border-indigo-500 text-indigo-600 shadow-lg shadow-indigo-100' :
+                                                        isCurrent && isConfirmed ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' :
                                                         'bg-white border-slate-200 text-slate-300'
                                                     }`}>
-                                                        {isPast ? <CheckCircle2 className="w-5 h-5" /> : <div className={`w-2.5 h-2.5 rounded-full ${isCurrent && !isRejected ? 'bg-indigo-500 animate-pulse' : isCurrent && isRejected ? 'bg-rose-500' : 'bg-slate-200'}`} />}
+                                                        {isPast || (isCurrent && isConfirmed) ? <CheckCircle2 className="w-5 h-5" /> : <div className={`w-2.5 h-2.5 rounded-full ${isCurrent ? 'bg-indigo-500 animate-pulse' : 'bg-slate-200'}`} />}
                                                     </div>
                                                     
                                                     <div className="md:text-center flex-1">
@@ -198,17 +324,27 @@ export default function StatusPage() {
                                                         }`}>
                                                             {stage}
                                                         </p>
-                                                        {isCurrent && !isRejected && (
-                                                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">In Progress</p>
+                                                        {isCurrent && isConfirmed && (
+                                                            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">Accepted ✅</p>
                                                         )}
-                                                        {isCurrent && isRejected && (
-                                                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1">Unsuccessful</p>
+                                                        {isCurrent && !isRejected && !isDeclined && !isConfirmed && (
+                                                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">In Progress</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
+
+                                    {/* Rejected/Declined overlay */}
+                                    {(isRejected || isDeclined) && (
+                                        <div className="mt-8 text-center">
+                                            <span className="inline-flex items-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 rounded-2xl text-sm font-black uppercase tracking-widest border border-rose-100">
+                                                <XCircle className="w-4 h-4" />
+                                                {isRejected ? 'Application Unsuccessful' : 'Offer Declined'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
