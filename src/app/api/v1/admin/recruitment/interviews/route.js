@@ -84,28 +84,10 @@ export async function POST(request) {
         if (!candidateId || !interview) {
             return NextResponse.json({ error: "Candidate ID and interview details are required" }, { status: 400 });
         }
-        console.log("PUT INTERVIEW UPDATE RECEIVED:", { candidateId, interviewId, decision: updateData.decision });
-
         const candidate = await Candidate.findById(candidateId);
         if (!candidate) {
             console.error("CANDIDATE NOT FOUND:", candidateId);
             return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
-        }
-
-        console.log("CANDIDATE FOUND:", candidate.name, "Current Status:", candidate.status);
-
-        // Update the specific interview in the array
-        const interviewIndex = candidate.interviews.findIndex(i => i._id.toString() === interviewId);
-        if (interviewIndex !== -1) {
-            console.log("UPDATING INTERVIEW AT INDEX:", interviewIndex, "with", updateData);
-            candidate.interviews[interviewIndex] = {
-                ...candidate.interviews[interviewIndex].toObject(),
-                ...updateData
-            };
-            // Mark as modified for Mongoose if it's a nested array of subdocs
-            candidate.markModified('interviews');
-        } else {
-            console.warn("INTERVIEW ID NOT FOUND IN CANDIDATE RECORD:", interviewId);
         }
 
         // Logic to sync status with the round type
