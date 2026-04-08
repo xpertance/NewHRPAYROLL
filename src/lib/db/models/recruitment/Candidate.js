@@ -31,23 +31,36 @@ const candidateSchema = new mongoose.Schema({
             'HR Interview',
             'Offer Sent',
             'Hired',
+            'Confirmed',
+            'Declined',
             'Rejected',
-            'Withdrawn'
-        ],
-        default: 'Applied'
+            'Withdrawn',
+            'On Hold',
+            'Draft'
+    ],
+    default: 'Applied'
+},
+interviews: [{
+    round: String,
+    interviewer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee'
     },
-    interviews: [{
-        round: String,
-        interviewer: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Employee'
-        },
-        date: Date,
-        meetingLink: String,
-        feedback: String,
-        rating: { type: Number, min: 1, max: 5 },
-        status: { type: String, enum: ['Scheduled', 'Completed', 'Cancelled'], default: 'Scheduled' }
-    }],
+    date: Date,
+    mode: { type: String, enum: ['Online', 'Offline'], default: 'Online' },
+    location: String,
+    meetingLink: String,
+    rawNotes: String, // Original interviewer input
+    structuredFeedback: mongoose.Schema.Types.Mixed, // AI-generated JSON
+    decision: { 
+        type: String, 
+        enum: ['Promoted', 'Rejected', 'Hired', 'Offer Sent', 'On Hold', 'Saved', null],
+        default: null 
+    },
+    feedback: String, // Legacy summary field
+    rating: { type: Number, min: 1, max: 5 },
+    status: { type: String, enum: ['Scheduled', 'Completed', 'Cancelled'], default: 'Scheduled' }
+}],
     source: {
         type: String,
         enum: ['LinkedIn', 'Indeed', 'Referral', 'Website', 'Careers Portal', 'Other'],
