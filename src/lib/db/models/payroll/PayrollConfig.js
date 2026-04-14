@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const payrollConfigSchema = new mongoose.Schema({
   company: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company',
+    ref: 'Organization',
     required: true
   },
   paymentFrequency: {
@@ -45,6 +45,11 @@ const payrollConfigSchema = new mongoose.Schema({
     type: Number,
     default: 1.5
   },
+  overtimeCalculationType: {
+    type: String,
+    enum: ['Multiplier', 'Fixed'],
+    default: 'Multiplier'
+  },
   leaveEncashmentPolicy: {
     type: String,
     enum: ['Allowed', 'Not Allowed', 'Partial'],
@@ -57,6 +62,10 @@ const payrollConfigSchema = new mongoose.Schema({
   advanceLeaveMaxDays: {
     type: Number,
     default: 5
+  },
+  annualPaidLeaveQuota: {
+    type: Number,
+    default: 20 // Standard SaaS default, can be overridden per Org
   }
 }, {
   timestamps: true

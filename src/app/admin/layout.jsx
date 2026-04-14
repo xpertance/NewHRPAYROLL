@@ -163,6 +163,22 @@ function DashboardLayoutContent({ children }) {
 
   const adminNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
+    {
+      name: t("crmManagement"),
+      href: "/admin/organization",
+      icon: Cog,
+      children: [
+        { name: t("department"), href: "/admin/organization/department", icon: Building2 },
+        { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
+        {
+          name: t("attendanceThresholds"),
+          href: "/admin/organization/attendance-thresholds",
+          icon: Target,
+        },
+        { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
+        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
+      ],
+    },
     { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
     {
       name: t("payrollManagement"),
@@ -221,7 +237,7 @@ function DashboardLayoutContent({ children }) {
         },
         {
           name: t("leaveManagement"),
-          href: "/admin/leaves",
+          href: "/admin/payroll/leaves",
           icon: CalendarRange,
         },
         {
@@ -268,22 +284,6 @@ function DashboardLayoutContent({ children }) {
       children: [
         { name: t("projects"), href: "/admin/tasks/projects", icon: Briefcase },
         { name: t("timesheetApprovals"), href: "/admin/tasks/approvals", icon: CheckSquare },
-      ],
-    },
-    {
-      name: t("crmManagement"),
-      href: "/admin/organization",
-      icon: Cog,
-      children: [
-        { name: t("department"), href: "/admin/organization/department", icon: Building2 },
-        { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
-        {
-          name: t("attendanceThresholds"),
-          href: "/admin/organization/attendance-thresholds",
-          icon: Target,
-        },
-        { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
-        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
       ],
     },
     {

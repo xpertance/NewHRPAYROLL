@@ -9,6 +9,7 @@ export async function GET(request) {
         await dbConnect();
         const { searchParams } = new URL(request.url);
         const organizationId = searchParams.get("organizationId");
+        const holidayListId = searchParams.get("holidayListId");
         const year = searchParams.get("year");
 
         let query = { status: 'Active' };
@@ -18,6 +19,10 @@ export async function GET(request) {
             query.organizationId = authUser.organizationId;
         } else if (organizationId) {
             query.organizationId = organizationId;
+        }
+
+        if (holidayListId) {
+            query.holidayListId = holidayListId;
         }
 
         if (year) {

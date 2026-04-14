@@ -24,6 +24,11 @@ const jobRequisitionSchema = new mongoose.Schema({
         default: 1,
         min: 1
     },
+    workplaceType: {
+        type: String,
+        enum: ['On-site', 'Remote', 'Hybrid'],
+        default: 'On-site'
+    },
     experienceLevel: {
         type: String,
         enum: ['Entry', 'Mid', 'Senior', 'Executive', 'Fresher', '1-3 years', '3-5 years', '5-10 years', '10+ years'],

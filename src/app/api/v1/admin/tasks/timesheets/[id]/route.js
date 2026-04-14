@@ -7,6 +7,7 @@ import { getAuthUser } from '@/lib/auth-util';
 export async function GET(request, { params }) {
     try {
         await dbConnect();
+        const { id } = await params;
         const authUser = await getAuthUser();
 
         if (!authUser) {
@@ -14,7 +15,7 @@ export async function GET(request, { params }) {
         }
 
         const timesheet = await Timesheet.findOne({
-            _id: params.id,
+            _id: id,
             organizationId: authUser.organizationId
         }).populate('employee', 'personalDetails.firstName personalDetails.lastName employeeId');
 
@@ -29,6 +30,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
+        const { id } = await params;
         const authUser = await getAuthUser();
 
         if (!authUser) {
@@ -39,7 +41,7 @@ export async function PUT(request, { params }) {
         const { status, adminNotes, approvedBy } = body;
 
         const timesheet = await Timesheet.findOne({
-            _id: params.id,
+            _id: id,
             organizationId: authUser.organizationId
         });
         if (!timesheet) return NextResponse.json({ success: false, error: 'Timesheet not found' }, { status: 404 });

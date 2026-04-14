@@ -20,7 +20,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast, Toaster } from "react-hot-toast";
+import { toast } from "sonner";
 
 const LoginPage = () => {
   const { login } = useSession();
@@ -121,8 +121,7 @@ const LoginPage = () => {
   const UsernameIcon = selectedRole.usernameIcon;
 
   return (
-    <div className="min-h-screen flex bg-white font-sans text-slate-800">
-      <Toaster position="top-center" />
+<div className="min-h-screen flex bg-white font-sans text-slate-800">
 
       {/* Left Side - Form Section */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-12 lg:px-20 xl:px-24 bg-white z-10">

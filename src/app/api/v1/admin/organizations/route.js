@@ -56,3 +56,49 @@ export async function GET(request) {
     return NextResponse.json({ success: false, error: error.message }, { status: error.status || 500 });
   }
 }
+
+export async function PUT(request) {
+  try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+    
+    await dbConnect();
+
+    const body = await request.json();
+    const { id, ...updates } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Organization ID is required" }, { status: 400 });
+    }
+
+    // SaaS PROTECTION: Admin/HR can only update their own organization
+    if (authUser.role !== "super_admin" && authUser.organizationId !== id) {
+      return NextResponse.json({ success: false, error: "Unauthorized to update this organization" }, { status: 403 });
+    }
+
+    const updatedOrg = await Organization.findByIdAndUpdate(
+      id,
+      { 
+        $set: { 
+          ...updates,
+          updatedBy: authUser.id 
+        } 
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedOrg) {
+      return NextResponse.json({ success: false, error: "Organization not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Organization updated successfully",
+      organization: updatedOrg
+    });
+
+  } catch (error) {
+    console.error("PUT ORGANIZATIONS ERROR:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: error.status || 500 });
+  }
+}

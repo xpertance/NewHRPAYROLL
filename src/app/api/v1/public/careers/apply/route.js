@@ -24,9 +24,13 @@ export async function POST(request) {
         const job = await JobRequisition.findById(jobId);
         if (!job) return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
         
-        const existing = await Candidate.findOne({ email: email.toLowerCase(), organizationId: job.organizationId });
+        const existing = await Candidate.findOne({ 
+            email: email.toLowerCase(), 
+            organizationId: job.organizationId,
+            jobRequisition: jobId
+        });
         if (existing) {
-            return NextResponse.json({ success: false, error: 'You have already applied.' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Email already exists for this position' }, { status: 400 });
         }
         
         let parsedResume = {};
