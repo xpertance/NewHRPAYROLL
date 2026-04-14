@@ -26,7 +26,9 @@ import {
     Building,
     History,
     FilePlus2,
-    X
+    X,
+    Users,
+    Loader2
 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { toast } from "sonner";
@@ -110,6 +112,8 @@ function ESSDashboardContent() {
     const [projects, setProjects] = useState([]);
     const [timesheet, setTimesheet] = useState(null);
     const [timesheetEntries, setTimesheetEntries] = useState([]);
+    const [teamLeaves, setTeamLeaves] = useState([]);
+    const [loadingTeamLeaves, setLoadingTeamLeaves] = useState(false);
     const [weekStartDate, setWeekStartDate] = useState(() => {
         const d = new Date();
         const day = d.getDay();
@@ -141,6 +145,21 @@ function ESSDashboardContent() {
             }
         } catch (error) {
             console.error("Error fetching requests:", error);
+        }
+    };
+
+    const fetchTeamAvailability = async () => {
+        try {
+            setLoadingTeamLeaves(true);
+            const res = await fetch('/api/v1/employee/leaves/team-availability');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) setTeamLeaves(data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching team leaves:", error);
+        } finally {
+            setLoadingTeamLeaves(false);
         }
     };
 
@@ -181,6 +200,7 @@ function ESSDashboardContent() {
             fetchRequests(user.id);
             fetchProjects();
             fetchTimesheet(user.id, weekStartDate);
+            fetchTeamAvailability();
         } else if (!sessionLoading && !user) {
             setLoading(false);
         }
@@ -359,7 +379,7 @@ function ESSDashboardContent() {
             }
             
             // Fetch tasks to get count
-            const taskRes = await fetch('/api/v1/admin/tasks');
+            const taskRes = await fetch('/api/v1/employee/tasks');
             if (taskRes.ok) {
                 const taskData = await taskRes.json();
                 if (taskData.success) {
@@ -681,6 +701,52 @@ function ESSDashboardContent() {
                                     )}
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-4 text-center font-medium italic">{t("contactHRChangeRequest")}</p>
+                            </Card>
+
+                            {/* Who's Away Widget (Teammates Only) */}
+                            <Card className="p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="font-bold text-slate-900 text-sm">
+                                        {t("whosAway") || "Who's Away (Team)"}
+                                    </h4>
+                                    <Users className="w-4 h-4 text-indigo-600" />
+                                </div>
+                                <div className="space-y-4">
+                                    {loadingTeamLeaves ? (
+                                        <div className="flex justify-center p-4">
+                                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                                        </div>
+                                    ) : teamLeaves.length > 0 ? (
+                                        teamLeaves.map((leave, i) => (
+                                            <div key={i} className="flex items-start gap-4">
+                                                <div className={`w-1 font-bold h-10 rounded-full flex-shrink-0 ${leave.isToday ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-amber-400'}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-black text-slate-900 truncate">{leave.employeeName}</p>
+                                                    <p className="text-[10px] text-slate-500 font-medium truncate">{leave.designation}</p>
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <CalendarDays className="w-3 h-3 text-slate-400" />
+                                                        <p className="text-[10px] font-bold text-slate-600">
+                                                            {format(new Date(leave.startDate), 'MMM dd')} - {format(new Date(leave.endDate), 'MMM dd')}
+                                                        </p>
+                                                        {leave.isToday && (
+                                                            <span className="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Away Today</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                                <CheckCircle2 className="w-4 h-4 text-slate-400" />
+                                            </div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("everyoneIsHere") || "Full Team Present"}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-6 text-center font-medium italic">
+                                    {t("teammateLeavesOnly") || "Only approved leaves from your direct team are shown."}
+                                </p>
                             </Card>
 
                             {/* Profile Snapshot */}
@@ -1268,6 +1334,7 @@ function getMonthName(m) {
 }
 
 const OTRequestModal = ({ employeeId, onSuccess }) => {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ date: format(new Date(), 'yyyy-MM-dd'), hours: 1, reason: '' });
@@ -1358,6 +1425,7 @@ const OTRequestModal = ({ employeeId, onSuccess }) => {
 };
 
 const CORequestModal = ({ employeeId, onSuccess, balance }) => {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [type, setType] = useState('Earn'); // 'Earn' or 'Use'

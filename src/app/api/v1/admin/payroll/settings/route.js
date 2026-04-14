@@ -46,6 +46,12 @@ export async function POST(request) {
         const body = await request.json();
         let { company } = body;
 
+        console.log("💾 [PayrollConfig] Received Save Request:", { 
+            company,
+            receivedFields: Object.keys(body),
+            quota: body.annualPaidLeaveQuota 
+        });
+
         // SaaS PROTECTION: Admin must use their assigned organizationId
         if (authUser.role === "admin") {
             company = authUser.organizationId;
@@ -53,17 +59,24 @@ export async function POST(request) {
         }
 
         if (!company) {
+             console.error("❌ [PayrollConfig] Missing Company ID");
              return NextResponse.json({ error: "Company ID is required" }, { status: 400 });
         }
 
-        let config = await PayrollConfig.findOneAndUpdate(
-            { company },
-            body,
-            { new: true, upsert: true }
-        );
-
-        return NextResponse.json(config);
+        try {
+            let config = await PayrollConfig.findOneAndUpdate(
+                { company },
+                body,
+                { new: true, upsert: true, runValidators: true }
+            );
+            console.log("✅ [PayrollConfig] Saved Successfully:", config._id);
+            return NextResponse.json(config);
+        } catch (dbError) {
+            console.error("❌ [PayrollConfig] DB Sync Error:", dbError.message);
+            return NextResponse.json({ error: dbError.message }, { status: 500 });
+        }
     } catch (error) {
+        console.error("❌ [PayrollConfig] API Error:", error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

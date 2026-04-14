@@ -216,7 +216,7 @@ export function PayrollRunReview({ runId }) {
       </div>
 
       {/* Progress / Status Banner */}
-      {isDraft && (
+      {isDraft && !run.needsRecalculation && (
         <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r-lg flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -228,6 +228,33 @@ export function PayrollRunReview({ runId }) {
           </div>
         </div>
       )}
+
+      {/* ATTENDANCE CHANGE ALERT */}
+      {run.needsRecalculation && isDraft && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg flex items-start gap-4 shadow-sm animate-pulse">
+          <div className="p-2 bg-amber-100 rounded-full">
+            <RefreshCw className="w-6 h-6 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-amber-900 flex items-center gap-2">
+              Action Required: Attendance Changes Detected
+            </h3>
+            <p className="text-amber-800 text-sm mt-1">
+              {run.recalculationReason || "Regularization changes have been made to attendance records for this period. Current salary totals and LOP counts may be outdated."}
+            </p>
+            <div className="mt-3">
+               <button 
+                onClick={handleRecalculate}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-all flex items-center gap-2"
+               >
+                 <Calculator className="w-4 h-4" />
+                 Recalculate Batch Now
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Action Buttons aligned right */}
       <div className="flex justify-end gap-3 pb-2 border-b border-slate-200">

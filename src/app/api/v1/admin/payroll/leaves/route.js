@@ -6,6 +6,9 @@ import Employee from "@/lib/db/models/payroll/Employee";
 import User from "@/lib/db/models/User";
 import { logActivity } from "@/lib/logger";
 import { getAuthUser, authorize } from "@/lib/auth-util";
+import { syncLeaveApplicationToPayroll } from "@/lib/payroll/leave-sync-engine";
+import LeaveApplication from "@/lib/db/models/payroll/LeaveApplication";
+import mongoose from "mongoose";
 
 // GET all leaves with filters
 export async function GET(request) {
@@ -142,6 +145,41 @@ export async function GET(request) {
       .sort({ year: -1, month: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Background Data Integrity Check: 
+    // If we have leaves, ensure we trigger a sync for these employees to fix any stale data
+    if (leaves.length > 0) {
+      // If we are filtering for a specific employee, we do it synchronously to ensure the user sees the result immediately
+      if (searchParams.get("employeeId") || searchParams.get("query")) {
+          const distinctEmployeeIds = [...new Set(leaves.map(l => l.employeeId._id.toString()))];
+          for (const empId of distinctEmployeeIds) {
+              const app = await LeaveApplication.findOne({ employee: empId, status: { $regex: /^approved$/i } });
+              if (app) {
+                  console.log(`[LeaveSync] Force-Syncing ${empId} synchronously...`);
+                  await syncLeaveApplicationToPayroll(app._id);
+              }
+          }
+          // Reload leaves after sync to return fresh data
+          const updatedLeaves = await Leave.find(filter)
+            .populate("employeeId", "personalDetails employeeId jobDetails")
+            .sort({ "personalDetails.firstName": 1 });
+          return NextResponse.json({ 
+              leaves: updatedLeaves, 
+              total: await Leave.countDocuments(filter),
+              page,
+              limit
+          });
+      } else {
+          // Async - non-blocking sync for the general list view
+          const distinctEmployeeIds = [...new Set(leaves.map(l => l.employeeId._id.toString()))].slice(0, 5);
+          distinctEmployeeIds.forEach(empId => {
+              LeaveApplication.findOne({ employee: empId, status: { $regex: /^approved$/i } })
+                .then(app => {
+                    if (app) syncLeaveApplicationToPayroll(app._id).catch(e => console.error("Sync Error:", e));
+                });
+          });
+      }
+    }
 
     const total = await Leave.countDocuments(filter);
 

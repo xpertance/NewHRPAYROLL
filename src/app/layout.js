@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
         <SessionProvider>
           <LanguageProvider>
             {children}
-            <Toaster />
+            <Toaster richColors closeButton position="top-right" toastOptions={{ style: { zIndex: 9999 } }} />
           </LanguageProvider>
         </SessionProvider>
       </body>

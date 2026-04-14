@@ -360,6 +360,11 @@ const employeeSchema = new mongoose.Schema(
         type: String,
         default: 'Maharashtra' // Fallback
       },
+      holidayListId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'HolidayList',
+        default: null
+      },
     },
     salaryDetails: {
       bankAccount: {
@@ -470,6 +475,14 @@ const employeeSchema = new mongoose.Schema(
     sessionToken: {
       type: String,
     },
+    forgotPasswordToken: {
+      type: String,
+      default: null,
+    },
+    forgotPasswordExpires: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -517,7 +530,6 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     }
 
     // b. Get Absent Days from Attendance (that are not covered by leaves)
-    // b. Get Absent Days from Attendance (that are not covered by leaves)
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
     
@@ -529,8 +541,89 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
       status: "Absent"
     });
 
-    console.log(`[Diagnostic] EMP=${this.employeeId} | Month=${month}/${year} | absentCount=${absentRecords.length}`);
-    lopDays += absentRecords.length;
+    // c. HOLIDAY-AWARE LOP (Keka Standard): Exclude absent days that fall on holidays
+    let effectiveAbsentDays = absentRecords.length;
+    try {
+      const Holiday = mongoose.models.Holiday || mongoose.model("Holiday");
+      const HolidayList = mongoose.models.HolidayList || mongoose.model("HolidayList");
+      const empOrgId = this.jobDetails?.organizationId;
+      const empOfficeId = this.jobDetails?.assignedOfficeId;
+      let empHolidayListId = this.jobDetails?.holidayListId;
+
+      // AUTO-RESOLVE: Find holiday list from employee's branch/office location
+      if (!empHolidayListId && empOfficeId) {
+        const listForOffice = await HolidayList.findOne({
+          applicableLocations: empOfficeId,
+          year: Number(year),
+          status: 'Active'
+        }).lean();
+        if (listForOffice) empHolidayListId = listForOffice._id;
+      }
+
+      // FALLBACK: Use the default holiday list for the org
+      if (!empHolidayListId && empOrgId) {
+        const defaultList = await HolidayList.findOne({
+          organizationId: empOrgId,
+          year: Number(year),
+          isDefault: true,
+          status: 'Active'
+        }).lean();
+        if (defaultList) empHolidayListId = defaultList._id;
+      }
+
+      let holidayQuery = {
+        status: "Active",
+        date: { $gte: startDate, $lte: endDate },
+        isRestricted: { $ne: true } // Only mandatory holidays auto-exclude LOP
+      };
+
+      if (empHolidayListId) {
+        holidayQuery.holidayListId = empHolidayListId;
+      } else if (empOrgId) {
+        holidayQuery.organizationId = empOrgId;
+      }
+
+      const holidays = await Holiday.find(holidayQuery).lean();
+      const holidayDates = new Set();
+      holidays.forEach(h => {
+        // Expand multi-day holidays into individual dates
+        const start = new Date(h.date);
+        const end = h.endDate ? new Date(h.endDate) : start;
+        const days = h.numberOfDays || 1;
+        for (let i = 0; i < days; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          if (d <= end) holidayDates.add(d.toDateString());
+        }
+      });
+
+      // CLAIMED RESTRICTED HOLIDAYS EXCLUSION
+      try {
+        const RestrictedHolidayClaim = mongoose.models.RestrictedHolidayClaim || mongoose.model("RestrictedHolidayClaim");
+        const claims = await RestrictedHolidayClaim.find({
+            employeeId: this._id,
+            status: "Approved",
+            date: { $gte: startDate, $lte: endDate }
+        }).lean();
+        
+        claims.forEach(claim => {
+            if (claim.date) holidayDates.add(new Date(claim.date).toDateString());
+        });
+      } catch (claimErr) {
+        console.error(`Error fetching restricted claims for LOP exclusion (${this.employeeId}):`, claimErr);
+      }
+
+      // Filter out absent records that fall on a holiday
+      const nonHolidayAbsents = absentRecords.filter(
+        rec => !holidayDates.has(new Date(rec.date).toDateString())
+      );
+      effectiveAbsentDays = nonHolidayAbsents.length;
+    } catch (holidayErr) {
+      console.error(`Error fetching holidays for LOP exclusion (${this.employeeId}):`, holidayErr);
+    }
+
+    console.log(`[Diagnostic] EMP=${this.employeeId} | Month=${month}/${year} | absentCount=${absentRecords.length} | effectiveAbsent=${effectiveAbsentDays}`);
+    lopDays += effectiveAbsentDays;
 
   } catch (err) {
     console.error(`Error fetching leaves/attendance for ${this.employeeId}:`, err);
@@ -538,7 +631,15 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
 
   // 2. INTEGRATE OVERTIME
   let overtimeHours = 0;
+  let payrollConfig = params.payrollConfig || null;
+  
   try {
+    // Auto-fetch PayrollConfig if not provided (for individual/preview calculations)
+    if (!payrollConfig && this.jobDetails?.organizationId) {
+       const PayrollConfig = mongoose.models.PayrollConfig || mongoose.model("PayrollConfig");
+       payrollConfig = await PayrollConfig.findOne({ company: this.jobDetails.organizationId });
+    }
+
     const OvertimeRequest = mongoose.models.OvertimeRequest || mongoose.model("OvertimeRequest");
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -685,7 +786,21 @@ employeeSchema.methods.calculateSalaryComponents = async function (statutoryConf
     });
 
   // Calculate Overtime Amount
-  const overtimeRate = this.salaryDetails?.overtimeRate || 0;
+  let overtimeRate = this.salaryDetails?.overtimeRate || 0;
+  
+  if (!overtimeRate && payrollConfig) {
+     if (payrollConfig.overtimeCalculationType === 'Fixed') {
+        overtimeRate = payrollConfig.overtimeRate || 0;
+     } else {
+        // Multiplier Mode: (Basic / WorkingDays / ShiftHours) * Multiplier
+        // We use standardBasic (full salary) for calculation, as per most factory laws
+        const workingDays = payrollConfig.workingDaysPerMonth || 26;
+        const shiftHours = this.workingHr || 9;
+        const hourlyRate = (standardBasic / workingDays / shiftHours);
+        overtimeRate = hourlyRate * (payrollConfig.overtimeRate || 1.5);
+     }
+  }
+
   const overtimeAmount = Math.round(overtimeHours * overtimeRate);
   if (overtimeAmount > 0) {
      calculatedEarnings.push({

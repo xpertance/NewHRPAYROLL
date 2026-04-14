@@ -6,7 +6,7 @@ import Attendance from "@/lib/db/models/payroll/Attendance";
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
         const { status, adminNotes, approvedBy } = body;
 

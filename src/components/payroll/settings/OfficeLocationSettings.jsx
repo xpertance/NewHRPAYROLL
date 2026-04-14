@@ -25,7 +25,7 @@ export default function OfficeLocationSettings({ organizationId }) {
 
     const fetchLocations = async () => {
         try {
-            const res = await fetch(`/api/v1/admin/settings/office-locations?organizationId=${organizationId}`);
+            const res = await fetch(`/api/settings/office-locations?organizationId=${organizationId}`);
             if (!res.ok) throw new Error("Failed to fetch locations");
             const data = await res.json();
             setLocations(data.locations || []);
@@ -88,8 +88,8 @@ export default function OfficeLocationSettings({ organizationId }) {
 
         try {
             const url = editingId
-                ? `/api/v1/admin/settings/office-locations`
-                : `/api/v1/admin/settings/office-locations`;
+                ? `/api/settings/office-locations`
+                : `/api/settings/office-locations`;
 
             const method = editingId ? "PUT" : "POST";
             const body = editingId ? { ...formData, id: editingId } : { ...formData, organizationId };
@@ -115,7 +115,7 @@ export default function OfficeLocationSettings({ organizationId }) {
         if (!window.confirm("Are you sure you want to delete this location?")) return;
 
         try {
-            const res = await fetch(`/api/v1/admin/settings/office-locations?id=${id}`, {
+            const res = await fetch(`/api/settings/office-locations?id=${id}`, {
                 method: "DELETE",
             });
 

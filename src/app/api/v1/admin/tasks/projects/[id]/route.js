@@ -6,7 +6,8 @@ import { logActivity } from '@/lib/logger';
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-        const project = await Project.findById(params.id)
+        const { id } = await params;
+        const project = await Project.findById(id)
             .populate('projectManager', 'personalDetails.firstName personalDetails.lastName')
             .populate('members', 'personalDetails.firstName personalDetails.lastName');
 
@@ -18,7 +19,7 @@ export async function GET(request, { params }) {
             import('@/lib/db/models/tasks/TimesheetEntry').then(m => m.default)
         ]);
 
-        const tasks = await Task.find({ project: params.id });
+        const tasks = await Task.find({ project: id });
         
         const stats = {
             totalTasks: tasks.length,
@@ -32,7 +33,7 @@ export async function GET(request, { params }) {
         };
 
         // Fetch total logged hours from timesheets and aggregate per member
-        const timeEntries = await TimesheetEntry.find({ project: params.id }).populate('employee', 'personalDetails.firstName personalDetails.lastName');
+        const timeEntries = await TimesheetEntry.find({ project: id }).populate('employee', 'personalDetails.firstName personalDetails.lastName');
         
         stats.totalLoggedHours = timeEntries.reduce((acc, e) => acc + (e.hours || 0), 0);
         
@@ -59,9 +60,10 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
+        const { id } = await params;
         const body = await request.json();
 
-        const project = await Project.findByIdAndUpdate(params.id, body, { new: true });
+        const project = await Project.findByIdAndUpdate(id, body, { new: true });
 
         if (!project) return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 
@@ -83,7 +85,8 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
     try {
         await dbConnect();
-        const project = await Project.findByIdAndDelete(params.id);
+        const { id } = await params;
+        const project = await Project.findByIdAndDelete(id);
 
         if (!project) return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 

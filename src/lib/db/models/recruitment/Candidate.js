@@ -95,8 +95,8 @@ interviews: [{
     fitAnalysis: String,
     fitRecommendation: {
         type: String,
-        enum: ['Strong Hire', 'Potential Fit', 'Weak Match', 'Not Recommended', null],
-        default: null
+        enum: ['Strong Hire', 'Potential Fit', 'Weak Match', 'Not Recommended', 'Pending Review', 'Needs Review', null],
+        default: 'Pending Review'
     },
     fitStrengths: [String],
     fitGaps: [String],
@@ -113,8 +113,8 @@ interviews: [{
     timestamps: true
 });
 
-// Gap Fix #9: Prevent duplicate candidates by email within same organization
-candidateSchema.index({ email: 1, organizationId: 1 }, { unique: true });
+// Gap Fix #9: Prevent duplicate candidates by email within same organization for the SAME role
+candidateSchema.index({ email: 1, organizationId: 1, jobRequisition: 1 }, { unique: true });
 
 const Candidate = mongoose.models.Candidate || mongoose.model('Candidate', candidateSchema);
 

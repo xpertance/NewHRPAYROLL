@@ -6,7 +6,8 @@ import { logActivity } from '@/lib/logger';
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-        const timesheet = await Timesheet.findById(params.id)
+        const { id } = await params;
+        const timesheet = await Timesheet.findById(id)
             .populate('employee', 'personalDetails.firstName personalDetails.lastName employeeId');
 
         if (!timesheet) return NextResponse.json({ success: false, error: 'Timesheet not found' }, { status: 404 });
@@ -20,10 +21,11 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
+        const { id } = await params;
         const body = await request.json();
         const { status, adminNotes, approvedBy } = body;
 
-        const timesheet = await Timesheet.findById(params.id);
+        const timesheet = await Timesheet.findById(id);
         if (!timesheet) return NextResponse.json({ success: false, error: 'Timesheet not found' }, { status: 404 });
 
         if (status) timesheet.status = status;

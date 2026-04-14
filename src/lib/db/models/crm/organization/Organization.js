@@ -41,6 +41,11 @@ const organizationSchema = new mongoose.Schema(
       type: Date,
     },
     logo: String, // optional: cloudinary url
+    linkedinCompanyId: {
+        type: String,
+        trim: true,
+        default: null
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
