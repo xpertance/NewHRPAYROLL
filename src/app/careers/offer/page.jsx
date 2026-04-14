@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Loader2, PartyPopper, ArrowRight } from "lucide-react";
 
-export default function OfferResponsePage() {
+function OfferResponseContent() {
     const searchParams = useSearchParams();
     const candidateId = searchParams.get('id');
     const email = searchParams.get('email');
@@ -167,5 +167,20 @@ export default function OfferResponsePage() {
                 )}
             </motion.div>
         </div>
+    );
+}
+
+export default function OfferResponsePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="p-16 text-center space-y-6">
+                    <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mx-auto" />
+                    <p className="text-slate-500 font-bold text-sm uppercase tracking-widest">Loading...</p>
+                </div>
+            </div>
+        }>
+            <OfferResponseContent />
+        </Suspense>
     );
 }
