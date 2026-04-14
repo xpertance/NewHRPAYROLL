@@ -3,13 +3,18 @@ import nodemailer from "nodemailer";
 
 // Configure nodemailer transporter
 const createTransporter = () => {
+  const host = process.env.EMAIL_HOST || "smtp.gmail.com";
+  const port = parseInt(process.env.EMAIL_PORT || "587");
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: process.env.SMTP_PORT || 587,
-    secure: false, // true for 465, false for other ports
+    host,
+    port,
+    secure: port === 465,
     auth: {
-      user: process.env.SMTP_USER, // Your email
-      pass: process.env.SMTP_PASS, // Your email password or app password
+      user,
+      pass,
     },
   });
 };
@@ -34,7 +39,7 @@ export async function POST(request) {
     switch (emailType) {
       case 'attendance-report':
         subject = 'Test: Daily Attendance Report';
-        recipientEmail = process.env.ATTENDANCE_REPORT_EMAIL || process.env.SMTP_USER;
+        recipientEmail = process.env.ATTENDANCE_REPORT_EMAIL || process.env.EMAIL_USER;
         htmlContent = `
           <!DOCTYPE html>
           <html>
@@ -65,7 +70,7 @@ export async function POST(request) {
 
       case 'threshold-alert':
         subject = 'Test: Attendance Threshold Alert';
-        recipientEmail = process.env.ATTENDANCE_THRESHOLD_EMAIL || process.env.SMTP_USER;
+        recipientEmail = process.env.ATTENDANCE_THRESHOLD_EMAIL || process.env.EMAIL_USER;
         htmlContent = `
           <!DOCTYPE html>
           <html>
@@ -100,7 +105,7 @@ export async function POST(request) {
 
       case 'document-reminder':
         subject = 'Test: Document Reminder';
-        recipientEmail = process.env.DOCUMENT_REMINDER_EMAIL || process.env.SMTP_USER;
+        recipientEmail = process.env.DOCUMENT_REMINDER_EMAIL || process.env.EMAIL_USER;
         htmlContent = `
           <!DOCTYPE html>
           <html>
@@ -141,7 +146,7 @@ export async function POST(request) {
     }
 
     const mailOptions = {
-      from: `"Payroll System Test" <${process.env.SMTP_USER}>`,
+      from: `"Payroll System Test" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
       subject,
       html: htmlContent,

@@ -4,8 +4,13 @@ import Attendance from "@/lib/db/models/payroll/Attendance";
 import AttendanceThreshold from "@/lib/db/models/payroll/AttendanceThreshold";
 import Notification from "@/lib/db/models/notifications/NotificationConfig";
 import Employee from "@/lib/db/models/payroll/Employee";
+import PayrollRun from "@/lib/db/models/payroll/PayrollRun";
 import OfficeLocation from "@/lib/db/models/crm/organization/OfficeLocation";
+
+
+// Triggering file refresh for Next.js build watcher
 import { sendAttendanceThresholdNotification } from "@/utils/notifications";
+
 import { getAuthUser, authorize } from "@/lib/auth-util";
 
 // Function to check and notify attendance thresholds
@@ -581,6 +586,43 @@ export async function PUT(request) {
         select: "name",
       },
     });
+
+    // TRIGGER PAYROLL ALERT: If status changed (specifically dealing with absenteeism)
+    try {
+        const orgId = updatedAttendance.employee?.jobDetails?.organizationId?._id || authUser.organizationId;
+        const month = attendanceDate.getMonth() + 1;
+        const year = attendanceDate.getFullYear();
+
+        // We trigger the alert if status is explicitly changed in the body
+        if (status) {
+            const activeRun = await PayrollRun.findOne({
+                organizationId: orgId,
+                month,
+                year,
+                status: { $in: ['Draft', 'Processing'] }
+            });
+
+            if (activeRun) {
+                await PayrollRun.findByIdAndUpdate(activeRun._id, {
+                    $set: { 
+                        needsRecalculation: true,
+                        recalculationReason: `Attendance status changed to "${status}" for ${updatedAttendance.employee?.personalDetails?.firstName} ${updatedAttendance.employee?.personalDetails?.lastName} on ${attendanceDate.toDateString()}`
+                    },
+                    $push: {
+                        logs: {
+                            message: `Recalculation advised: Attendance status updated to "${status}" for ${updatedAttendance.employee?.personalDetails?.firstName} on ${attendanceDate.toDateString()}`,
+                            level: 'warning',
+                            employeeId: updatedAttendance.employee?._id
+                        }
+                    }
+                });
+                console.log(`[AttendanceAlert] Triggered recalculation alert for PayrollRun ${activeRun.runId}`);
+            }
+        }
+    } catch (alertErr) {
+        console.error("Non-critical error triggering payroll alert:", alertErr);
+    }
+
 
     return NextResponse.json({
       success: true,

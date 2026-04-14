@@ -163,6 +163,22 @@ function DashboardLayoutContent({ children }) {
 
   const adminNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
+    {
+      name: t("crmManagement"),
+      href: "/admin/organization",
+      icon: Cog,
+      children: [
+        { name: t("department"), href: "/admin/organization/department", icon: Building2 },
+        { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
+        {
+          name: t("attendanceThresholds"),
+          href: "/admin/organization/attendance-thresholds",
+          icon: Target,
+        },
+        { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
+        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
+      ],
+    },
     { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
     {
       name: t("payrollManagement"),
@@ -171,12 +187,12 @@ function DashboardLayoutContent({ children }) {
       children: [
         {
           name: t("attendanceDirectory"),
-          href: "/admin/payroll/attendance",
+          href: "/admin/attendance",
           icon: UserCheck,
         },
         {
           name: t("holidayManagement"),
-          href: "/admin/payroll/holidays",
+          href: "/admin/holidays",
           icon: Calendar,
         },
         {
@@ -271,22 +287,6 @@ function DashboardLayoutContent({ children }) {
       ],
     },
     {
-      name: t("crmManagement"),
-      href: "/admin/organization",
-      icon: Cog,
-      children: [
-        { name: t("department"), href: "/admin/organization/department", icon: Building2 },
-        { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
-        {
-          name: t("attendanceThresholds"),
-          href: "/admin/organization/attendance-thresholds",
-          icon: Target,
-        },
-        { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
-        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
-      ],
-    },
-    {
       name: t("recruitment"),
       href: "/admin/recruitment",
       icon: Briefcase,
@@ -343,7 +343,7 @@ function DashboardLayoutContent({ children }) {
   const supervisorNavigation = [
     {
       name: t("attendanceDirectory"),
-      href: "/admin/payroll/attendance",
+      href: "/admin/attendance",
       icon: UserCheck,
     },
     { name: t("myPayslip"), href: "/admin/payroll/my-payslip", icon: Receipt },
@@ -373,7 +373,7 @@ function DashboardLayoutContent({ children }) {
   const attendanceOnlyNavigation = [
     {
       name: t("attendanceDirectory"),
-      href: "/admin/payroll/attendance",
+      href: "/admin/attendance",
       icon: UserCheck,
     },
     { name: t("changePassword"), href: "/change-password", icon: Lock },
@@ -394,7 +394,7 @@ function DashboardLayoutContent({ children }) {
     'view_organizations': { name: t("organizations"), href: "/super-admin/organizations", icon: Building2 },
     'manage_permissions': { name: t("permissions"), href: "/admin/organization/permissions", icon: Shield },
     'manage_employees': { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
-    'view_attendance': { name: t("attendanceDirectory"), href: "/admin/payroll/attendance", icon: UserCheck },
+    'view_attendance': { name: t("attendanceDirectory"), href: "/admin/attendance", icon: UserCheck },
     // Example for the user's request:
     // 'add_product': { name: "Add Product", href: "/products/add", icon: Plus }, 
   };

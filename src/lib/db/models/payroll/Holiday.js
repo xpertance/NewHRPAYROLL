@@ -10,10 +10,27 @@ const holidaySchema = new mongoose.Schema({
         type: Date,
         required: true
     },
+    endDate: {
+        type: Date,
+        default: null // If null, it's a single-day holiday
+    },
+    numberOfDays: {
+        type: Number,
+        default: 1,
+        min: 1
+    },
     type: {
         type: String,
-        enum: ['Public', 'Company', 'Regional'],
+        enum: ['Public', 'Company', 'Regional', 'Restricted'],
         default: 'Public'
+    },
+    isRestricted: {
+        type: Boolean,
+        default: false
+    },
+    holidayListId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'HolidayList'
     },
     description: {
         type: String,

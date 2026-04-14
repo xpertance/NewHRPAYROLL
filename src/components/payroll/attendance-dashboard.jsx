@@ -10,6 +10,7 @@ import {
   Users,
   Plus,
   Search,
+  Filter,
   Loader2,
   User,
   Layers,
@@ -20,6 +21,14 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  MapPin,
+  AlertCircle,
+  CheckCircle2,
+  MoreVertical,
+  History,
+  Sparkles,
+  Send,
+  XCircle
 } from "lucide-react";
 import MarkAttendance from "./attendance/MarkAttendance";
 import { useSession } from "@/context/SessionContext";
@@ -48,6 +57,27 @@ export default function AttendanceDashboard() {
   const [groupByOrganization, setGroupByOrganization] = useState(false);
   const [expandedOrgs, setExpandedOrgs] = useState({});
   const [expandedEmployees, setExpandedEmployees] = useState({});
+  
+  // Regularization States
+  const [showRegModal, setShowRegModal] = useState(false);
+  const [regData, setRegData] = useState({
+      date: new Date(),
+      type: 'Absent Correction',
+      reason: '',
+      approverId: '',
+      halfDaySlot: 'None',
+      requestedTimeStart: '',
+      requestedTimeEnd: ''
+  });
+
+  const [regLoading, setRegLoading] = useState(false);
+  const [allEmployeesForSelect, setAllEmployeesForSelect] = useState([]);
+  const [approverSearchTerm, setApproverSearchTerm] = useState('');
+  const [approverDropdownOpen, setApproverDropdownOpen] = useState(false);
+  const [myRequests, setMyRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [otRequests, setOtRequests] = useState([]);
+  const [loadingOT, setLoadingOT] = useState(false);
 
   const { user } = useSession();
 
@@ -71,8 +101,10 @@ export default function AttendanceDashboard() {
 
   // Fetch organizations
   const fetchOrganizations = async () => {
+    if (user?.role === 'employee') return; // Employees don't need to fetch all orgs
     try {
-      const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
+      const baseUrl = '/api/v1/admin';
+
       const response = await fetch(`${baseUrl}/organizations?limit=1000`);
       const data = await response.json();
 
@@ -95,6 +127,7 @@ export default function AttendanceDashboard() {
   // Fetch employees
   // Fetch employees
   const fetchEmployees = async () => {
+    if (user?.role === 'employee') return; // Employees don't need to fetch all employees
     try {
       const params = new URLSearchParams({
         limit: "1000",
@@ -105,11 +138,10 @@ export default function AttendanceDashboard() {
         params.append("organizationId", selectedOrganization);
       }
 
-      const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
+      const baseUrl = '/api/v1/admin';
       const response = await fetch(`${baseUrl}/employees?${params}`);
       const data = await response.json();
 
-      console.log(user.role);
 
       if (user.role === "admin") {
         setEmployees(data.data || data.employees || []);
@@ -171,9 +203,14 @@ export default function AttendanceDashboard() {
         setAttendance(filteredAttendance);
       } else if (user?.role === "supervisor") {
         const supervisedAttendanceRecord = data.attendance || [];
+        setAttendance(supervisedAttendanceRecord);
+      } else if (user?.role === "employee" || user?.role === "attendance_only") {
+        // Employees see their own records returned by /api/v1/employee/attendance
+        setAttendance(data.attendance || []);
       } else {
         setAttendance([]);
       }
+
     } catch (error) {
       console.error("Error fetching attendance:", error);
       setAttendance([]);
@@ -265,6 +302,83 @@ export default function AttendanceDashboard() {
       fetchAttendance();
     }
   }, [selectedMonth, selectedYear, selectedOrganization, viewMode]);
+
+  const fetchMyRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const res = await fetch('/api/v1/employee/attendance/regularize');
+      const data = await res.json();
+      if (res.ok) {
+        setMyRequests(data.requests || []);
+      }
+    } catch (error) {
+      console.error("Error fetching requests:", error);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const fetchOTRequests = async () => {
+    if (user?.role !== 'employee') return;
+    try {
+      setLoadingOT(true);
+      const response = await fetch('/api/v1/employee/payroll/overtime');
+      const data = await response.json();
+
+      if (response.ok) {
+        setOtRequests(data.requests || []);
+      }
+    } catch (error) {
+      console.error("Error fetching OT requests:", error);
+    } finally {
+      setLoadingOT(false);
+    }
+  };
+
+  const fetchAllEmployeesForApprover = async () => {
+      try {
+          const res = await fetch('/api/v1/employee/leaves/approvers');
+          const data = await res.json();
+          setAllEmployeesForSelect(data.data || []);
+      } catch (error) {
+          console.error("Error fetching employees for approver list:", error);
+      }
+  };
+
+  const submitRegularization = async () => {
+      if (!regData.reason || !regData.approverId) {
+          toast.error("Please provide a reason and select an approver");
+          return;
+      }
+      try {
+          setRegLoading(true);
+          
+          const payload = { ...regData };
+          if (regData.type === 'Half-Day' && regData.requestedTimeStart && regData.requestedTimeEnd) {
+              payload.requestedTime = `${regData.requestedTimeStart} - ${regData.requestedTimeEnd}`;
+          }
+
+          const res = await fetch('/api/v1/employee/attendance/regularize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.success) {
+              toast.success("Request submitted successfully");
+              setShowRegModal(false);
+              setRegData({ date: new Date(), type: 'Absent Correction', reason: '', approverId: '', halfDaySlot: 'None', requestedTimeStart: '', requestedTimeEnd: '' });
+              setApproverSearchTerm('');
+              fetchMyRequests();
+          } else {
+              throw new Error(data.error || "Failed to submit request");
+          }
+      } catch (error) {
+          toast.error(error.message);
+      } finally {
+          setRegLoading(false);
+      }
+  };
 
   // Helper function to get organization name from record
   const getOrganizationName = (record) => {
@@ -971,7 +1085,7 @@ export default function AttendanceDashboard() {
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               {/* Organization Filter */}
-              {organizations.length > 1 && (
+              {user?.role !== 'employee' && organizations.length > 1 && (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-700">
                     Organization
@@ -990,6 +1104,7 @@ export default function AttendanceDashboard() {
                   </select>
                 </div>
               )}
+
 
               {/* Date/Month Picker */}
               {viewMode === "daily" ? (
@@ -1046,21 +1161,24 @@ export default function AttendanceDashboard() {
               )}
 
               {/* Search */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Search Employee
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name or ID..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  />
+              {user?.role !== 'employee' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Search Employee
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by name or ID..."
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -1095,7 +1213,23 @@ export default function AttendanceDashboard() {
                 <p className="text-slate-600">
                   No attendance has been marked for this date yet.
                 </p>
+                {user?.role === 'employee' && new Date(selectedDate).setHours(0,0,0,0) >= new Date().setHours(0,0,0,0) && (
+                    <div className="mt-6">
+                        <button
+                            onClick={() => {
+                                setRegData({ ...regData, date: selectedDate, type: 'Half-Day', halfDaySlot: 'First Half' });
+                                setShowRegModal(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black shadow-lg shadow-indigo-100 transition-all group"
+                        >
+                            <Clock className="w-4 h-4" />
+                            Apply for Half-Day
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
+                )}
               </div>
+
             ) : groupByOrganization ? (
               // Grouped View
               <div className="divide-y divide-slate-200">
@@ -1275,13 +1409,42 @@ export default function AttendanceDashboard() {
                         </div>
                       </div>
                     </div>
-                    <div>{getStatusBadge(record.status)}</div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            {user?.role === 'employee' && record.status === 'Absent' && (
+                                <button
+                                    onClick={() => {
+                                        setRegData({ ...regData, date: record.date, type: 'Absent Correction' });
+                                        setShowRegModal(true);
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold transition-colors border border-orange-100"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Regularize
+                                </button>
+                            )}
+                            {user?.role === 'employee' && record.status === 'Present' && (
+                                <button
+                                    onClick={() => {
+                                        setRegData({ ...regData, date: record.date, type: 'Half-Day' });
+                                        setShowRegModal(true);
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors border border-indigo-100"
+                                >
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Apply Half-Day
+                                </button>
+                            )}
+                            {getStatusBadge(record.status)}
+                        </div>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
         )}
+
 
         {/* MONTHLY VIEW CONTENT */}
         {viewMode === "monthly" && (
@@ -1839,7 +2002,327 @@ export default function AttendanceDashboard() {
             )}
           </div>
         )}
-      </div>
+
+      {user?.role === 'employee' && (
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+              <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                          <History className="w-5 h-5" />
+                      </div>
+                      <div>
+                          <h2 className="text-lg font-black text-slate-900">My Requests</h2>
+                          <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Track pending and approved corrections</p>
+                      </div>
+                  </div>
+              </div>
+              <div className="p-0 overflow-x-auto">
+                  {loadingRequests ? (
+                      <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>
+                  ) : myRequests.length === 0 ? (
+                      <div className="p-8 text-center text-sm font-medium text-slate-500">No requests submitted yet.</div>
+                  ) : (
+                      <table className="w-full text-left border-collapse">
+                          <thead>
+                              <tr className="bg-slate-50/50 border-b border-slate-100">
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest max-w-[200px]">Reason</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Approver</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                              {myRequests.map((req) => (
+                                  <tr key={req._id} className="hover:bg-slate-50/50 transition-colors group">
+                                      <td className="p-4">
+                                          <p className="text-sm font-bold text-slate-900">{new Date(req.date).toDateString()}</p>
+                                          {req.type === 'Half-Day' && (
+                                              <p className="text-[10px] font-mono text-indigo-600 font-bold bg-indigo-50 inline-block px-1.5 rounded mt-1">{req.halfDaySlot}</p>
+                                          )}
+                                      </td>
+                                      <td className="p-4">
+                                          <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-700">{req.type}</span>
+                                      </td>
+                                      <td className="p-4 max-w-[200px]">
+                                          <p className="text-xs text-slate-600 font-medium truncate" title={req.reason}>{req.reason}</p>
+                                      </td>
+                                      <td className="p-4">
+                                          <p className="text-xs font-bold text-slate-700">{req.approver?.personalDetails?.firstName} {req.approver?.personalDetails?.lastName}</p>
+                                      </td>
+                                      <td className="p-4 text-right">
+                                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${
+                                              req.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                              req.status === 'Rejected' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                              'bg-amber-50 text-amber-600 border border-amber-100'
+                                          }`}>
+                                              {req.status}
+                                          </span>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  )}
+              </div>
+          </div>
+      )}
+
+      {user?.role === 'employee' && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                        <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-slate-900">Overtime Earnings</h2>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Track approved OT hours and estimated pay</p>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Earned (Current Month)</p>
+                    <p className="text-2xl font-black text-emerald-600">
+                        ₹{otRequests
+                            .filter(r => r.status === 'Approved' && new Date(r.date).getMonth() === new Date().getMonth())
+                            .reduce((sum, r) => sum + (r.earnedAmount || 0), 0)
+                            .toLocaleString()}
+                    </p>
+                </div>
+            </div>
+            <div className="p-0 overflow-x-auto">
+                {loadingOT ? (
+                    <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>
+                ) : otRequests.length === 0 ? (
+                    <div className="p-8 text-center text-sm font-medium text-slate-500">No overtime records found.</div>
+                ) : (
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hours</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Details</th>
+                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Earned Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {otRequests.map((req) => (
+                                <tr key={req._id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <td className="p-4">
+                                        <p className="text-sm font-bold text-slate-900">{new Date(req.date).toDateString()}</p>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-[10px] font-black bg-indigo-50 px-2 py-1 rounded-md text-indigo-600 border border-indigo-100 uppercase tracking-wider">Overtime</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                              <span className="text-sm font-black text-slate-700">{req.hours}</span>
+                                              <span className="text-[10px] font-bold text-slate-400 uppercase">Hrs</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <p className="text-xs text-slate-500 font-medium truncate max-w-[150px]" title={req.reason}>{req.reason}</p>
+                                        <p className={`text-[9px] font-black uppercase mt-1 tracking-widest ${
+                                            req.status === 'Approved' ? 'text-emerald-500' :
+                                            req.status === 'Rejected' ? 'text-rose-500' : 'text-amber-500'
+                                        }`}>{req.status}</p>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex flex-col items-end">
+                                            <span className={`text-sm font-black ${req.status === 'Approved' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                ₹{(req.earnedAmount || 0).toLocaleString()}
+                                            </span>
+                                            {req.status === 'Pending' && (
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">ESTIMATED</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+      )}
+
+      {showRegModal && (
+
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in duration-300 border border-slate-200">
+                  <div className="p-8">
+                      <div className="flex items-center justify-between mb-8">
+                          <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100">
+                                  <History className="w-6 h-6" />
+                              </div>
+                              <div>
+                                  <h3 className="text-xl font-black text-slate-900">Attendance Request</h3>
+                                  <p className="text-xs text-slate-500 font-medium">Digital Correction & Half-Day Workflow</p>
+                              </div>
+                          </div>
+                          <button onClick={() => setShowRegModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                              <XCircle className="w-6 h-6 text-slate-400" />
+                          </button>
+                      </div>
+
+                      <div className="space-y-6">
+                          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4">
+                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                  Your request will be sent to the selected approver. Once approved, 
+                                  your attendance for <strong>{new Date(regData.date).toDateString()}</strong> will be updated.
+                              </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Type</label>
+                                  <select 
+                                      value={regData.type}
+                                      onChange={(e) => setRegData({...regData, type: e.target.value})}
+                                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                  >
+                                      <option value="Absent Correction">Absent Correction (Present)</option>
+                                      <option value="Half-Day">Half-Day (Paid)</option>
+                                  </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Date</label>
+                                  <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 cursor-not-allowed">
+                                      {new Date(regData.date).toLocaleDateString()}
+                                  </div>
+                              </div>
+                          </div>
+
+                          {regData.type === 'Half-Day' && (
+                              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
+                                  <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Half-Day Slot</label>
+                                      <div className="flex gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                                          <button 
+                                              type="button"
+                                              onClick={() => setRegData({...regData, halfDaySlot: 'First Half'})}
+                                              className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${regData.halfDaySlot === 'First Half' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500'}`}
+                                          >
+                                              1st Half
+                                          </button>
+                                          <button 
+                                              type="button"
+                                              onClick={() => setRegData({...regData, halfDaySlot: 'Second Half'})}
+                                              className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${regData.halfDaySlot === 'Second Half' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500'}`}
+                                          >
+                                              2nd Half
+                                          </button>
+                                      </div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Requested Time (Opt)</label>
+                                      <div className="flex items-center gap-2">
+                                          <input 
+                                              type="time"
+                                              value={regData.requestedTimeStart || ''}
+                                              onChange={(e) => setRegData({...regData, requestedTimeStart: e.target.value})}
+                                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                          />
+                                          <span className="text-slate-400 font-bold text-sm">to</span>
+                                          <input 
+                                              type="time"
+                                              value={regData.requestedTimeEnd || ''}
+                                              onChange={(e) => setRegData({...regData, requestedTimeEnd: e.target.value})}
+                                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Search & Select Approver</label>
+                              <div className="relative">
+                                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                  <input 
+                                      type="text"
+                                      placeholder="Search by name or ID..."
+                                      value={approverSearchTerm}
+                                      onChange={(e) => {
+                                          setApproverSearchTerm(e.target.value);
+                                          setApproverDropdownOpen(true);
+                                      }}
+                                      onFocus={() => setApproverDropdownOpen(true)}
+                                      onBlur={() => setTimeout(() => setApproverDropdownOpen(false), 200)}
+                                      className="w-full pl-10 pr-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                  />
+                                  {approverDropdownOpen && (
+                                      <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto">
+                                          {allEmployeesForSelect
+                                              .filter(emp => 
+                                                  `${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} ${emp.employeeId}`
+                                                  .toLowerCase()
+                                                  .includes(approverSearchTerm.toLowerCase())
+                                              )
+                                              .map(emp => (
+                                                  <button
+                                                      key={emp._id}
+                                                      type="button"
+                                                      onClick={() => {
+                                                          setRegData({...regData, approverId: emp._id});
+                                                          setApproverSearchTerm(`${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} (${emp.employeeId || 'No ID'})`);
+                                                          setApproverDropdownOpen(false);
+                                                      }}
+                                                      className="w-full text-left p-3 hover:bg-slate-50 border-b border-slate-100 transition-colors last:border-0"
+                                                  >
+                                                      <p className="text-sm font-bold text-slate-900">{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</p>
+                                                      <p className="text-[10px] uppercase font-bold text-slate-500">{emp.employeeId || 'No ID'} • {emp.jobDetails?.designation || 'Staff'}</p>
+                                                  </button>
+                                              ))
+                                          }
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Reason for Adjustment</label>
+                              <textarea 
+                                  value={regData.reason}
+                                  onChange={(e) => setRegData({...regData, reason: e.target.value})}
+                                  placeholder="Ex: My internet was down in the morning, or forgot to check in..."
+                                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 outline-none resize-none min-h-[100px] transition-all"
+                              />
+                          </div>
+                      </div>
+
+                      <div className="pt-8 flex gap-4">
+                          <button
+                              onClick={() => setShowRegModal(false)}
+                              className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-sm font-bold transition-all"
+                          >
+                              Cancel
+                          </button>
+                          <button
+                              onClick={submitRegularization}
+                              disabled={regLoading}
+                              className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                          >
+                              {regLoading ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                  <>
+                                      Submit Request
+                                      <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                  </>
+                              )}
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
-  );
+  </div>
+);
 }
+
+

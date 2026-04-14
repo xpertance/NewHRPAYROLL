@@ -6,7 +6,7 @@ import Employee from "@/lib/db/models/payroll/Employee";
 export async function PUT(request, { params }) {
     try {
         await dbConnect();
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
         const { status, adminNotes, approvedBy } = body;
 

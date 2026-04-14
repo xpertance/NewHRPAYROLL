@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { XCircle, Loader2, FileText, Send, User, Mail, Phone, Briefcase, UploadCloud } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function CandidateApplicationForm({ isOpen, onClose, job }) {
     const [submitting, setSubmitting] = useState(false);

@@ -290,7 +290,7 @@ function transformTask(taskDoc) {
 export async function GET(request, { params }) {
   try {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -330,7 +330,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -450,7 +450,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(

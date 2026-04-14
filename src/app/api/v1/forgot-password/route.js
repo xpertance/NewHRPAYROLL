@@ -3,32 +3,54 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import dbConnect from '@/lib/db/connect';
 import User from '@/lib/db/models/User';
+import Employee from '@/lib/db/models/payroll/Employee';
 import nodemailer from 'nodemailer';
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
+const createTransporter = () => {
+  const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.EMAIL_PORT || '587');
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user,
+      pass,
     },
   });
+};
 
 export async function POST(request) {
   try {
     await dbConnect();
-    const { email } = await request.json();
+    const { email, role = 'admin' } = await request.json();
+    console.log(`Password reset requested for email: ${email}, role: ${role}`);
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    let targetUser = null;
+    let userName = '';
+
+    if (role === 'employee') {
+      targetUser = await Employee.findOne({ 'personalDetails.email': email.toLowerCase().trim() });
+      if (targetUser) {
+        userName = `${targetUser.personalDetails.firstName} ${targetUser.personalDetails.lastName}`;
+      }
+    } else {
+      targetUser = await User.findOne({ email: email.toLowerCase().trim() });
+      if (targetUser) {
+        userName = targetUser.name;
+      }
+    }
 
     // Always return success even if user not found (security: prevents email enumeration)
-    if (!user) {
+    if (!targetUser) {
+      console.log(`User not found for email ${email} and role ${role}`);
       return NextResponse.json({
         message: 'If an account with that email exists, a reset link has been sent.',
       });
@@ -39,19 +61,20 @@ export async function POST(request) {
     // Store a hashed version
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-    user.forgotPasswordToken = hashedToken;
-    user.forgotPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await user.save({ validateBeforeSave: false });
+    targetUser.forgotPasswordToken = hashedToken;
+    targetUser.forgotPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await targetUser.save({ validateBeforeSave: false });
 
     // Build reset link using the RAW token (not hashed)
+    // Pass the role in the link so the reset page knows which collection to use
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetLink = `${appUrl}/reset-password?token=${rawToken}`;
+    const resetLink = `${appUrl}/reset-password?token=${rawToken}&role=${role}`;
 
     // Send email
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"HR & Payroll System" <${process.env.SMTP_USER}>`,
-      to: user.email,
+      from: `"HR & Payroll System" <${process.env.EMAIL_USER}>`,
+      to: email.toLowerCase().trim(),
       subject: '🔑 Password Reset Request',
       html: `
         <!DOCTYPE html>
@@ -72,8 +95,8 @@ export async function POST(request) {
             <p>You requested to reset your password</p>
           </div>
           <div class="content">
-            <p>Hi <strong>${user.name}</strong>,</p>
-            <p>We received a request to reset the password for your account. Click the button below to set a new password:</p>
+            <p>Hi <strong>${userName}</strong>,</p>
+            <p>We received a request to reset the password for your ${role} account. Click the button below to set a new password:</p>
             <div style="text-align: center;">
               <a href="${resetLink}" class="btn">Reset My Password</a>
             </div>

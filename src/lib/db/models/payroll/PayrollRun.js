@@ -24,6 +24,15 @@ const payrollRunSchema = new mongoose.Schema({
         ref: 'Organization',
         required: true
     },
+    needsRecalculation: {
+        type: Boolean,
+        default: false
+    },
+    recalculationReason: {
+        type: String,
+        default: null
+    },
+
     businessUnitId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BusinessUnit'

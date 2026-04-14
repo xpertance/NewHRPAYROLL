@@ -17,7 +17,10 @@ import {
     XCircle,
     PlusCircle,
     Wallet,
-    Info
+    Info,
+    Link,
+    Copy,
+    ExternalLink
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -41,6 +44,8 @@ const TabButton = ({ active, onClick, icon, label, count }) => (
 
 export default function OrgSettingsPage() {
     const [activeTab, setActiveTab] = useState("business-units");
+    const [linkedinId, setLinkedinId] = useState("");
+    const [copying, setCopying] = useState(false);
     const [data, setData] = useState({
         businessUnits: [],
         teams: [],
@@ -103,6 +108,12 @@ export default function OrgSettingsPage() {
                 organizations: orgData.data || orgData.organizations || [],
                 departments: deptData.data || []
             });
+
+            // Set initial LinkedIn ID from the first organization found
+            const currentOrg = orgData.data?.[0] || orgData.organizations?.[0];
+            if (currentOrg) {
+                setLinkedinId(currentOrg.linkedinCompanyId || "");
+            }
         } catch (error) {
             console.error("Error fetching org settings data:", error);
             toast.error("Failed to load organization settings");
@@ -196,6 +207,38 @@ export default function OrgSettingsPage() {
         }
     };
 
+    const handleUpdateLinkedin = async () => {
+        try {
+            setSubmitting(true);
+            const currentOrg = data.organizations[0];
+            if (!currentOrg) throw new Error("No organization found");
+
+            const response = await fetch(`/api/v1/admin/organizations`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: currentOrg._id,
+                    linkedinCompanyId: linkedinId 
+                })
+            });
+
+            if (!response.ok) throw new Error("Failed to update LinkedIn ID");
+            toast.success("LinkedIn Integration updated");
+            fetchAllData();
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        setCopying(true);
+        toast.success("Feed URL copied to clipboard");
+        setTimeout(() => setCopying(false), 2000);
+    };
+
     const renderTable = () => {
         const getItems = () => {
             let items = [];
@@ -213,6 +256,102 @@ export default function OrgSettingsPage() {
         };
 
         const items = getItems();
+
+        if (activeTab === "integrations") {
+            const currentOrg = data.organizations[0];
+            const feedUrl = currentOrg ? `${window.location.origin}/api/v1/public/careers/feed.xml?orgId=${currentOrg._id}` : "";
+
+            return (
+                <div className="p-8 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* LinkedIn Integration Card */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                            <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-[#0077b5] rounded-lg flex items-center justify-center text-white">
+                                        <Link className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900">LinkedIn Job Wrapping</h3>
+                                        <p className="text-xs text-slate-500">Automate your job postings</p>
+                                    </div>
+                                </div>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${linkedinId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {linkedinId ? 'Configured' : 'Needs Setup'}
+                                </span>
+                            </div>
+                            <div className="p-6 flex-1 space-y-6">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">LinkedIn Company ID</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={linkedinId}
+                                            onChange={(e) => setLinkedinId(e.target.value)}
+                                            placeholder="e.g. 12345678"
+                                            className="flex-1 px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                        <button 
+                                            onClick={handleUpdateLinkedin}
+                                            disabled={submitting}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all disabled:opacity-50"
+                                        >
+                                            {submitting ? "..." : "Save"}
+                                        </button>
+                                    </div>
+                                    <p className="mt-2 text-[10px] text-slate-400">
+                                        Found in your LinkedIn Company Page URL: linkedin.com/company/[ID]
+                                    </p>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-100">
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Public XML Feed URL</label>
+                                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 group">
+                                        <code className="text-[10px] text-indigo-600 truncate flex-1 font-mono">
+                                            {feedUrl || "Loading organization context..."}
+                                        </code>
+                                        <button 
+                                            onClick={() => copyToClipboard(feedUrl)}
+                                            className="p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600 transition-all shadow-sm"
+                                        >
+                                            {copying ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+                                <Info className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="text-[10px] text-slate-500">Provide this URL to your LinkedIn Account Manager to enable automated sync.</span>
+                            </div>
+                        </div>
+
+                        {/* Instructions Card */}
+                        <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-6 space-y-4">
+                            <h4 className="font-bold text-indigo-900 flex items-center gap-2">
+                                <ExternalLink className="w-4 h-4" />
+                                How to Sync with LinkedIn
+                            </h4>
+                            <ul className="space-y-3">
+                                {[
+                                    "Ensure you have a LinkedIn Recruiter or Job Slot contract.",
+                                    "Copy the XML Feed URL provided to the left.",
+                                    "Contact LinkedIn Support or your Account Manager.",
+                                    "Request them to enable 'Job Wrapping' for your account using this link.",
+                                    "All 'Open' jobs in our portal will sync automatically every 24 hours."
+                                ].map((step, i) => (
+                                    <li key={i} className="flex gap-3 text-xs text-indigo-800/80">
+                                        <span className="flex-shrink-0 w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                            {i + 1}
+                                        </span>
+                                        {step}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="overflow-x-auto">
@@ -352,6 +491,12 @@ export default function OrgSettingsPage() {
                                 icon={<Wallet className="w-4 h-4" />}
                                 label="Cost Centers"
                                 count={data.costCenters.length}
+                            />
+                            <TabButton
+                                active={activeTab === "integrations"}
+                                onClick={() => setActiveTab("integrations")}
+                                icon={<Link className="w-4 h-4" />}
+                                label="Integrations"
                             />
                         </div>
                     </div>

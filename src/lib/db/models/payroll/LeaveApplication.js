@@ -37,6 +37,14 @@ const leaveApplicationSchema = new mongoose.Schema({
     ref: 'User'
   },
   approvedAt: Date,
+  approvalChain: [{
+    level: { type: String, enum: ['Team Lead', 'Manager', 'Admin', 'Selected Approver'] },
+    approverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+    status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+    updatedAt: { type: Date, default: Date.now },
+    remarks: String
+  }],
+  finalApproverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   rejectionReason: String,
   contactNumber: String,
   addressDuringLeave: String,
