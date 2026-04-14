@@ -40,7 +40,7 @@ export default function ComplianceSettingsPage() {
             setLoading(true);
             const orgsRes = await fetch("/api/v1/admin/crm/organizations");
             const orgsResponse = await orgsRes.json();
-            const orgsData = orgsResponse.organizations || [];
+            const orgsData = orgsResponse.data || [];
             setOrgs(orgsData);
 
             if (orgsData.length > 0) {
@@ -79,10 +79,13 @@ export default function ComplianceSettingsPage() {
         e.preventDefault();
         try {
             setSaving(true);
+            // Sanitize data: remove system fields that can break update/upsert
+            const { _id, __v, createdAt, updatedAt, ...saveData } = config || {};
+            
             const res = await fetch("/api/v1/admin/payroll/settings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...config, company: selectedOrg })
+                body: JSON.stringify({ ...saveData, company: selectedOrg })
             });
             if (!res.ok) throw new Error("Update failed");
             toast.success("Compliance settings updated successfully");
@@ -282,40 +285,65 @@ export default function ComplianceSettingsPage() {
                                         <h3 className="font-bold text-slate-900">Standard Payout Policies</h3>
                                     </div>
 
-                                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-2">Working Days / Month</label>
                                             <input
                                                 type="number"
-                                                value={config?.workingDaysPerMonth}
-                                                onChange={(e) => setConfig({ ...config, workingDaysPerMonth: parseInt(e.target.value) })}
+                                                value={config?.workingDaysPerMonth || 0}
+                                                onChange={(e) => setConfig({ ...config, workingDaysPerMonth: parseInt(e.target.value) || 0 })}
                                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Overtime Rate</label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Overtime Type</label>
+                                            <select
+                                                value={config?.overtimeCalculationType || 'Multiplier'}
+                                                onChange={(e) => setConfig({ ...config, overtimeCalculationType: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none shadow-inner"
+                                            >
+                                                <option value="Multiplier">Salary Multiplier (e.g. 1.5x)</option>
+                                                <option value="Fixed">Fixed Amount / Hour (e.g. ₹500)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">
+                                                {config?.overtimeCalculationType === 'Fixed' ? 'OT Rate (₹ / Hour)' : 'OT Multiplier (x)'}
+                                            </label>
                                             <div className="relative">
                                                 <input
                                                     type="number"
-                                                    step="0.1"
-                                                    value={config?.overtimeRate}
-                                                    onChange={(e) => setConfig({ ...config, overtimeRate: parseFloat(e.target.value) })}
+                                                    step={config?.overtimeCalculationType === 'Fixed' ? "1" : "0.1"}
+                                                    value={config?.overtimeRate || 0}
+                                                    onChange={(e) => setConfig({ ...config, overtimeRate: parseFloat(e.target.value) || 0 })}
                                                     className="w-full pr-12 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">MULTIPLIER</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
+                                                    {config?.overtimeCalculationType === 'Fixed' ? 'CASH' : 'FACTOR'}
+                                                </span>
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-2">Payment Day</label>
                                             <select
-                                                value={config?.paymentDay}
-                                                onChange={(e) => setConfig({ ...config, paymentDay: parseInt(e.target.value) })}
+                                                value={config?.paymentDay || 1}
+                                                onChange={(e) => setConfig({ ...config, paymentDay: parseInt(e.target.value) || 1 })}
                                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none shadow-inner"
                                             >
-                                                {[...Array(10)].map((_, i) => (
+                                                {[...Array(31)].map((_, i) => (
                                                     <option key={i + 1} value={i + 1}>{i + 1}th of Month</option>
                                                 ))}
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Annual Paid Leave Quota</label>
+                                            <input
+                                                type="number"
+                                                value={config?.annualPaidLeaveQuota || 0}
+                                                onChange={(e) => setConfig({ ...config, annualPaidLeaveQuota: parseInt(e.target.value) || 0 })}
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                                            />
+                                            <p className="text-[10px] text-slate-400 mt-2 px-1">Total allowed paid leaves per year.</p>
                                         </div>
                                     </div>
                                 </div>

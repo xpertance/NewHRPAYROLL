@@ -29,11 +29,43 @@ export async function GET(request) {
         if (status) query.status = status;
 
         const requests = await OvertimeRequest.find(query)
-            .populate("employee", "personalDetails employeeId")
+            .populate("employee", "personalDetails employeeId payslipStructure workingHr salaryDetails jobDetails")
             .populate("approvedBy", "name")
             .sort({ date: -1 });
 
-        return NextResponse.json({ success: true, requests });
+        // Calculate estimated pay for each request
+        const config = await dbConnect().then(() => 
+            import("@/lib/db/models/payroll/PayrollConfig").then(m => 
+                m.default.findOne({ company: authUser.organizationId || (requests[0]?.employee?.jobDetails?.organizationId) })
+            )
+        );
+
+        const enrichedRequests = requests.map(req => {
+            const emp = req.employee;
+            let earnedAmount = 0;
+            
+            if (config && emp) {
+                let rate = emp.salaryDetails?.overtimeRate || 0;
+                if (!rate) {
+                    if (config.overtimeCalculationType === 'Fixed') {
+                        rate = config.overtimeRate || 0;
+                    } else {
+                        const basic = emp.payslipStructure?.basicSalary || 0;
+                        const days = config.workingDaysPerMonth || 26;
+                        const hrs = emp.workingHr || 9;
+                        rate = (basic / days / hrs) * (config.overtimeRate || 1.5);
+                    }
+                }
+                earnedAmount = Math.round(req.hours * rate);
+            }
+
+            return {
+                ...req.toObject(),
+                earnedAmount
+            };
+        });
+
+        return NextResponse.json({ success: true, requests: enrichedRequests });
     } catch (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }

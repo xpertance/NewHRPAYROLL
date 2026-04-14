@@ -107,10 +107,18 @@ export default function OrgChartPage() {
     const fetchChartData = async () => {
         try {
             setLoading(true);
-            const response = await fetch("/api/v1/super-admin/organizations/chart");
+            const response = await fetch("/api/v1/admin/organizations?limit=100");
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Failed to fetch chart");
-            setData(result.data);
+            // Build chart tree from organizations list
+            const orgs = result.organizations || [];
+            const chartData = orgs.map(org => ({
+                name: org.name,
+                type: 'organization',
+                head: null,
+                children: []
+            }));
+            setData(result.data || chartData);
         } catch (error) {
             console.error("Error fetching org chart:", error);
             toast.error("Failed to load organization chart");

@@ -5,6 +5,7 @@ import Link from "next/link";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("admin");
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [message, setMessage] = useState("");
 
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/v1/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, role }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -48,9 +49,27 @@ export default function ForgotPasswordPage() {
             </div>
             <h1 className="text-2xl font-bold text-white">Forgot Password?</h1>
             <p className="text-slate-300 text-sm mt-2">
-              No worries — enter your email and we'll send you a reset link.
+              No worries — select your role and enter your email for a reset link.
             </p>
           </div>
+
+          {status !== "success" && (
+            <div className="flex p-1 bg-white/5 backdrop-blur-md rounded-xl mb-6 border border-white/10">
+              {['admin', 'employee'].map(r => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 capitalize ${role === r
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
 
           {status === "success" ? (
             <div className="text-center py-4">

@@ -100,7 +100,7 @@ const leaveSchema = new mongoose.Schema(
     annualLeaveBalance: {
       totalEntitled: {
         type: Number,
-        default: 31, // Total leaves for the ENTIRE YEAR (not per month)
+        default: 0, // No longer hardcoded to 31
       },
       used: {
         type: Number,
@@ -162,18 +162,25 @@ leaveSchema.methods.calculateSummary = function () {
   let halfDayUnpaidLeaves = 0;
 
   this.leaves.forEach((leave) => {
-    if (leave.leaveType === "Paid") {
-      paidLeaves += 1;
-      totalDays += 1;
-    } else if (leave.leaveType === "Unpaid") {
-      unpaidLeaves += 1;
-      totalDays += 1;
-    } else if (leave.leaveType === "Half-Day Paid") {
-      halfDayPaidLeaves += 1;
-      totalDays += 0.5;
-    } else if (leave.leaveType === "Half-Day Unpaid") {
-      halfDayUnpaidLeaves += 1;
-      totalDays += 0.5;
+    const type = (leave.leaveType || "").toLowerCase();
+    
+    if (type.includes("unpaid")) {
+      if (type.includes("half")) {
+        halfDayUnpaidLeaves += 1;
+        totalDays += 0.5;
+      } else {
+        unpaidLeaves += 1;
+        totalDays += 1;
+      }
+    } else {
+      // Treat everything else (Paid, Sick, Casual, etc.) as Paid
+      if (type.includes("half")) {
+        halfDayPaidLeaves += 1;
+        totalDays += 0.5;
+      } else {
+        paidLeaves += 1;
+        totalDays += 1;
+      }
     }
   });
 
@@ -196,18 +203,29 @@ leaveSchema.methods.calculateSummary = function () {
 // This recalculates balance for ALL records of this employee in this year
 leaveSchema.methods.updateAnnualBalance = async function () {
   try {
-    const Leave = mongoose.model("Leave");
-    
-    // Get employee's total entitled leaves (from employee record or default 31)
+    // Get employee's total entitled leaves
     const Employee = mongoose.model("Employee");
+    const PayrollConfig = mongoose.model("PayrollConfig");
+    
     const employee = await Employee.findById(this.employeeId);
-    const totalEntitled = employee?.totalLeaveEntitled || 
-                         employee?.annualLeaveBalance || 
-                         employee?.payslipStructure?.totalLeaveEntitled || 
-                         31;
+    
+    // Resolve quota: 
+    // 1. Employee Specific Override
+    // 2. Organization Policy (PayrollConfig)
+    // 3. Legacy/Branch fallback
+    let totalEntitled = employee?.totalLeaveEntitled;
+    
+    if (!totalEntitled) {
+      const config = await PayrollConfig.findOne({ company: this.organizationId });
+      totalEntitled = config?.annualPaidLeaveQuota || 
+                      employee?.annualLeaveBalance || 
+                      employee?.payslipStructure?.totalLeaveEntitled || 
+                      0;
+    }
     
     // Get all leave records for this employee in this year, sorted by month
-    const allYearLeaves = await Leave.find({
+    const LeaveModel = mongoose.model("Leave");
+    const allYearLeaves = await LeaveModel.find({
       employeeId: this.employeeId,
       year: this.year,
     }).sort({ month: 1 }); // Sort by month ascending
@@ -217,38 +235,41 @@ leaveSchema.methods.updateAnnualBalance = async function () {
     console.log(`   Found ${allYearLeaves.length} month records`);
     
     // Process each month in order
-    let cumulativeUnpaid = 0;
+    let cumulativeUsed = 0;
     
     for (const monthRecord of allYearLeaves) {
-      // Calculate unpaid for this specific month
-      const thisMonthUnpaid = (monthRecord.summary.unpaidLeaves || 0) + 
-                             ((monthRecord.summary.halfDayUnpaidLeaves || 0) * 0.5);
+      // Calculate total leaves used this month (sum of all types)
+      const thisMonthUsed = (monthRecord.summary.unpaidLeaves || 0) + 
+                           (monthRecord.summary.paidLeaves || 0) +
+                           ((monthRecord.summary.halfDayUnpaidLeaves || 0) * 0.5) +
+                           ((monthRecord.summary.halfDayPaidLeaves || 0) * 0.5);
       
       // Balance at START of this month (before this month's leaves)
-      const balanceAtMonthStart = totalEntitled - cumulativeUnpaid;
+      const balanceAtMonthStart = totalEntitled - cumulativeUsed;
       
-      // Add this month's unpaid to cumulative
-      cumulativeUnpaid += thisMonthUnpaid;
+      // Add this month's used to cumulative
+      cumulativeUsed += thisMonthUsed;
       
       // Balance at END of this month (after this month's leaves)
-      const balanceAtMonthEnd = totalEntitled - cumulativeUnpaid;
+      const balanceAtMonthEnd = totalEntitled - cumulativeUsed;
       
       // Update this month's record
       monthRecord.annualLeaveBalance = {
         totalEntitled: totalEntitled,
-        used: cumulativeUnpaid, // Total used till end of this month
+        used: cumulativeUsed, // Total used till end of this month
         remaining: balanceAtMonthEnd, // Balance at END of this month
-        balanceAtMonthStart: balanceAtMonthStart, // Balance at START of this month
-        thisMonthUnpaid: thisMonthUnpaid, // Unpaid in this month only
+        balanceAtMonthStart: balanceAtMonthStart,
+        thisMonthUnpaid: (monthRecord.summary.unpaidLeaves || 0) + 
+                        ((monthRecord.summary.halfDayUnpaidLeaves || 0) * 0.5)
       };
       
       await monthRecord.save();
       
-      console.log(`   Month ${monthRecord.month}: Start=${balanceAtMonthStart}, Used=${thisMonthUnpaid}, End=${balanceAtMonthEnd}`);
+      console.log(`   Month ${monthRecord.month}: Start=${balanceAtMonthStart}, Used=${thisMonthUsed}, End=${balanceAtMonthEnd}`);
     }
     
     console.log(`   ✅ Updated ${allYearLeaves.length} month records`);
-    console.log(`   Final cumulative unpaid: ${cumulativeUnpaid}, Remaining: ${totalEntitled - cumulativeUnpaid}`);
+    console.log(`   Final cumulative used: ${cumulativeUsed}, Remaining: ${totalEntitled - cumulativeUsed}`);
 
     return this.annualLeaveBalance;
   } catch (error) {

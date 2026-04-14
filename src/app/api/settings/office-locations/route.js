@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import OfficeLocation from "@/lib/db/models/crm/organization/OfficeLocation";
+import { getAuthUser } from "@/lib/auth-util";
 
 export async function GET(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { searchParams } = new URL(request.url);
-        const organizationId = searchParams.get("organizationId");
+        let organizationId = searchParams.get("organizationId");
+
+        // SaaS Protection: Use user's org if they are an admin/employee
+        if (authUser.role !== "super_admin" && authUser.organizationId) {
+            organizationId = authUser.organizationId;
+        }
 
         const query = {};
         if (organizationId) {
@@ -30,8 +37,19 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const body = await request.json();
+
+        // Enforce SaaS boundaries: override payload orgId with user's orgId
+        if (authUser.role !== "super_admin" && authUser.organizationId) {
+            body.organizationId = authUser.organizationId;
+        }
+
+        // Failsafe validation
+        if (!body.organizationId) {
+            return NextResponse.json({ success: false, error: "Organization ID is required" }, { status: 400 });
+        }
 
         const location = await OfficeLocation.create(body);
 
@@ -50,6 +68,7 @@ export async function POST(request) {
 
 export async function PUT(request) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const body = await request.json();
         const { id, ...updateData } = body;
@@ -60,6 +79,9 @@ export async function PUT(request) {
                 { status: 400 }
             );
         }
+
+        // Prevent updating organizationId
+        delete updateData.organizationId;
 
         const location = await OfficeLocation.findByIdAndUpdate(id, updateData, { new: true });
 

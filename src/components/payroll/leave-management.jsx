@@ -95,6 +95,7 @@ export default function LeaveManagement() {
 
   const [editingLeaveId, setEditingLeaveId] = useState(null);
   const [editValues, setEditValues] = useState({ paid: 0, unpaid: 0 });
+  const [payrollConfig, setPayrollConfig] = useState(null);
 
   const months = [
     { value: 1, label: "January" },
@@ -139,14 +140,20 @@ export default function LeaveManagement() {
       const data = await response.json();
 
       if (response.ok) {
-        const orgs = data.organizations
-          .filter((org) => org.name)
+        const orgsData = data.data || data.organizations || [];
+        const orgs = orgsData
+          .filter((org) => org?.name)
           .map((org) => ({
             value: org._id,
             label: org.name,
             name: org.name,
           }));
         setOrganizationTypes(orgs);
+        
+        // Auto-select first org if none selected to trigger config fetch
+        if (orgs.length > 0 && !selectedOrganization) {
+          setSelectedOrganization(orgs[0].value);
+        }
       }
     } catch (error) {
       console.error("Error fetching organizations:", error);
@@ -179,6 +186,31 @@ export default function LeaveManagement() {
     }
   };
 
+  useEffect(() => {
+    if (selectedOrganization) {
+      fetchPayrollConfig(selectedOrganization);
+    }
+  }, [selectedOrganization]);
+
+  useEffect(() => {
+    if (payrollConfig) {
+      fetchLeaves(true); // Refresh with new config
+    }
+  }, [payrollConfig]);
+
+  const fetchPayrollConfig = async (orgId) => {
+    if (!orgId) return;
+    try {
+      const res = await fetch(`/api/v1/admin/payroll/settings?orgId=${orgId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPayrollConfig(data);
+      }
+    } catch (err) {
+      console.error("Error fetching payroll config:", err);
+    }
+  };
+
   const fetchLeaves = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
@@ -196,7 +228,7 @@ export default function LeaveManagement() {
 
       const empResponse = await fetch(`/api/v1/admin/payroll/employees?${empParams}`);
       const empData = await empResponse.json();
-      const allEmployees = empResponse.ok ? empData.employees || [] : [];
+      const allEmployees = empResponse.ok ? (empData.data || empData.employees || []) : [];
 
       console.log(`📊 Fetched ${allEmployees.length} active employees`);
 
@@ -231,49 +263,48 @@ export default function LeaveManagement() {
       let processedLeaves = allEmployees.map(emp => {
         const empLeaves = employeeLeaveMap.get(emp._id) || [];
 
-        // Get ANNUAL entitled leaves (total for the whole year, not per month)
+        // Get ANNUAL entitled leaves
         const annualEntitled = emp.totalLeaveEntitled ||
+          payrollConfig?.annualPaidLeaveQuota ||
           emp.annualLeaveBalance ||
           emp.payslipStructure?.totalLeaveEntitled ||
           31;
 
         // Calculate balance at the START of selected month (before this month's leaves)
-        // This is all unpaid leaves taken BEFORE the selected month in this year
-        let unpaidBeforeThisMonth = 0;
+        // Deduct ALL approved leaves taken BEFORE the selected month in this year
+        let usedBeforeThisMonth = 0;
         empLeaves.forEach(leave => {
           // Only count leaves BEFORE selected month
           if (leave.month < selectedMonth) {
-            const monthUnpaid = (leave.summary.unpaidLeaves || 0) +
-              ((leave.summary.halfDayUnpaidLeaves || 0) * 0.5);
-            unpaidBeforeThisMonth += monthUnpaid;
+            const monthUsed = (leave.summary.totalDays || 0); // Logic matched with backend
+            usedBeforeThisMonth += monthUsed;
           }
         });
 
         // Balance at START of this month = Annual Entitled - Used Before This Month
-        const balanceAtMonthStart = annualEntitled - unpaidBeforeThisMonth;
+        const balanceAtMonthStart = annualEntitled - usedBeforeThisMonth;
 
         // Find leave record for current selected month
         const currentMonthLeave = empLeaves.find(l => l.month === selectedMonth);
 
-        // Get unpaid leaves for THIS month
-        const thisMonthUnpaid = currentMonthLeave
-          ? (currentMonthLeave.summary.unpaidLeaves || 0) +
-          ((currentMonthLeave.summary.halfDayUnpaidLeaves || 0) * 0.5)
+        // Get total leaves for THIS month
+        const thisMonthUsed = currentMonthLeave
+          ? (currentMonthLeave.summary.totalDays || 0)
           : 0;
 
         // Balance at END of this month (after this month's leaves are deducted)
-        const balanceAtMonthEnd = balanceAtMonthStart - thisMonthUnpaid;
+        const balanceAtMonthEnd = balanceAtMonthStart - thisMonthUsed;
 
         // Total used from January till end of this month
-        const totalUsedTillNow = unpaidBeforeThisMonth + thisMonthUnpaid;
+        const totalUsedTillNow = usedBeforeThisMonth + thisMonthUsed;
 
         console.log(`👤 ${emp.personalDetails.firstName} ${emp.personalDetails.lastName} - ${months[selectedMonth - 1].label} ${selectedYear}:
           📅 Selected Month: ${selectedMonth}
           💰 Annual Entitled: ${annualEntitled} days
           📊 Months with records: ${empLeaves.map(l => l.month).join(', ')}
-          ⬅️  Used BEFORE ${months[selectedMonth - 1].label}: ${unpaidBeforeThisMonth.toFixed(1)} days
+          ⬅️  Used BEFORE ${months[selectedMonth - 1].label}: ${usedBeforeThisMonth.toFixed(1)} days
           🚪 Balance at Month START: ${balanceAtMonthStart.toFixed(1)} days
-          📍 This Month Unpaid: ${thisMonthUnpaid.toFixed(1)} days
+          📍 This Month Used: ${thisMonthUsed.toFixed(1)} days
           🏁 Balance at Month END: ${balanceAtMonthEnd.toFixed(1)} days
           📈 Total Used (Jan-${months[selectedMonth - 1].label}): ${totalUsedTillNow.toFixed(1)} days
           ✅ Remaining for Rest of Year: ${balanceAtMonthEnd.toFixed(1)} days
@@ -289,7 +320,7 @@ export default function LeaveManagement() {
               used: totalUsedTillNow, // Total used from Jan to this month
               remaining: balanceAtMonthEnd, // Balance AFTER this month
               balanceAtMonthStart: balanceAtMonthStart, // Balance before this month
-              thisMonthUnpaid: thisMonthUnpaid, // Unpaid this month
+              thisMonthUnpaid: thisMonthUsed, // Total used this month
             },
           };
         } else {
@@ -313,10 +344,10 @@ export default function LeaveManagement() {
             },
             annualLeaveBalance: {
               totalEntitled: annualEntitled, // Annual total (e.g., 31 for whole year)
-              used: unpaidBeforeThisMonth, // Total used before this month
+              used: usedBeforeThisMonth, // Total used before this month
               remaining: balanceAtMonthStart, // IMPORTANT: Shows actual remaining balance (not 31)
               balanceAtMonthStart: balanceAtMonthStart, // Balance at start of this month
-              thisMonthUnpaid: 0, // No unpaid this month (no record)
+              thisMonthUnpaid: 0, // No usage this month (no record)
             },
             status: 'Draft',
             month: selectedMonth,
@@ -974,7 +1005,7 @@ export default function LeaveManagement() {
           <div className="space-y-0.5 pt-2 border-t border-slate-200">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500">Annual:</span>
-              <span className="font-semibold text-slate-700">{leave.annualLeaveBalance.totalEntitled || 31}</span>
+              <span className="font-semibold text-slate-700">{leave.annualLeaveBalance.totalEntitled || payrollConfig?.annualPaidLeaveQuota || 31}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500">Used YTD:</span>
@@ -1643,7 +1674,7 @@ export default function LeaveManagement() {
                   Leave Management
                 </h1>
                 <p className="text-slate-600 text-sm mt-0.5">
-                  Track employee leaves with annual balance (31 days/year)
+                  Track employee leaves with annual balance ({payrollConfig?.annualPaidLeaveQuota || 0} days/year)
                 </p>
               </div>
             </div>
@@ -1831,7 +1862,9 @@ export default function LeaveManagement() {
                   <select
                     value={selectedOrganization}
                     onChange={(e) => {
-                      setSelectedOrganization(e.target.value);
+                      const orgId = e.target.value;
+                      setSelectedOrganization(orgId);
+                      fetchPayrollConfig(orgId);
                       setPagination((prev) => ({ ...prev, page: 1 }));
                     }}
                     className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
@@ -1953,7 +1986,7 @@ export default function LeaveManagement() {
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 mt-1">
-                  Showing {pagination.total} employee{pagination.total !== 1 ? "s" : ""} - Annual balance deducts only unpaid leaves
+                  Showing {pagination.total} employee{pagination.total !== 1 ? "s" : ""} - Annual balance deducts all approved leaves
                 </p>
               </div>
             </div>

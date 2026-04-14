@@ -20,13 +20,22 @@ function getAIModel() {
 /**
  * Enhanced: Generate content with automatic model fallback
  */
-async function generateWithFallback(prompt, inlineData = null) {
+async function generateWithFallback(prompt, inlineData = null, retryCount = 0) {
     const aiModel = getAIModel();
     try {
         const payload = inlineData ? [prompt, { inlineData }] : prompt;
         const result = await aiModel.generateContent(payload);
         return result.response.text();
     } catch (e) {
+        // Handle 503 Service Unavailable (High Demand) with a retry
+        if (e.message.includes('503') || e.message.includes('Service Unavailable')) {
+            if (retryCount < 2) {
+                console.warn(`⚠️ Gemini 503 (High Demand). Retrying in 2 seconds... (Attempt ${retryCount + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return generateWithFallback(prompt, inlineData, retryCount + 1);
+            }
+        }
+
         // If 404 or model error, try the next best model in your list: gemini-2.0-flash
         if (e.message.includes('404') || e.message.includes('not found') || e.message.includes('not supported')) {
             console.warn("🔄 Switching to fallback model (models/gemini-2.0-flash)...");
@@ -223,7 +232,7 @@ Score from 0-100 where:
         return JSON.parse(cleaned);
     } catch (e) {
         console.error('AI Fit Score parse error:', e);
-        return { fitScore: 0, analysis: 'Unable to calculate', strengths: [], gaps: [], recommendation: 'Needs Review' };
+        return { fitScore: 0, analysis: 'Unable to calculate', strengths: [], gaps: [], recommendation: 'Pending Review' };
     }
 }
 

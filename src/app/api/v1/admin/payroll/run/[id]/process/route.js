@@ -8,6 +8,7 @@ import RetroAdjustment from '@/lib/db/models/payroll/RetroAdjustment';
 import PayrollVariableInput from '@/lib/db/models/payroll/PayrollVariableInput';
 import VariablePayConfig from '@/lib/db/models/payroll/VariablePayConfig';
 import StatutoryConfig from '@/lib/db/models/payroll/StatutoryConfig';
+import PayrollConfig from '@/lib/db/models/payroll/PayrollConfig';
 import { logActivity } from '@/lib/logger';
 
 export async function POST(request, { params }) {
@@ -44,6 +45,9 @@ export async function POST(request, { params }) {
         const endDate = run.periodEnd;
         const daysInMonth = new Date(run.year, run.month, 0).getDate();
 
+        // Fetch Global Payroll Config for OT and other rules
+        const payrollConfig = await PayrollConfig.findOne({ company: run.organizationId });
+
         for (const employee of employees) {
             try {
                 // 0. Populate necessary refs
@@ -59,7 +63,8 @@ export async function POST(request, { params }) {
                 // This now handles Attendance, Leaves, Overtime, Loans, Retros, and Variable Pay
                 const salaryCalc = await employee.calculateSalaryComponents(statutoryConfig, {
                     month: run.month,
-                    year: run.year
+                    year: run.year,
+                    payrollConfig: payrollConfig
                 });
 
                 // 3. Create/Update Payslip Payload
@@ -145,7 +150,9 @@ export async function POST(request, { params }) {
                 failedEmployeesCount: failedCount,
                 totalGrossSalary: Math.round(totalGross),
                 totalDeductions: Math.round(totalDeductions),
-                totalNetSalary: Math.round(totalNet)
+                totalNetSalary: Math.round(totalNet),
+                needsRecalculation: false,
+                recalculationReason: null
             },
             $push: {
                 logs: { message: `Recalculation finished. ${processedCount} succeeded, ${failedCount} failed.`, level: 'info' }

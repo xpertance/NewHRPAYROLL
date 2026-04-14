@@ -10,6 +10,7 @@ const jobSchema = z.object({
     location: z.string().min(1, "Location is required"),
     type: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship']),
     priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
+    workplaceType: z.enum(['On-site', 'Remote', 'Hybrid']).optional().default('On-site'),
     headcount: z.number().min(1).optional().default(1),
     experienceLevel: z.enum(['Entry', 'Mid', 'Senior', 'Executive', 'Fresher', '1-3 years', '3-5 years', '5-10 years', '10+ years']).optional().nullable(),
     hiringManagerName: z.string().optional(),
@@ -124,6 +125,25 @@ export async function PUT(request) {
             return NextResponse.json({ success: true, job });
         }
 
+        // Edit mode: update editable fields
+        const editableFields = ['title', 'department', 'location', 'type', 'priority', 'workplaceType', 'headcount', 'experienceLevel', 'hiringManagerName', 'description', 'requirements', 'salaryRange', 'targetDate'];
+        const hasEdits = editableFields.some(f => body[f] !== undefined);
+
+        if (hasEdits) {
+            editableFields.forEach(field => {
+                if (body[field] !== undefined) {
+                    if (field === 'targetDate' && body[field]) {
+                        job[field] = new Date(body[field]);
+                    } else {
+                        job[field] = body[field];
+                    }
+                }
+            });
+            if (status) job.status = status;
+            await job.save();
+            return NextResponse.json({ success: true, job });
+        }
+
         if (status) {
             job.status = status;
             await job.save();
@@ -134,6 +154,33 @@ export async function PUT(request) {
 
     } catch (error) {
         console.error("PUT JOB ERROR:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+        await dbConnect();
+
+        const { searchParams } = new URL(request.url);
+        const jobId = searchParams.get('id');
+
+        if (!jobId) {
+            return NextResponse.json({ success: false, error: 'Job ID is required' }, { status: 400 });
+        }
+
+        const orgId = authUser.organizationId;
+        const job = await JobRequisition.findOneAndDelete({ _id: jobId, organizationId: orgId });
+
+        if (!job) {
+            return NextResponse.json({ success: false, error: 'Job not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, message: 'Job deleted successfully' });
+    } catch (error) {
+        console.error("DELETE JOB ERROR:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
