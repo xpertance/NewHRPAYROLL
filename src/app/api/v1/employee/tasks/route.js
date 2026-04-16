@@ -25,17 +25,35 @@ export async function GET(request) {
     }
 
     // Fetch all tasks from the database matching the org
-    const tasks = await Task.find(query)
-      .populate('assignedTo', 'name email') // Populate assignedTo with user details (e.g., name, email)
-      .populate('assignedBy', 'name email') // Populate assignedBy with user details
-      .populate('project', 'name') // Populate project with name (if applicable)
-      .populate('dependencies') // Populate dependencies (references to other tasks)
-      .lean(); // Convert to plain JavaScript objects for better performance
+    const tasksDocs = await Task.find(query)
+      .populate('assignedTo', 'name email personalDetails')
+      .populate('assignedBy', 'name email')
+      .populate('project', 'name')
+      .populate('dependencies')
+      .lean();
 
-    console.log('📚 Fetched tasks:', tasks.length);
+    // Transform tasks to handle Employee name structure (personalDetails.firstName + lastName)
+    const tasks = tasksDocs.map(task => {
+      let displayName = "Unassigned";
+      
+      if (task.assignedTo) {
+        if (task.assignedTo.personalDetails) {
+          const { firstName = "", lastName = "" } = task.assignedTo.personalDetails;
+          displayName = `${firstName} ${lastName}`.trim() || task.assignedTo.name || "Unknown";
+        } else {
+          displayName = task.assignedTo.name || "Unknown";
+        }
+      }
 
-    console.log(tasks);
-    
+      return {
+        ...task,
+        assignedTo: task.assignedTo ? {
+          ...task.assignedTo,
+          name: displayName
+        } : null
+      };
+    });
+
     return NextResponse.json({ 
       success: true,
       data: tasks,

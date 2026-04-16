@@ -209,10 +209,14 @@ const TaskList = () => {
                                     <td className="p-6">
                                         <div className="flex items-center gap-2">
                                             <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] border border-indigo-100 text-indigo-600 font-bold uppercase">
-                                                {task.assignedTo?.name?.charAt(0) || <User className="w-3 h-3" />}
+                                                {(task.assignedTo?.personalDetails 
+                                                    ? task.assignedTo.personalDetails.firstName?.charAt(0)
+                                                    : task.assignedTo?.name?.charAt(0)) || <User className="w-3 h-3" />}
                                             </div>
-                                            <span className="text-xs font-medium text-slate-700 truncate max-w-[100px]">
-                                                {task.assignedTo?.name || "Unassigned"}
+                                            <span className="text-xs font-medium text-slate-700 truncate max-w-[150px]">
+                                                {task.assignedTo?.personalDetails 
+                                                    ? `${task.assignedTo.personalDetails.firstName || ""} ${task.assignedTo.personalDetails.lastName || ""}`.trim()
+                                                    : task.assignedTo?.name || "Unassigned"}
                                             </span>
                                         </div>
                                     </td>
