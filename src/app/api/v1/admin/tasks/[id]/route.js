@@ -53,7 +53,7 @@
 //       console.log('✅ Database connected for GET');
 
 //       const tasksDocs = await Task.find()
-//         .populate('assignedTo', 'name email') // Join User details (employee)
+//         .populate('assignedTo', 'name email personalDetails') // Join User details (employee)
 //         .populate('assignedBy', 'name')
 //         .populate('project', 'name')
 //         .populate('dependencies', 'title') // Partial for deps
@@ -263,6 +263,16 @@ function transformTask(taskDoc) {
   
   const task = taskDoc.toObject({ virtuals: true, getters: true });
   
+  // Robust name extraction for both Users and Employees
+  const getAssigneeName = (assignedTo) => {
+    if (!assignedTo) return "Unassigned";
+    if (assignedTo.personalDetails) {
+      const { firstName = "", lastName = "" } = assignedTo.personalDetails;
+      return `${firstName} ${lastName}`.trim() || "Unknown Employee";
+    }
+    return assignedTo.name || "Unknown User";
+  };
+
   return {
     ...task,
     _id: task._id.toString(),
@@ -273,8 +283,9 @@ function transformTask(taskDoc) {
     completedAt: task.completedAt ? new Date(task.completedAt).toISOString() : null,
     assignedTo: task.assignedTo ? (task.assignedTo._id ? {
       _id: task.assignedTo._id.toString(),
-      name: task.assignedTo.name,
-      email: task.assignedTo.email
+      name: getAssigneeName(task.assignedTo),
+      email: task.assignedTo.email,
+      personalDetails: task.assignedTo.personalDetails
     } : task.assignedTo) : null,
     assignedBy: task.assignedBy ? (task.assignedBy._id ? {
       _id: task.assignedBy._id.toString(),
@@ -300,7 +311,7 @@ export async function GET(request, { params }) {
     }
 
     const task = await Task.findById(id)
-      .populate('assignedTo', 'name email')
+      .populate('assignedTo', 'name email personalDetails')
       .populate('assignedBy', 'name')
       .populate('dependencies', 'title');
 
@@ -375,7 +386,7 @@ export async function PUT(request, { params }) {
         runValidators: true 
       }
     )
-    .populate('assignedTo', 'name email')
+    .populate('assignedTo', 'name email personalDetails')
     .populate('assignedBy', 'name')
     .populate('dependencies', 'title');
 

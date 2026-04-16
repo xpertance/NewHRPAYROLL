@@ -22,6 +22,12 @@ const projectSchema = new mongoose.Schema(
                 ref: "Employee",
             },
         ],
+        leads: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Employee",
+            },
+        ],
         startDate: { type: Date, required: true },
         endDate: { type: Date },
         status: {
@@ -38,6 +44,12 @@ const projectSchema = new mongoose.Schema(
             default: "Fixed",
         },
         isBillable: { type: Boolean, default: true },
+        boardColumns: {
+            type: [String],
+            default: ["Pending", "In Progress", "Completed", "Blocked"]
+        },
+        prefix: { type: String, uppercase: true, trim: true, default: "PROJ" },
+        taskCounter: { type: Number, default: 0 },
     },
 
     { timestamps: true }
