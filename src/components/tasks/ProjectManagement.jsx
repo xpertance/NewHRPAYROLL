@@ -41,6 +41,7 @@ const ProjectManagement = () => {
         description: "",
         projectManager: "",
         members: [],
+        leads: [],
         startDate: "",
         endDate: "",
         status: "Active"
@@ -78,6 +79,7 @@ const ProjectManagement = () => {
                 description: project.description || "",
                 projectManager: typeof project.projectManager === 'object' ? project.projectManager._id : project.projectManager,
                 members: (project.members || []).map(m => typeof m === 'object' ? m._id : m),
+                leads: (project.leads || []).map(m => typeof m === 'object' ? m._id : m),
                 startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : "",
                 endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : "",
                 status: project.status
@@ -90,6 +92,7 @@ const ProjectManagement = () => {
                 description: "",
                 projectManager: "",
                 members: [],
+                leads: [],
                 startDate: "",
                 endDate: "",
                 status: "Pipeline"
@@ -213,9 +216,7 @@ const ProjectManagement = () => {
                                 <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("manager")}</th>
                                 <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("timeline")}</th>
                                 <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("status")}</th>
-                                {isAdmin && (
-                                    <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("actions")}</th>
-                                )}
+                                <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("actions")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -262,23 +263,33 @@ const ProjectManagement = () => {
                                         </div>
                                     </td>
                                     <td className="p-5">
-                                        {isAdmin && (
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button 
-                                                    onClick={() => router.push(`/admin/tasks/projects/${project._id}`)} 
-                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                    title="View Details"
-                                                >
-                                                    <LayoutDashboard size={16} />
-                                                </button>
-                                                <button onClick={() => handleOpenModal(project)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button onClick={() => handleDelete(project._id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button 
+                                                onClick={() => router.push(isAdmin ? `/admin/tasks/projects/${project._id}` : `/employee/projects/${project._id}`)} 
+                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                title="View Board"
+                                            >
+                                                <LayoutDashboard size={16} />
+                                            </button>
+                                            
+                                            {(() => {
+                                                const projectManagerId = typeof project.projectManager === 'object' ? project.projectManager?._id : project.projectManager;
+                                                const isProjectManager = projectManagerId === user?.id;
+                                                
+                                                return (isAdmin || isProjectManager) && (
+                                                    <>
+                                                        <button onClick={() => handleOpenModal(project)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        {isAdmin && (
+                                                            <button onClick={() => handleDelete(project._id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Delete">
+                                                                < Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -343,9 +354,10 @@ const ProjectManagement = () => {
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Project Manager</label>
                                     <select
                                         required
+                                        disabled={editingProject && !isAdmin} // PMs shouldn't change the PM
                                         value={formData.projectManager}
                                         onChange={(e) => setFormData({ ...formData, projectManager: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                        className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none ${editingProject && !isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`}
                                     >
                                         <option value="">Select Manager</option>
                                         {employees
@@ -427,7 +439,10 @@ const ProjectManagement = () => {
                                                     const members = e.target.checked
                                                         ? [...formData.members, emp._id]
                                                         : formData.members.filter(id => id !== emp._id);
-                                                    setFormData({ ...formData, members });
+                                                    
+                                                    // Also remove from leads if removed from members
+                                                    const leads = formData.leads.filter(id => members.includes(id));
+                                                    setFormData({ ...formData, members, leads });
                                                 }}
                                                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                                             />
@@ -439,6 +454,39 @@ const ProjectManagement = () => {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Team Leads Selection */}
+                            {formData.members.length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1 text-indigo-600">Designate Team Leads</label>
+                                    <p className="text-[10px] text-slate-500 pl-1 -mt-1 mb-2 italic">Managers can promote members to Leads to allow them to assign tasks.</p>
+                                    <div className="flex flex-wrap gap-2 p-3 bg-indigo-50/30 rounded-xl border border-indigo-100">
+                                        {employees
+                                            .filter(emp => formData.members.includes(emp._id))
+                                            .map(emp => (
+                                                <button
+                                                    key={emp._id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const isLead = formData.leads.includes(emp._id);
+                                                        const leads = isLead
+                                                            ? formData.leads.filter(id => id !== emp._id)
+                                                            : [...formData.leads, emp._id];
+                                                        setFormData({ ...formData, leads });
+                                                    }}
+                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+                                                        formData.leads.includes(emp._id)
+                                                            ? "bg-indigo-600 text-white border-indigo-600"
+                                                            : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                                                    }`}
+                                                >
+                                                    {emp.personalDetails?.firstName} {emp.personalDetails?.lastName}
+                                                    {formData.leads.includes(emp._id) && <X className="w-3 h-3 ml-1" />}
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="pt-4 flex gap-3">
 

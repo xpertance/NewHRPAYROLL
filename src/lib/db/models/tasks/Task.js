@@ -42,7 +42,7 @@ const taskSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
-      required: true,
+      required: false,
     },
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -99,6 +99,12 @@ const taskSchema = new mongoose.Schema(
     },
     project: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
     dependencies: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
+    boardOrder: { type: Number, default: 0, index: true },
+    labels: [{
+      name: { type: String, required: true },
+      color: { type: String, default: "#6366f1" }
+    }],
+    sprintLabel: { type: String, trim: true },
     subTasks: [subTaskSchema],
     comments: [commentSchema],
     attachments: [
