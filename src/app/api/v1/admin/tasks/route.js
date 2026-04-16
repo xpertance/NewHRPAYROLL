@@ -16,26 +16,74 @@ export async function GET(request) {
     // Connect to database
     await dbConnect();
 
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('project');
+    const viewMode = searchParams.get('view'); // 'board' or 'list'
+    const assignee = searchParams.get('assignee');
+    const priority = searchParams.get('priority');
+    const search = searchParams.get('search');
+
     // SaaS PROTECTION: Restrict by organization
     let query = { organizationId: authUser.organizationId };
     
-    // Employee-specific filtering
+    // Employee-specific filtering: See tasks assigned TO them OR created BY them
     if (authUser.role === "employee") {
-      query.assignedTo = authUser.id; // Only see tasks assigned to them
+      query.$or = [
+        { assignedTo: authUser.id },
+        { assignedBy: authUser.id }
+      ];
     }
 
-    // Fetch all tasks from the database matching the org
+    // Project filter
+    if (projectId) {
+      query.project = projectId;
+    }
+
+    // Assignee filter
+    if (assignee) {
+      query.assignedTo = assignee;
+    }
+
+    // Priority filter
+    if (priority && priority !== 'all') {
+      query.priority = priority;
+    }
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Fetch all tasks from the database matching the query
     const tasks = await Task.find(query)
-      .populate('assignedTo', 'name email') // Populate assignedTo with user details (e.g., name, email)
-      .populate('assignedBy', 'name email') // Populate assignedBy with user details
-      .populate('project', 'name') // Populate project with name (if applicable)
-      .populate('dependencies') // Populate dependencies (references to other tasks)
-      .lean(); // Convert to plain JavaScript objects for better performance
+      .populate('assignedTo', 'name email personalDetails')
+      .populate('assignedBy', 'name email')
+      .populate('project', 'name prefix')
+      .populate('dependencies')
+      .populate('comments.user', 'name email personalDetails')
+      .sort({ boardOrder: 1, createdAt: -1 })
+      .lean();
 
-    console.log('📚 Fetched tasks:', tasks.length);
+    // If board view requested, group by status
+    if (viewMode === 'board') {
+      const grouped = {};
+      tasks.forEach(task => {
+        const status = task.status || 'Pending';
+        if (!grouped[status]) grouped[status] = [];
+        grouped[status].push(task);
+      });
 
-    console.log(tasks);
-    
+      return NextResponse.json({ 
+        success: true,
+        data: tasks,
+        board: grouped,
+        count: tasks.length
+      }, { status: 200 });
+    }
+
     return NextResponse.json({ 
       success: true,
       data: tasks,
@@ -67,14 +115,14 @@ export async function POST(request) {
     const { _id,assignedBy, ...cleanBody } = body;
 
     // Auto-assign organizationId from the authenticated user
-    if (authUser.role === "admin" && authUser.organizationId) {
+    if (authUser.organizationId) {
         cleanBody.organizationId = authUser.organizationId;
     }
     
-    // Add timestamps if not present
+    // Add timestamps and creator info
     const taskData = {
       ...cleanBody,
-       assignedBy: assignedBy, 
+      assignedBy: authUser.id, // Always record the authenticated user as the creator
       assignedByModel: "User",
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -21,6 +21,8 @@ const protectedRoutes = [
   { path: '/api/v1/super-admin', roles: ['super_admin'], isApi: true },
   
   // Specific exceptions allowing any designated employee to approve team requests, evaluated before the broader /api/v1/admin block
+  { path: '/api/v1/admin/tasks', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
+  { path: '/api/v1/admin/payroll/employees', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
   { path: '/api/v1/admin/approvals', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
   { path: '/api/v1/admin/payroll/leave-applications', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
   { path: '/api/v1/admin/payroll/overtime', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },

@@ -1,11 +1,11 @@
 import ProjectBoard from "@/components/tasks/ProjectBoard";
 
 export const metadata = {
-    title: "Project Board | HR System",
-    description: "Kanban board and task management for your project",
+    title: "Project Board | Employee Portal",
+    description: "View and manage tasks for your assigned project",
 };
 
-export default function ProjectDetailPage() {
+export default function EmployeeProjectBoardPage() {
     return (
         <div className="bg-slate-50 min-h-screen">
             <ProjectBoard />
