@@ -1,5 +1,6 @@
 import ActivityLog from "@/lib/db/models/ActivityLog";
 import dbConnect from "@/lib/db/connect";
+import mongoose from "mongoose";
 
 /**
  * Logs an activity to the database.
@@ -34,15 +35,18 @@ export async function logActivity({
       userAgent = req.headers.get("user-agent") || "Unknown";
     }
 
-    // If performedBy is missing but we have headers/context, we might extract it here if implemented globally
-    // For now, rely on passed object.
+    // Clean up performedBy.userId if it's not a valid ObjectId (e.g., "System")
+    const cleanPerformedBy = performedBy ? { ...performedBy } : { name: "System" };
+    if (cleanPerformedBy.userId && !mongoose.Types.ObjectId.isValid(cleanPerformedBy.userId)) {
+      delete cleanPerformedBy.userId;
+    }
 
     const logEntry = {
       action,
       entity,
       entityId,
       description,
-      performedBy: performedBy || { name: "System" }, // Default to System if no user provided
+      performedBy: cleanPerformedBy,
       details,
       status,
       ipAddress,

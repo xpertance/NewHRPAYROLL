@@ -137,6 +137,12 @@ const TaskDetailPanel = ({ task, isOpen, onClose, onUpdate, onDelete, employees 
         }
     };
 
+    const calculateProgress = (subTasks) => {
+        if (!subTasks || subTasks.length === 0) return editedTask.progress || 0;
+        const completed = subTasks.filter(s => s.completed).length;
+        return Math.round((completed / subTasks.length) * 100);
+    };
+
     const handleProgressUpdate = async (value) => {
         const progress = Math.max(0, Math.min(100, parseInt(value) || 0));
         handleFieldUpdate("progress", progress);
@@ -147,17 +153,97 @@ const TaskDetailPanel = ({ task, isOpen, onClose, onUpdate, onDelete, employees 
         const currentSubTasks = editedTask.subTasks || [];
         const updatedSubTasks = [...currentSubTasks, { title: newSubTask.trim(), completed: false }];
         setNewSubTask("");
-        handleFieldUpdate("subTasks", updatedSubTasks);
+        
+        const newProgress = calculateProgress(updatedSubTasks);
+        
+        // Multi-update
+        const updated = { 
+            ...editedTask, 
+            subTasks: updatedSubTasks,
+            progress: newProgress 
+        };
+        setEditedTask(updated);
+        
+        try {
+            setSaving(true);
+            const res = await fetch(`/api/v1/admin/tasks/${task._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subTasks: updatedSubTasks, progress: newProgress }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onUpdate?.(data.task);
+            }
+        } catch (err) {
+            toast.error("Failed to add sub-task");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleToggleSubTask = (index) => {
+    const handleToggleSubTask = async (index) => {
         const updatedSubTasks = [...(editedTask.subTasks || [])];
         updatedSubTasks[index] = {
             ...updatedSubTasks[index],
             completed: !updatedSubTasks[index].completed,
             completedAt: !updatedSubTasks[index].completed ? new Date() : null,
         };
-        handleFieldUpdate("subTasks", updatedSubTasks);
+        
+        const newProgress = calculateProgress(updatedSubTasks);
+        
+        const updated = { 
+            ...editedTask, 
+            subTasks: updatedSubTasks,
+            progress: newProgress 
+        };
+        setEditedTask(updated);
+
+        try {
+            setSaving(true);
+            const res = await fetch(`/api/v1/admin/tasks/${task._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subTasks: updatedSubTasks, progress: newProgress }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onUpdate?.(data.task);
+            }
+        } catch (err) {
+            toast.error("Failed to update sub-task");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteSubTask = async (index) => {
+        const updatedSubTasks = (editedTask.subTasks || []).filter((_, i) => i !== index);
+        const newProgress = calculateProgress(updatedSubTasks);
+        
+        const updated = { 
+            ...editedTask, 
+            subTasks: updatedSubTasks,
+            progress: newProgress 
+        };
+        setEditedTask(updated);
+
+        try {
+            setSaving(true);
+            const res = await fetch(`/api/v1/admin/tasks/${task._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subTasks: updatedSubTasks, progress: newProgress }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onUpdate?.(data.task);
+            }
+        } catch (err) {
+            toast.error("Failed to delete sub-task");
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (!isOpen || !editedTask) return null;
@@ -407,8 +493,12 @@ const TaskDetailPanel = ({ task, isOpen, onClose, onUpdate, onDelete, employees 
                                 step="5"
                                 value={editedTask.progress || 0}
                                 onChange={(e) => handleProgressUpdate(e.target.value)}
-                                className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                                disabled={totalSubTasks > 0}
+                                className={`w-full h-2 rounded-full appearance-none cursor-pointer accent-indigo-600 ${totalSubTasks > 0 ? "bg-slate-200 opacity-50 cursor-not-allowed" : "bg-slate-100"}`}
                             />
+                            {totalSubTasks > 0 && (
+                                <p className="text-[9px] text-slate-400 italic">Progress is automatically calculated from {totalSubTasks} sub-task{totalSubTasks > 1 ? 's' : ''}</p>
+                            )}
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden -mt-1">
                                 <div
                                     className={`h-full rounded-full transition-all duration-300 ${
@@ -439,27 +529,40 @@ const TaskDetailPanel = ({ task, isOpen, onClose, onUpdate, onDelete, employees 
                                 {(editedTask.subTasks || []).map((sub, i) => (
                                     <div
                                         key={i}
-                                        onClick={() => handleToggleSubTask(i)}
-                                        className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                                        className={`flex items-center justify-between p-2 rounded-lg group/subtask transition-colors ${
                                             sub.completed ? "bg-emerald-50" : "bg-slate-50 hover:bg-slate-100"
                                         }`}
                                     >
-                                        <div
-                                            className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                                sub.completed
-                                                    ? "bg-emerald-500 border-emerald-500"
-                                                    : "border-slate-300"
-                                            }`}
+                                        <div 
+                                            className="flex items-center gap-2.5 flex-1 cursor-pointer"
+                                            onClick={() => handleToggleSubTask(i)}
                                         >
-                                            {sub.completed && <Check className="w-3 h-3 text-white" />}
+                                            <div
+                                                className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                                    sub.completed
+                                                        ? "bg-emerald-500 border-emerald-500"
+                                                        : "border-slate-300"
+                                                }`}
+                                            >
+                                                {sub.completed && <Check className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <span
+                                                className={`text-xs font-medium ${
+                                                    sub.completed ? "text-slate-400 line-through" : "text-slate-700"
+                                                }`}
+                                            >
+                                                {sub.title}
+                                            </span>
                                         </div>
-                                        <span
-                                            className={`text-xs font-medium ${
-                                                sub.completed ? "text-slate-400 line-through" : "text-slate-700"
-                                            }`}
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteSubTask(i);
+                                            }}
+                                            className="p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover/subtask:opacity-100 transition-all"
                                         >
-                                            {sub.title}
-                                        </span>
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
