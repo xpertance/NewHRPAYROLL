@@ -21,11 +21,15 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSession } from "@/context/SessionContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useRouter } from "next/navigation";
 
 const TaskList = () => {
     const { user } = useSession();
+    const { t } = useLanguage();
     const router = useRouter();
+    const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+    const basePath = isAdmin ? "/admin/tasks" : "/employee/tasks";
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -115,16 +119,18 @@ const TaskList = () => {
                 <div className="space-y-1">
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                         <Target className="w-8 h-8 text-indigo-600" />
-                        Task Management
+                        {t("taskManagement") || "Task Management"}
                     </h1>
-                    <p className="text-slate-500 text-sm font-medium pl-11">Monitor and coordinate team operations</p>
+                    <p className="text-slate-500 text-sm font-medium pl-11">{t("monitorTeamOperations") || "Monitor and coordinate team operations"}</p>
                 </div>
-                <button
-                    onClick={() => router.push('/admin/tasks/create')}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 ring-offset-2 focus:ring-2 focus:ring-indigo-600 active:scale-95"
-                >
-                    <Plus size={18} /> Create New Task
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={() => router.push(`${basePath}/create`)}
+                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 ring-offset-2 focus:ring-2 focus:ring-indigo-600 active:scale-95"
+                    >
+                        <Plus size={18} /> {t("createNewTask") || "Create New Task"}
+                    </button>
+                )}
             </div>
 
             {/* Filters Bar */}
@@ -174,13 +180,13 @@ const TaskList = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t?.taskName || "Task Name"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t?.project || "Project"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t?.assignedTo || "Assigned To"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t?.dueDate || "Due Date"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t?.priority || "Priority"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t?.status || "Status"}</th>
-                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t?.actions || "Actions"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("taskName") || "Task Name"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("project") || "Project"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("assignedTo") || "Assigned To"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("dueDate") || "Due Date"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("priority") || "Priority"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("status") || "Status"}</th>
+                                <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{t("actions") || "Actions"}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -231,19 +237,21 @@ const TaskList = () => {
                                     <td className="p-6">
                                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
                                             <button 
-                                                onClick={() => router.push(`/admin/tasks/${task._id}`)}
+                                                onClick={() => router.push(isAdmin ? `${basePath}/${task._id}` : `/employee/projects/${task.project?._id}`)}
                                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                                                title="Edit Task"
+                                                title={isAdmin ? "Edit Task" : "View Project Board"}
                                             >
-                                                <Edit2 size={15} />
+                                                {isAdmin ? <Edit2 size={15} /> : <Briefcase size={15} />}
                                             </button>
-                                            <button 
-                                                onClick={() => handleDelete(task._id)}
-                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                                title="Delete Task"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
+                                            {isAdmin && (
+                                                <button 
+                                                    onClick={() => handleDelete(task._id)}
+                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                    title="Delete Task"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

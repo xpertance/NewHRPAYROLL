@@ -17,9 +17,13 @@ export async function GET(request) {
         // SaaS PROTECTION: Restrict by organization
         let query = { organizationId: authUser.organizationId };
         
-        // Employee-specific filtering: Only show projects they are members of
-        if (authUser.role === "employee") {
-            query.members = authUser.id;
+        // Employee-specific filtering: Only show projects they are associated with
+        if (authUser.role === "employee" || authUser.role === "supervisor") {
+            query.$or = [
+                { members: authUser.id },
+                { projectManager: authUser.id },
+                { leads: authUser.id }
+            ];
         }
         if (status) query.status = status;
         if (memberId) query.members = memberId;
@@ -27,6 +31,7 @@ export async function GET(request) {
         const projects = await Project.find(query)
             .populate('projectManager', 'personalDetails.firstName personalDetails.lastName')
             .populate('members', 'personalDetails.firstName personalDetails.lastName')
+            .populate('leads', 'personalDetails.firstName personalDetails.lastName')
             .sort({ createdAt: -1 });
 
         return NextResponse.json({ success: true, projects });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Project from '@/lib/db/models/tasks/Project';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET(request, { params }) {
     try {
@@ -9,7 +10,8 @@ export async function GET(request, { params }) {
         const { id } = await params;
         const project = await Project.findById(id)
             .populate('projectManager', 'personalDetails.firstName personalDetails.lastName')
-            .populate('members', 'personalDetails.firstName personalDetails.lastName');
+            .populate('members', 'personalDetails.firstName personalDetails.lastName')
+            .populate('leads', 'personalDetails.firstName personalDetails.lastName');
 
         if (!project) return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 
@@ -59,9 +61,21 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     try {
+        const authUser = await getAuthUser();
         await dbConnect();
         const { id } = await params;
         const body = await request.json();
+
+        // Authorization: Admin OR Project Manager
+        const existingProject = await Project.findById(id);
+        if (!existingProject) return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
+
+        const isManager = existingProject.projectManager?.toString() === authUser.id;
+        const isAdmin = ["admin", "super_admin"].includes(authUser.role);
+
+        if (!isAdmin && !isManager) {
+            return NextResponse.json({ success: false, error: 'Unauthorized: Only Admins or Project Managers can edit this project' }, { status: 403 });
+        }
 
         const project = await Project.findByIdAndUpdate(id, body, { new: true });
 
@@ -84,6 +98,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         await dbConnect();
         const { id } = await params;
         const project = await Project.findByIdAndDelete(id);
