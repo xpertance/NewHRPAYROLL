@@ -283,8 +283,6 @@ function DashboardLayoutContent({ children }) {
       icon: Briefcase,
       children: [
         { name: t("projects"), href: "/admin/tasks/projects", icon: Briefcase },
-        { name: "All Tasks", href: "/admin/tasks", icon: ListTodo },
-        { name: "My Tasks", href: "/admin/tasks/my-tasks", icon: Target },
         { name: t("timesheetApprovals"), href: "/admin/tasks/approvals", icon: CheckSquare },
       ],
     },

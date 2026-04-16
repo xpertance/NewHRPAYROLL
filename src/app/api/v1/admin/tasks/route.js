@@ -4,9 +4,33 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Task from '@/lib/db/models/tasks/Task';
 import User from '@/lib/db/models/User';
+import Employee from '@/lib/db/models/payroll/Employee';
+import Project from '@/lib/db/models/tasks/Project';
 import mongoose from 'mongoose';
 import { logActivity } from '@/lib/logger';
 import { getAuthUser, authorize } from '@/lib/auth-util';
+
+// Helper: Transform tasks to handle consistent name structure
+function transformTask(task) {
+  let displayName = "Unassigned";
+  
+  if (task.assignedTo) {
+    if (task.assignedTo.personalDetails) {
+      const { firstName = "", lastName = "" } = task.assignedTo.personalDetails;
+      displayName = `${firstName} ${lastName}`.trim() || task.assignedTo.name || "Unknown";
+    } else {
+      displayName = task.assignedTo.name || "Unknown";
+    }
+  }
+
+  return {
+    ...task,
+    assignedTo: task.assignedTo ? {
+      ...task.assignedTo,
+      name: displayName
+    } : null
+  };
+}
 
 export async function GET(request) {
   try {
@@ -69,12 +93,13 @@ export async function GET(request) {
 
     // If board view requested, group by status
     if (viewMode === 'board') {
-      const grouped = {};
-      tasks.forEach(task => {
+      const transformedTasks = tasks.map(transformTask);
+      const grouped = transformedTasks.reduce((acc, task) => {
         const status = task.status || 'Pending';
-        if (!grouped[status]) grouped[status] = [];
-        grouped[status].push(task);
-      });
+        if (!acc[status]) acc[status] = [];
+        acc[status].push(task);
+        return acc;
+      }, {});
 
       return NextResponse.json({ 
         success: true,
@@ -84,11 +109,14 @@ export async function GET(request) {
       }, { status: 200 });
     }
 
-    return NextResponse.json({ 
-      success: true,
-      data: tasks,
-      count: tasks.length
-    }, { status: 200 });
+      // Transform for list view
+      const transformedTasks = tasks.map(transformTask);
+
+      return NextResponse.json({ 
+        success: true,
+        data: transformedTasks,
+        count: transformedTasks.length
+      }, { status: 200 });
 
   } catch (error) {
     console.error('❌ Error in tasks API:', error);

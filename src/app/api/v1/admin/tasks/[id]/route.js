@@ -254,8 +254,8 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/lib/db/connect';
 import Task from '@/lib/db/models/tasks/Task';
-import User from '@/lib/db/models/User';
 import { logActivity } from '@/lib/logger';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 // Helper: Transform Mongoose doc to frontend-friendly format
 function transformTask(taskDoc) {
@@ -340,6 +340,9 @@ export async function GET(request, { params }) {
 // PUT - Update task by ID
 export async function PUT(request, { params }) {
   try {
+    const authUser = await getAuthUser();
+    authorize(authUser, ["admin", "super_admin", "employee", "supervisor"]);
+    
     await dbConnect();
     const { id } = await params;
 
@@ -412,10 +415,10 @@ export async function PUT(request, { params }) {
       entityId: updatedTask._id,
       description: `Updated task: ${updatedTask.title}`,
       performedBy: {
-        userId: body.updatedBy || "System", 
-        name: performer?.name || "Admin/User",
-        email: performer?.email,
-        role: performer?.role
+        userId: authUser.id, 
+        name: authUser.name || performer?.name || "Admin/User",
+        email: authUser.email || performer?.email,
+        role: authUser.role || performer?.role
       },
       details: {
         status: updatedTask.status,
