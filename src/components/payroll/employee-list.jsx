@@ -13,6 +13,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { exportToExcel } from '@/utils/exportToExcel';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
@@ -26,6 +35,7 @@ export default function EmployeeList() {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [error, setError] = useState(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const router = useRouter();
 
   // Lifecycle Modal State
   const [lifecycleModal, setLifecycleModal] = useState({
@@ -602,13 +612,29 @@ export default function EmployeeList() {
                 {exportLoading ? "Exporting..." : "Export"}
               </button>
 
-              <Link
-                href="/admin/employees/new"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
-              >
-                <Plus className="w-4 h-4" />
-                Add Employee
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-indigo-200"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Employee
+                    <ChevronDown className="w-4 h-4 opacity-90" />
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="min-w-[14rem]">
+                  <DropdownMenuLabel>Add Employee</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/admin/employees/new")}>
+                    One By One
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/admin/employees/bulk")}>
+                    Bulk Upload (Excel)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
