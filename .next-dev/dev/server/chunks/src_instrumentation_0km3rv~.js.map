@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Dell/Desktop/Innonsh/NewHRPAYROLL/src/instrumentation.js"],"sourcesContent":["// src/instrumentation.js\r\n// This file runs once when the server starts (Next.js 15+)\r\n\r\nexport async function register() {\r\n  // Only run on server side\r\n  if (process.env.NEXT_RUNTIME === 'nodejs') {\r\n    const { initializeCronJobs } = await import('./lib/cron/init');\r\n    initializeCronJobs();\r\n  }\r\n}"],"names":["register","initializeCronJobs"],"mappings":"AAAA,yBAAyB;AACzB,2DAA2D;;;;;AAEpD,eAAeA;IACpB,0BAA0B;IAC1B,wCAA2C;QACzC,MAAM,EAAEC,kBAAkB,EAAE,GAAG;QAC/BA;IACF;AACF"}}]
+}

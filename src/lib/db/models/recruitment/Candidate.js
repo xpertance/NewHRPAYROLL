@@ -15,6 +15,18 @@ const candidateSchema = new mongoose.Schema({
     phone: String,
     resumeUrl: String,
     resumeText: String,
+    resumeParseStatus: {
+        type: String,
+        enum: ['queued', 'processing', 'done', 'failed', null],
+        default: null
+    },
+    resumeParseRequestedAt: Date,
+    resumeParsedAt: Date,
+    resumeParseAttempts: {
+        type: Number,
+        default: 0
+    },
+    resumeParseError: String,
     jobRequisition: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'JobRequisition',

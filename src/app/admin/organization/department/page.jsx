@@ -1453,7 +1453,7 @@ export default function DepartmentsPage() {
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Analytics Overview */}
         {view === 'list' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -1482,6 +1482,7 @@ export default function DepartmentsPage() {
               </div>
             </div>
 
+            {/* Organization card (temporarily disabled)
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -1496,6 +1497,7 @@ export default function DepartmentsPage() {
                 </div>
               </div>
             </div>
+            */}
           </div>
         )}
 

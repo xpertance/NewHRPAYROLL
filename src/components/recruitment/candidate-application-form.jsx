@@ -177,7 +177,7 @@ export default function CandidateApplicationForm({ isOpen, onClose, job }) {
                             className="h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-200 font-black uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 disabled:opacity-50"
                         >
                             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                            {submitting ? "Submitting AI Analysis..." : "Submit Application"}
+                            {submitting ? "Submitting..." : "Submit Application"}
                         </button>
                     </div>
                 </motion.div>
