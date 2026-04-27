@@ -6,6 +6,10 @@ const vendorSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    companyName: {
+        type: String,
+        trim: true
+    },
     email: {
         type: String,
         lowercase: true,
@@ -17,9 +21,13 @@ const vendorSchema = new mongoose.Schema({
         type: String, // GST Identification Number
         trim: true
     },
+    pan: {
+        type: String,
+        trim: true
+    },
     category: {
         type: String,
-        enum: ['IT Services', 'Office Supplies', 'Benefits Provider', 'Consultant', 'Travel', 'Software', 'Other'],
+        enum: ['IT Services', 'Office Supplies', 'Benefits Provider', 'Consultant', 'Travel', 'Software', 'Maintenance', 'Marketing', 'Legal', 'Other'],
         default: 'Other'
     },
     bankDetails: {
@@ -63,6 +71,12 @@ const vendorInvoiceSchema = new mongoose.Schema({
         taxPercent: { type: Number, default: 18 }, // Default GST in India
         taxAmount: Number
     }],
+    category: {
+        type: String,
+        enum: ['IT Services', 'Office Supplies', 'Benefits Provider', 'Consultant', 'Travel', 'Software', 'Maintenance', 'Marketing', 'Legal', 'Other'],
+        default: 'Other'
+    },
+    description: String,
     subTotal: Number,
     totalTax: Number,
     totalAmount: {

@@ -370,6 +370,7 @@ function DashboardLayoutContent({ children }) {
     { name: t("myLoans"), href: "/employee/loans", icon: BanknoteArrowUp },
     { name: t("myAttendance"), href: "/employee/attendance", icon: UserCheck },
     { name: t("myHolidays") || "My Holidays", href: "/employee/holidays", icon: Calendar },
+    { name: t("myClaims") || "My Claims", href: "/employee/claims", icon: Receipt },
     { name: t("exitManagement"), href: "/employee/exit", icon: LogOut },
     { name: t("hrHelpdesk"), href: "/employee/helpdesk", icon: MessageSquare },
     { name: t("employeeHandbook"), href: "/employee/handbook", icon: BookOpen },

@@ -304,7 +304,9 @@ function DashboardLayoutContent({ children }) {
       children: [
         { name: t("financeHub"), href: "/admin/finance", icon: GitGraph },
         { name: t("expenseClaims"), href: "/admin/finance/expenses", icon: Receipt },
-        { name: t("generalLedger"), href: "/admin/finance/ledger", icon: History },
+        { name: "Approvals", href: "/admin/finance?tab=approvals", icon: CheckSquare },
+        { name: "Reimbursements / Payments", href: "/admin/finance?tab=payments", icon: CreditCard },
+        { name: "Reports", href: "/admin/finance?tab=reports", icon: BarChart3 },
         { name: t("vendorManagement"), href: "/admin/finance/vendors", icon: Users },
       ],
     },

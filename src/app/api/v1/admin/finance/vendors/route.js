@@ -28,3 +28,33 @@ export async function POST(request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+export async function PUT(request) {
+    try {
+        await dbConnect();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const body = await request.json();
+
+        if (!id) return NextResponse.json({ error: "Vendor ID is required" }, { status: 400 });
+
+        const vendor = await Vendor.findByIdAndUpdate(id, body, { new: true });
+        return NextResponse.json({ vendor, message: "Vendor updated successfully" });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        await dbConnect();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) return NextResponse.json({ error: "Vendor ID is required" }, { status: 400 });
+
+        await Vendor.findByIdAndDelete(id);
+        return NextResponse.json({ message: "Vendor deleted successfully" });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

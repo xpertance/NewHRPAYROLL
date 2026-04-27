@@ -31,6 +31,12 @@ const expenseSchema = new mongoose.Schema({
     },
     description: String,
     receiptUrl: String,
+    claimType: {
+        type: String,
+        enum: ['Personal', 'Team'],
+        default: 'Personal'
+    },
+    teamMembers: String,
     status: {
         type: String,
         enum: ['Draft', 'Pending', 'Approved', 'Rejected', 'Paid'],
@@ -46,6 +52,7 @@ const expenseSchema = new mongoose.Schema({
     },
     approvedAt: Date,
     rejectionReason: String,
+    adminComments: String,
     paymentDetails: {
         referenceNumber: String,
         paymentDate: Date,

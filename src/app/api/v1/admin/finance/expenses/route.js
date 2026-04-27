@@ -11,6 +11,8 @@ const expenseSchema = z.object({
     date: z.string().transform(val => new Date(val)),
     description: z.string().optional(),
     receiptUrl: z.string().optional(),
+    claimType: z.enum(['Personal', 'Team']).default('Personal'),
+    teamMembers: z.string().optional(),
     costCenter: z.string().optional(),
     gstDetails: z.object({
         gstNumber: z.string().optional(),
@@ -18,6 +20,8 @@ const expenseSchema = z.object({
         isGstIncluded: z.boolean().default(true)
     }).optional()
 });
+
+import Employee from '@/lib/db/models/payroll/Employee';
 
 export async function GET(request) {
     try {
@@ -28,16 +32,27 @@ export async function GET(request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
         const search = searchParams.get('search');
+        const claimType = searchParams.get('claimType');
 
         let query = {};
         if (employeeId) query.employee = employeeId;
-        if (status) query.status = status;
+        if (status && status !== 'all') query.status = status;
+        if (claimType && claimType !== 'all') query.claimType = claimType;
 
         // Search Logic
         if (search) {
+            const employees = await Employee.find({
+                $or: [
+                    { 'personalDetails.firstName': { $regex: search, $options: 'i' } },
+                    { 'personalDetails.lastName': { $regex: search, $options: 'i' } }
+                ]
+            }).select('_id');
+            const employeeIds = employees.map(e => e._id);
+
             query.$or = [
                 { title: { $regex: search, $options: 'i' } },
-                { category: { $regex: search, $options: 'i' } }
+                { category: { $regex: search, $options: 'i' } },
+                { employee: { $in: employeeIds } }
             ];
         }
 
@@ -83,12 +98,45 @@ export async function PUT(request) {
 
         if (!id) return NextResponse.json({ error: "Expense ID is required" }, { status: 400 });
 
+        // If trying to edit expense details, ensure it's still Pending
+        const existingExpense = await Expense.findById(id);
+        if (!existingExpense) {
+            return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+        }
+
+        // Only block editing fields if it's not Pending AND the update is trying to change more than just status/payment details
+        const isOnlyStatusUpdate = Object.keys(updateData).every(k => ['status', 'paymentDetails', 'adminComments'].includes(k));
+        
+        if (existingExpense.status !== 'Pending' && !isOnlyStatusUpdate) {
+            return NextResponse.json({ error: "Cannot edit expense after it is approved or paid" }, { status: 403 });
+        }
+
         const expense = await Expense.findByIdAndUpdate(id, updateData, { new: true });
 
-        // If status becomes 'Paid', we could potentially trigger a Journal Entry here
-        // But for now, just update the status
-
         return NextResponse.json({ expense, message: "Expense updated successfully" });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        await dbConnect();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) return NextResponse.json({ error: "Expense ID is required" }, { status: 400 });
+
+        const expense = await Expense.findById(id);
+        if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+
+        if (expense.status !== 'Pending') {
+            return NextResponse.json({ error: "Only Pending expenses can be deleted" }, { status: 403 });
+        }
+
+        await Expense.findByIdAndDelete(id);
+
+        return NextResponse.json({ message: "Expense deleted successfully" }, { status: 200 });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
