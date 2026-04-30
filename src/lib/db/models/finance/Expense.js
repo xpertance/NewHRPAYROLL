@@ -4,7 +4,7 @@ const expenseSchema = new mongoose.Schema({
     employee: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Employee',
-        required: true
+        required: false
     },
     title: {
         type: String,
@@ -18,8 +18,12 @@ const expenseSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
-        required: [true, 'Amount is required'],
-        min: 0
+        min: 0,
+        default: 0
+    },
+    maxAmount: {
+        type: Number,
+        default: 0
     },
     currency: {
         type: String,
@@ -27,13 +31,13 @@ const expenseSchema = new mongoose.Schema({
     },
     date: {
         type: Date,
-        required: [true, 'Expense date is required']
+        default: Date.now
     },
     description: String,
     receiptUrl: String,
     claimType: {
         type: String,
-        enum: ['Personal', 'Team'],
+        enum: ['Personal', 'Team', 'Department'],
         default: 'Personal'
     },
     teamMembers: String,

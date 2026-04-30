@@ -38,7 +38,7 @@ export default function EmployeeClaimsManager({ employeeId }) {
             let url = `/api/v1/admin/finance/expenses`;
             const params = new URLSearchParams();
             if (employeeId) params.append('employeeId', employeeId);
-            params.append('claimType', activeTab);
+            // We fetch all relevant claims and filter locally to handle Drafts correctly across tabs
             
             // Note: We're fetching all for the current tab to calculate stats correctly, 
             // then we'll filter them locally for the table if needed.
@@ -74,8 +74,12 @@ export default function EmployeeClaimsManager({ employeeId }) {
         fetchExpenses();
     }, [employeeId, activeTab]);
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this pending claim?")) return;
+    const handleDelete = async (id, status) => {
+        const message = status === 'Draft' 
+            ? "Are you sure you want to reject this admin request?" 
+            : "Are you sure you want to delete this pending claim?";
+            
+        if (!confirm(message)) return;
         try {
             const res = await fetch(`/api/v1/admin/finance/expenses?id=${id}`, { method: 'DELETE' });
             if (!res.ok) {
@@ -91,6 +95,19 @@ export default function EmployeeClaimsManager({ employeeId }) {
 
     // Apply local filters to the table data
     const filteredExpenses = expenses.filter(exp => {
+        // Filter by Tab
+        if (activeTab === 'Personal') {
+            // Personal tab shows: My own claims OR Drafts (Admin Requests)
+            const currentEmpId = (exp.employee?._id || exp.employee || "").toString();
+            const isPersonal = exp.claimType === 'Personal' || currentEmpId === employeeId.toString();
+            const isDraft = exp.status === 'Draft';
+            if (!isPersonal && !isDraft) return false;
+        } else {
+            // Team tab shows: Historical team claims (not drafts, as drafts move to personal once completed)
+            if (exp.claimType !== 'Team' && exp.claimType !== 'Department') return false;
+            if (exp.status === 'Draft') return false; // Drafts show in Personal as tasks
+        }
+
         if (filterStatus !== 'all' && exp.status !== filterStatus) return false;
         if (filterCategory !== 'all' && exp.category !== filterCategory) return false;
         if (searchQuery) {
@@ -143,7 +160,12 @@ export default function EmployeeClaimsManager({ employeeId }) {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Expense Claims</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-slate-900">Expense Claims</h1>
+                        <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-md border border-slate-200 uppercase tracking-widest">
+                            ID: {employeeId}
+                        </span>
+                    </div>
                     <p className="text-slate-500 text-sm mt-1">Submit and track your expense claims</p>
                 </div>
                 <button 
@@ -354,11 +376,32 @@ export default function EmployeeClaimsManager({ employeeId }) {
                                         </td>
                                         
                                         <td className="px-6 py-4">
-                                            <p className="line-clamp-1">{expense.title} {expense.description ? `- ${expense.description}` : ''}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="line-clamp-1 font-semibold text-slate-800">{expense.title}</p>
+                                                {expense.status === 'Draft' && (
+                                                    <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-[4px] text-[9px] font-black uppercase tracking-widest border border-indigo-100 animate-pulse">Admin Request</span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1 mt-0.5">
+                                                {expense.description && <p className="text-xs text-slate-500 line-clamp-1">{expense.description}</p>}
+                                                {expense.status === 'Draft' && expense.maxAmount > 0 && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                        <span className="text-[10px] font-bold text-emerald-600">Approved Budget: ₹{expense.maxAmount}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         
                                         <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900">
-                                            {expense.amount.toFixed(2)}
+                                            {expense.status === 'Draft' && expense.maxAmount > 0 ? (
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-400 text-[10px] line-through">₹{(expense.amount || 0).toFixed(2)}</span>
+                                                    <span className="text-indigo-600 font-black">Up to ₹{expense.maxAmount}</span>
+                                                </div>
+                                            ) : (
+                                                (expense.amount || 0).toFixed(2)
+                                            )}
                                         </td>
                                         
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -377,19 +420,35 @@ export default function EmployeeClaimsManager({ employeeId }) {
                                                 <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded bg-blue-50/50 border border-blue-100 transition-colors" title="View Details">
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                {expense.status === 'Pending' && (
+                                                {(expense.status === 'Pending' || expense.status === 'Draft') && (
                                                     <>
                                                         <button 
                                                             onClick={() => { setEditData(expense); setShowModal(true); }}
-                                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded bg-blue-50/50 border border-blue-100 transition-colors" title="Edit Claim"
+                                                            className={`p-1.5 rounded border transition-all flex items-center gap-1 ${expense.status === 'Draft' ? 'bg-indigo-600 text-white border-indigo-700 px-3' : 'text-blue-600 hover:bg-blue-50 bg-blue-50/50 border-blue-100'}`}
+                                                            title={expense.status === 'Draft' ? "Complete Claim" : "Edit Claim"}
                                                         >
-                                                            <Edit2 className="w-4 h-4" />
+                                                            {expense.status === 'Draft' ? (
+                                                                <>
+                                                                    <Plus className="w-3.5 h-3.5" />
+                                                                    <span className="text-[10px] font-black uppercase">Complete</span>
+                                                                </>
+                                                            ) : (
+                                                                <Edit2 className="w-4 h-4" />
+                                                            )}
                                                         </button>
                                                         <button 
-                                                            onClick={() => handleDelete(expense._id)}
-                                                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded bg-rose-50/50 border border-rose-100 transition-colors" title="Delete Claim"
+                                                            onClick={() => handleDelete(expense._id, expense.status)}
+                                                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded bg-rose-50/50 border border-rose-100 transition-colors" 
+                                                            title={expense.status === 'Draft' ? "Reject Request" : "Delete Claim"}
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            {expense.status === 'Draft' ? (
+                                                                <div className="flex items-center gap-1 px-2">
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    <span className="text-[10px] font-black uppercase">Reject</span>
+                                                                </div>
+                                                            ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                            )}
                                                         </button>
                                                     </>
                                                 )}
@@ -400,6 +459,32 @@ export default function EmployeeClaimsManager({ employeeId }) {
                             )}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            {/* Test Banner for Debugging */}
+            <div className="mt-6 p-4 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/30">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h4 className="text-sm font-black text-indigo-900 uppercase tracking-wider mb-1">Testing & Debug Info</h4>
+                        <p className="text-xs text-indigo-600 font-bold">
+                            Total claims fetched from API: <span className="text-base">{expenses.length}</span>
+                        </p>
+                    </div>
+                    {expenses.some(e => e.status === 'Draft') && (
+                        <div className="flex items-center gap-3 animate-bounce">
+                            <span className="text-xl">📢</span>
+                            <span className="text-lg font-black text-indigo-700 uppercase tracking-tighter italic bg-white px-4 py-2 rounded-full shadow-lg border-2 border-indigo-500">
+                                ADMIN NE REQUEST BHEJI HAI - CLAIM KARO!
+                            </span>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => fetchExpenses()}
+                        className="px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-lg hover:bg-indigo-700 transition-all shadow-md"
+                    >
+                        REFRESH DATA
+                    </button>
                 </div>
             </div>
 
