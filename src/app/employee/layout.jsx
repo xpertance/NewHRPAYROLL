@@ -354,8 +354,7 @@ function DashboardLayoutContent({ children }) {
 
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
-    { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
-    { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
+    { name: t("dashboard"), href: "/employee/dashboard", icon: Home },
     { name: t("myTimesheet"), href: "/employee/timesheets", icon: ListTodo },
     {
       name: t("projectTracking"),
@@ -379,6 +378,7 @@ function DashboardLayoutContent({ children }) {
     { name: t("notifications"), href: "/employee/notifications", icon: Bell },
     { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
   ];
+
 
   // Attendance-only user navigation - minimal access
   const attendanceOnlyNavigation = [
@@ -422,10 +422,13 @@ function DashboardLayoutContent({ children }) {
   }
 
   let navigation = [];
+  const isEmployeePath = pathname?.startsWith('/employee');
+
   if (role === "super_admin") {
     navigation = superAdminNavigation;
   } else if (role === "admin") {
-    navigation = adminNavigation;
+    // If admin is visiting an employee page, show employee navigation
+    navigation = isEmployeePath ? employeeNavigation : adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
   } else if (role === "supervisor") {

@@ -33,8 +33,8 @@ const protectedRoutes = [
   { path: '/api/v1/admin/crm/teams', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
   
   { path: '/api/v1/admin', roles: ['admin', 'super_admin'], isApi: true },
-  { path: '/api/v1/employee', roles: ['employee', 'supervisor', 'attendance_only'], isApi: true },
-  { path: '/api/v1/supervisor', roles: ['supervisor'], isApi: true },
+  { path: '/api/v1/employee', roles: ['employee', 'supervisor', 'attendance_only', 'admin', 'super_admin'], isApi: true },
+  { path: '/api/v1/supervisor', roles: ['supervisor', 'admin', 'super_admin'], isApi: true },
 ];
 
 export async function middleware(req) {

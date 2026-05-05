@@ -46,7 +46,8 @@ export async function GET(req) {
           email: user.email,
           department: user.department || 'admin',
           organizationId: user.organizationId ? user.organizationId.toString() : null,
-          companyName: user.companyName
+          companyName: user.companyName,
+          employeeId: user.employeeId
         },
       });
     }

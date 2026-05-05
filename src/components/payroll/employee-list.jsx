@@ -31,6 +31,8 @@ export default function EmployeeList() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [organizationFilter, setOrganizationFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
   const [viewMode, setViewMode] = useState('grid');
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [error, setError] = useState(null);
@@ -68,7 +70,8 @@ export default function EmployeeList() {
 
   useEffect(() => {
     fetchEmployees();
-  }, [searchTerm, departmentFilter, statusFilter, organizationFilter]);
+    }, [searchTerm, departmentFilter, statusFilter, organizationFilter, roleFilter]);
+
 
   const fetchEmployees = async () => {
     try {
@@ -81,6 +84,8 @@ export default function EmployeeList() {
       if (departmentFilter) params.append('department', departmentFilter);
       if (statusFilter) params.append('status', statusFilter);
       if (organizationFilter) params.append('organization', organizationFilter);
+      if (roleFilter) params.append('role', roleFilter);
+
       // Fetch all employees for client-side pagination
       params.append('limit', '1000');
 
@@ -392,7 +397,7 @@ export default function EmployeeList() {
     emp.organizationType || emp.jobDetails?.organizationId?.name
   ).filter(Boolean))];
 
-  const hasActiveFilters = searchTerm || departmentFilter || statusFilter || organizationFilter;
+  const hasActiveFilters = searchTerm || departmentFilter || statusFilter || organizationFilter || roleFilter;
 
   // Employee Card Component (to avoid duplication)
   const EmployeeCard = ({ employee }) => {
@@ -411,7 +416,15 @@ export default function EmployeeList() {
                 <h3 className="font-semibold text-slate-900 text-sm">
                   {employee.personalDetails?.firstName} {employee.personalDetails?.lastName}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">ID: {employee.employeeId}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-slate-500 font-medium">ID: {employee.employeeId}</p>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    employee.role === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {employee.role || 'employee'}
+                  </span>
+                </div>
+
               </div>
             </div>
           </div>
@@ -816,7 +829,7 @@ export default function EmployeeList() {
 
             {/* Search and Filters */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-3">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Search Employees</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -828,6 +841,19 @@ export default function EmployeeList() {
                     className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   />
                 </div>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Role</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                >
+                  <option value="">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                </select>
               </div>
 
               {/* NEW: Organization Filter */}
@@ -883,6 +909,7 @@ export default function EmployeeList() {
                       setDepartmentFilter('');
                       setStatusFilter('');
                       setOrganizationFilter('');
+                      setRoleFilter('');
                     }}
                     className="w-full px-4 py-2.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors font-medium"
                     title="Clear all filters"
@@ -959,6 +986,7 @@ export default function EmployeeList() {
                       setDepartmentFilter('');
                       setStatusFilter('');
                       setOrganizationFilter('');
+                      setRoleFilter('');
                     }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 border border-indigo-200 text-sm font-medium transition-colors"
                   >

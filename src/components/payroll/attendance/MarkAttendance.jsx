@@ -67,10 +67,31 @@ export default function MarkAttendance({ onAttendanceMarked }) {
     };
 
     const handleClockIn = async () => {
+        setLoading(true);
+        setLocationError(null);
+        let location = null;
+
         try {
-            setLoading(true);
-            setLocationError(null);
-            const location = await getLocation();
+            // Attempt to get location but don't throw if it fails
+            location = await getLocation();
+        } catch (error) {
+            console.error("Location Error during Clock In:", error);
+            let warningMsg = "Aapka location sahi nahi mil raha hai.";
+            
+            if (error.code === 1) {
+                warningMsg = "Location permission blocked! Aapka location sahi nahi mil raha hai.";
+            } else if (error.code === 2) {
+                warningMsg = "Location unavailable (Insecure context or GPS off)! Aapka location sahi nahi mil raha hai.";
+            } else if (error.code === 3) {
+                warningMsg = "Location request timed out! Aapka location sahi nahi mil raha hai.";
+            }
+            
+            toast.error(warningMsg, { duration: 5000 });
+            setLocationError(warningMsg);
+            // We continue with location as null
+        }
+
+        try {
             const baseUrl = user.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
 
             const res = await fetch(`${baseUrl}/payroll/attendance`, {
@@ -81,8 +102,8 @@ export default function MarkAttendance({ onAttendanceMarked }) {
                     date: new Date().toISOString(),
                     status: "Present",
                     checkIn: new Date().toISOString(),
-                    location,
-                    attendanceMethod: "Web", // Or Mobile if responsive check
+                    location: location,
+                    attendanceMethod: "Web",
                     deviceId: navigator.userAgent
                 }),
             });
@@ -93,8 +114,8 @@ export default function MarkAttendance({ onAttendanceMarked }) {
                 throw new Error(data.error || "Failed to clock in");
             }
 
-            // Check for geofencing warning
-            if (data.attendance?.isGeofenceVerified === false) {
+            // Check for geofencing warning if location was actually found
+            if (location && data.attendance?.isGeofenceVerified === false) {
                 toast.error("Clocked in, but you are outside the designated office area!", { duration: 5000 });
             } else {
                 toast.success("Clocked in successfully!");
@@ -106,24 +127,30 @@ export default function MarkAttendance({ onAttendanceMarked }) {
 
         } catch (error) {
             console.error(error);
-            if (error.code === 1) {
-                setLocationError("Location permission denied. Please enable location access.");
-            } else {
-                toast.error(error.message);
-            }
+            toast.error(error.message || "An error occurred during clock in.");
         } finally {
             setLoading(false);
         }
     };
 
     const handleClockOut = async () => {
+        setLoading(true);
+        setLocationError(null);
+        let location = null;
+
         try {
-            setLoading(true);
-            setLocationError(null);
-            const location = await getLocation();
+            location = await getLocation();
+        } catch (error) {
+            console.error("Location Error during Clock Out:", error);
+            let warningMsg = "Aapka location sahi nahi mil raha hai.";
+            if (error.code === 1) warningMsg = "Location permission blocked! Aapka location sahi nahi mil raha hai.";
+            toast.error(warningMsg);
+            // Continue with location as null
+        }
+
+        try {
             const baseUrl = user.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
 
-            // Use PUT to update existing record
             const res = await fetch(`${baseUrl}/payroll/attendance`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -132,7 +159,7 @@ export default function MarkAttendance({ onAttendanceMarked }) {
                     date: new Date().toISOString(),
                     checkOut: new Date().toISOString(),
                     status: "Present",
-                    location // Update location on checkout too? Optional
+                    location: location
                 }),
             });
 
@@ -146,7 +173,7 @@ export default function MarkAttendance({ onAttendanceMarked }) {
 
         } catch (error) {
             console.error(error);
-            toast.error(error.message);
+            toast.error(error.message || "An error occurred during clock out.");
         } finally {
             setLoading(false);
         }
