@@ -17,6 +17,10 @@ import {
   IdCard,
   Receipt,
   Loader2,
+  Briefcase,
+  Coffee,
+  Sun,
+  PieChart,
 } from "lucide-react";
 // import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import toast, { Toaster } from "react-hot-toast";
@@ -138,39 +142,6 @@ export default function PayslipView({ payslipId }) {
       doc.text(pursueString(bank.bankName), 145, startY + 12);
       doc.text(bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : "N/A", 145, startY + 18);
 
-      // ================= ATTENDANCE SUMMARY =================
-      const attY = startY + 30;
-      doc.setFillColor(...LIGHT_BG);
-      doc.setDrawColor(...BORDER);
-      doc.roundedRect(14, attY, W - 28, 18, 2, 2, "FD");
-
-      doc.setFont(TEXT_FONT, "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100);
-
-      const stats = [
-        { label: "Working Days", val: fmtInt(payslip.workingDays) },
-        { label: "Present Days", val: fmtInt(payslip.presentDays) },
-        { label: "Leave Days", val: fmtInt(payslip.leaveDays) },
-        { label: "Overtime (Hrs)", val: fmtHours(payslip.overtimeHours) },
-      ];
-
-      let xPos = 24;
-      const gap = (W - 48) / 4;
-      stats.forEach((stat) => {
-        doc.text(stat.label, xPos, attY + 6);
-        doc.setFont(TEXT_FONT, "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(...TEXT);
-        doc.text(stat.val, xPos, attY + 13);
-
-        doc.setFont(TEXT_FONT, "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(100);
-        xPos += gap;
-      });
-
-
       // ================= SALARY TABLE (EARNINGS vs DEDUCTIONS) =================
       // Construct rows: We need two lists, earnings and deductions.
       // We will merge them into a single list of rows for the table.
@@ -233,7 +204,7 @@ export default function PayslipView({ payslipId }) {
 
 
       autoTable(doc, {
-        startY: attY + 25,
+        startY: startY + 30,
         head: [["EARNINGS", "AMOUNT (INR)", "DEDUCTIONS", "AMOUNT (INR)"]],
         body: tableRows,
         theme: "grid",
@@ -262,6 +233,43 @@ export default function PayslipView({ payslipId }) {
             data.cell.styles.fontStyle = "bold";
             data.cell.styles.fillColor = [240, 240, 240];
           }
+        }
+      });
+
+      // ================= ATTENDANCE SUMMARY =================
+      const attendanceY = doc.lastAutoTable.finalY + 10;
+      doc.setFont(TEXT_FONT, "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...PRIMARY);
+      doc.text("ATTENDANCE SUMMARY", 14, attendanceY);
+
+      autoTable(doc, {
+        startY: attendanceY + 4,
+        body: [
+          [
+            "Total Days", payslip.totalDays || 0,
+            "Working Days", payslip.workingDays || 0,
+            "Present Days", payslip.presentDays || 0,
+            "Half Days", payslip.halfDays || 0
+          ],
+          [
+            "Weekly Offs", payslip.weeklyOffs || 0,
+            "Paid Leaves", payslip.paidLeaveDays || 0,
+            "LWP / Unpaid", payslip.lopDays || payslip.unpaidLeaveDays || 0,
+            "Holidays", payslip.holidays || 0
+          ]
+        ],
+        theme: "grid",
+        styles: { font: TEXT_FONT, fontSize: 8, cellPadding: 3, lineColor: BORDER, lineWidth: 0.1 },
+        columnStyles: {
+          0: { fontStyle: "bold", fillColor: LIGHT_BG, cellWidth: 25 },
+          1: { halign: "center", cellWidth: 20 },
+          2: { fontStyle: "bold", fillColor: LIGHT_BG, cellWidth: 25 },
+          3: { halign: "center", cellWidth: 20 },
+          4: { fontStyle: "bold", fillColor: LIGHT_BG, cellWidth: 25 },
+          5: { halign: "center", cellWidth: 20 },
+          6: { fontStyle: "bold", fillColor: LIGHT_BG, cellWidth: 25 },
+          7: { halign: "center", cellWidth: 20 },
         }
       });
 
@@ -649,6 +657,103 @@ export default function PayslipView({ payslipId }) {
             </div>
           </div>
 
+          {/* Attendance Summary */}
+          <div className="p-6 border-b border-slate-200 bg-slate-50/50">
+            <h3 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-yellow-500" />
+              Attendance Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {/* Total Days */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-yellow-200 transition-colors">
+                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Days</p>
+                  <p className="text-xl font-black text-slate-900">{payslip.totalDays || 0}</p>
+                </div>
+              </div>
+
+              {/* Working Days */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-blue-200 transition-colors">
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Briefcase className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Working Days</p>
+                  <p className="text-xl font-black text-slate-900">{payslip.workingDays || 0}</p>
+                </div>
+              </div>
+
+              {/* Present */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-green-200 transition-colors">
+                <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Present Days</p>
+                  <p className="text-xl font-black text-green-600">{payslip.presentDays || 0}</p>
+                </div>
+              </div>
+
+              {/* Half Days */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-amber-200 transition-colors">
+                <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
+                  <PieChart className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Half Days</p>
+                  <p className="text-xl font-black text-amber-600">{payslip.halfDays || 0}</p>
+                </div>
+              </div>
+
+              {/* Weekly Offs */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-indigo-200 transition-colors">
+                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                  <Coffee className="w-6 h-6 text-indigo-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Weekly Offs</p>
+                  <p className="text-xl font-black text-indigo-600">{payslip.weeklyOffs || 0}</p>
+                </div>
+              </div>
+
+              {/* Holidays */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-orange-200 transition-colors">
+                <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                  <Sun className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Holidays</p>
+                  <p className="text-xl font-black text-orange-500">{payslip.holidays || 0}</p>
+                </div>
+              </div>
+
+              {/* Paid Leaves */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-sky-200 transition-colors">
+                <div className="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-sky-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Paid Leaves</p>
+                  <p className="text-xl font-black text-sky-600">{payslip.paidLeaveDays || 0}</p>
+                </div>
+              </div>
+
+              {/* LWP / Unpaid */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-rose-200 transition-colors">
+                <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">LWP / Unpaid</p>
+                  <p className="text-xl font-black text-rose-600">{payslip.lopDays || payslip.unpaidLeaveDays || 0}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Net Salary */}
           <div className="p-6 border-b border-slate-200">
             <div className="bg-white border border-slate-200 p-4 rounded-lg">
@@ -667,28 +772,6 @@ export default function PayslipView({ payslipId }) {
             </div>
           </div>
 
-          {/* Attendance Summary */}
-          <div className="p-6 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Attendance Summary</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="text-center p-3 bg-white rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600 mb-1">Working Days</p>
-                <p className="text-lg font-bold text-slate-800">{payslip.workingDays || 0}</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600 mb-1">Present Days</p>
-                <p className="text-lg font-bold text-slate-800">{payslip.presentDays || 0}</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600 mb-1">Leave Days</p>
-                <p className="text-lg font-bold text-slate-800">{payslip.leaveDays || 0}</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600 mb-1">Overtime Hours</p>
-                <p className="text-lg font-bold text-slate-800">{parseFloat(payslip.overtimeHours || 0).toFixed(1)}</p>
-              </div>
-            </div>
-          </div>
 
           {/* Footer */}
           <div className="p-6">

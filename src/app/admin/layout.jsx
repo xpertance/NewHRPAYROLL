@@ -221,6 +221,11 @@ function DashboardLayoutContent({ children }) {
           icon: CalculatorIcon,
         },
         {
+          name: "Tax Calculations",
+          href: "/admin/payroll/tax-calculations",
+          icon: Calculator,
+        },
+        {
           name: t("loansAdvances"),
           href: "/admin/payroll/loans",
           icon: BanknoteArrowUp,
@@ -351,31 +356,26 @@ function DashboardLayoutContent({ children }) {
 
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
-    { name: t("dashboard"), href: "/employee/dashboard", icon: Home },
+    { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
+    { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
     { name: t("myTimesheet"), href: "/employee/timesheets", icon: ListTodo },
-    {
-      name: t("projectTracking"),
-      href: "/employee/projects",
-      icon: Briefcase,
-      children: [
-        { name: t("myTasks") || "My Tasks", href: "/employee/tasks/my-tasks", icon: ListTodo },
-        { name: t("allProjects") || "All Projects", href: "/employee/projects", icon: Briefcase },
-      ],
-    },
-    { name: t("myPayslip"), href: "/employee/my-payslip", icon: Receipt },
-    { name: t("myLoans"), href: "/employee/loans", icon: BanknoteArrowUp },
-    { name: t("myAttendance"), href: "/employee/attendance", icon: UserCheck },
-    { name: t("myHolidays") || "My Holidays", href: "/employee/holidays", icon: Calendar },
-    { name: t("myClaims") || "My Claims", href: "/employee/claims", icon: Receipt },
-    { name: t("exitManagement"), href: "/employee/exit", icon: LogOut },
-    { name: t("hrHelpdesk"), href: "/employee/helpdesk", icon: MessageSquare },
-    { name: t("employeeHandbook"), href: "/employee/handbook", icon: BookOpen },
-    { name: t("myEngagement"), href: "/employee/engagement", icon: Target },
-    { name: "Team Approvals", href: "/employee/team-approvals", icon: CheckSquare },
-    { name: t("notifications"), href: "/employee/notifications", icon: Bell },
-    { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
+    { name: t("myProjects"), href: "/admin/tasks/projects", icon: Briefcase },
+    { name: t("myPayslip"), href: "/admin/payroll/my-payslip", icon: Receipt },
+    { name: t("myLoans"), href: "/admin/payroll/loans", icon: BanknoteArrowUp },
+    { name: t("myAttendance"), href: "/admin/attendance", icon: UserCheck },
+    { name: t("exitManagement"), href: "/admin/exit", icon: LogOut },
+    { name: t("hrHelpdesk"), href: "/admin/helpdesk", icon: MessageSquare },
+    { name: t("employeeHandbook"), href: "/admin/handbook", icon: BookOpen },
+    { name: t("myEngagement"), href: "/admin/engagement", icon: Target },
+    { name: t("notifications"), href: "/admin/notifications", icon: Bell },
+    { name: t("changePassword"), href: "/admin/change-password", icon: Lock },
   ];
 
+  if (role === 'admin' || role === 'super_admin') {
+    if (!employeeNavigation.some(item => item.href === '/admin/dashboard')) {
+      employeeNavigation.unshift({ name: "Admin Panel", href: "/admin/dashboard", icon: Shield });
+    }
+  }
 
   // Attendance-only user navigation - minimal access
   const attendanceOnlyNavigation = [

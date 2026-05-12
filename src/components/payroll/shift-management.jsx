@@ -125,6 +125,15 @@ export default function ShiftManagement() {
         }
     };
 
+    const formatTime12h = (time24) => {
+        if (!time24) return 'N/A';
+        const [hours, minutes] = time24.split(':');
+        const h = parseInt(hours);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${minutes} ${ampm}`;
+    };
+
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this shift?")) return;
         try {
@@ -196,7 +205,9 @@ export default function ShiftManagement() {
                                         <Clock className="text-indigo-600" size={20} />
                                         <div>
                                             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Timings</p>
-                                            <p className="font-black text-slate-900">{shift.startTime} - {shift.endTime}</p>
+                                            <p className="font-black text-slate-900">
+                                                {formatTime12h(shift.startTime)} - {formatTime12h(shift.endTime)}
+                                            </p>
                                         </div>
                                     </div>
 

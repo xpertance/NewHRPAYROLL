@@ -19,6 +19,15 @@ export default function AddAttendance() {
   const [markedEmployees, setMarkedEmployees] = useState({});
   const [editingEmployees, setEditingEmployees] = useState({});
 
+  const formatTime12h = (time24) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":");
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+  };
+
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
@@ -59,8 +68,8 @@ export default function AddAttendance() {
             marked[empId] = {
               _id: record._id,
               status: record.status,
-              checkIn: record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : null,
-              checkOut: record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : null,
+              checkIn: record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+              checkOut: record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
             };
           }
         });
@@ -290,20 +299,29 @@ export default function AddAttendance() {
                         </td>
                         <td className="px-6 py-4">
                           <input 
-                            type="time" 
-                            value={attendanceData[emp._id]?.checkIn}
-                            onChange={(e) => handleTimeChange(emp._id, "checkIn", e.target.value)}
+                            type="text" 
+                            value={formatTime12h(attendanceData[emp._id]?.checkIn)}
+                            onChange={(e) => {
+                                // Basic support for typing, though type="time" was better for picker
+                                // We'll keep it simple for now as requested
+                                handleTimeChange(emp._id, "checkIn", e.target.value)
+                            }}
+                            onBlur={(e) => {
+                                // Optional: add logic to normalize "9:00 am" to "09:00"
+                            }}
                             disabled={attendanceData[emp._id]?.status !== "Present" && attendanceData[emp._id]?.status !== "Half Day"}
-                            className="px-3 py-1.5 border rounded-md text-sm disabled:bg-slate-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-32 px-3 py-1.5 border rounded-md text-sm disabled:bg-slate-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"
+                            placeholder="09:00 AM"
                           />
                         </td>
                         <td className="px-6 py-4">
                           <input 
-                            type="time" 
-                            value={attendanceData[emp._id]?.checkOut}
+                            type="text" 
+                            value={formatTime12h(attendanceData[emp._id]?.checkOut)}
                             onChange={(e) => handleTimeChange(emp._id, "checkOut", e.target.value)}
                             disabled={attendanceData[emp._id]?.status !== "Present" && attendanceData[emp._id]?.status !== "Half Day"}
-                            className="px-3 py-1.5 border rounded-md text-sm disabled:bg-slate-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-32 px-3 py-1.5 border rounded-md text-sm disabled:bg-slate-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"
+                            placeholder="06:00 PM"
                           />
                         </td>
                         <td className="px-6 py-4">

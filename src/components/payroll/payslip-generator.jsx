@@ -77,20 +77,19 @@ export default function PayslipGenerator() {
     fullMonthNetSalary: 0,
   });
 
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
   const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
+
+  const isFutureDate = (m, y) => {
+    if (y > currentYear) return true;
+    if (y === currentYear && m > currentMonth) return true;
+    return false;
+  };
 
   // Update total days when month/year changes
   useEffect(() => {
@@ -665,6 +664,10 @@ export default function PayslipGenerator() {
     if (!formData.employee) newErrors.employee = "Please select an employee";
     if (!formData.month) newErrors.month = "Month is required";
     if (!formData.year) newErrors.year = "Year is required";
+    if (isFutureDate(formData.month, formData.year)) {
+      newErrors.month = "Cannot generate payslip for future months";
+      toast.error("Cannot generate payslip for future months");
+    }
     if (formData.basicSalary <= 0)
       newErrors.basicSalary = "Basic salary must be greater than 0";
     if (formData.presentDays > formData.totalDays)
@@ -1400,24 +1403,35 @@ export default function PayslipGenerator() {
                       onChange={handleChange}
                       className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
                     >
-                      {months.map((month, index) => (
-                        <option key={month} value={index + 1}>
-                          {month}
-                        </option>
-                      ))}
+                      {months.map((month, index) => {
+                        const mValue = index + 1;
+                        const disabled = isFutureDate(mValue, formData.year);
+                        return (
+                          <option key={month} value={mValue} disabled={disabled}>
+                            {month} {disabled ? "(Future)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
-                      Year <span className="text-red-500">*</span>
-                    </label>
-                    <input
+                    <select
                       name="year"
-                      type="number"
                       value={formData.year}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    />
+                      onChange={(e) => {
+                        const newYear = parseInt(e.target.value);
+                        let newMonth = formData.month;
+                        if (newYear === currentYear && formData.month > currentMonth) {
+                          newMonth = currentMonth;
+                        }
+                        setFormData(prev => ({ ...prev, year: newYear, month: newMonth }));
+                      }}
+                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                    >
+                      {[currentYear - 1, currentYear].map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

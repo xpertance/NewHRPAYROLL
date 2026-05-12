@@ -263,26 +263,12 @@ export default function LeaveManagement() {
       let processedLeaves = allEmployees.map(emp => {
         const empLeaves = employeeLeaveMap.get(emp._id) || [];
 
-        // Get ANNUAL entitled leaves
-        const annualEntitled = emp.totalLeaveEntitled ||
-          payrollConfig?.annualPaidLeaveQuota ||
-          emp.annualLeaveBalance ||
-          emp.payslipStructure?.totalLeaveEntitled ||
-          31;
+        // Get MONTHLY entitled leaves (using the field from config)
+        const monthlyEntitled = payrollConfig?.annualPaidLeaveQuota || 0;
 
-        // Calculate balance at the START of selected month (before this month's leaves)
-        // Deduct ALL approved leaves taken BEFORE the selected month in this year
-        let usedBeforeThisMonth = 0;
-        empLeaves.forEach(leave => {
-          // Only count leaves BEFORE selected month
-          if (leave.month < selectedMonth) {
-            const monthUsed = (leave.summary.totalDays || 0); // Logic matched with backend
-            usedBeforeThisMonth += monthUsed;
-          }
-        });
-
-        // Balance at START of this month = Annual Entitled - Used Before This Month
-        const balanceAtMonthStart = annualEntitled - usedBeforeThisMonth;
+        // Balance at START of this month is simply the monthly quota (no carry forward as per user request)
+        const balanceAtMonthStart = monthlyEntitled;
+        const usedBeforeThisMonth = 0; // Fresh start every month
 
         // Find leave record for current selected month
         const currentMonthLeave = empLeaves.find(l => l.month === selectedMonth);
@@ -292,22 +278,17 @@ export default function LeaveManagement() {
           ? (currentMonthLeave.summary.totalDays || 0)
           : 0;
 
-        // Balance at END of this month (after this month's leaves are deducted)
+        // Balance at END of this month
         const balanceAtMonthEnd = balanceAtMonthStart - thisMonthUsed;
 
-        // Total used from January till end of this month
-        const totalUsedTillNow = usedBeforeThisMonth + thisMonthUsed;
+        // For Monthly mode, total used till now is just this month's usage
+        const totalUsedTillNow = thisMonthUsed;
 
         console.log(`👤 ${emp.personalDetails.firstName} ${emp.personalDetails.lastName} - ${months[selectedMonth - 1].label} ${selectedYear}:
           📅 Selected Month: ${selectedMonth}
-          💰 Annual Entitled: ${annualEntitled} days
-          📊 Months with records: ${empLeaves.map(l => l.month).join(', ')}
-          ⬅️  Used BEFORE ${months[selectedMonth - 1].label}: ${usedBeforeThisMonth.toFixed(1)} days
-          🚪 Balance at Month START: ${balanceAtMonthStart.toFixed(1)} days
+          💰 Monthly Quota: ${monthlyEntitled} days
           📍 This Month Used: ${thisMonthUsed.toFixed(1)} days
           🏁 Balance at Month END: ${balanceAtMonthEnd.toFixed(1)} days
-          📈 Total Used (Jan-${months[selectedMonth - 1].label}): ${totalUsedTillNow.toFixed(1)} days
-          ✅ Remaining for Rest of Year: ${balanceAtMonthEnd.toFixed(1)} days
           ${currentMonthLeave ? '✓ Has record for this month' : '✗ No record for this month (placeholder)'}`);
 
 
@@ -316,7 +297,7 @@ export default function LeaveManagement() {
           return {
             ...currentMonthLeave,
             annualLeaveBalance: {
-              totalEntitled: annualEntitled, // Annual total (e.g., 31 for whole year)
+              totalEntitled: monthlyEntitled, // Monthly quota
               used: totalUsedTillNow, // Total used from Jan to this month
               remaining: balanceAtMonthEnd, // Balance AFTER this month
               balanceAtMonthStart: balanceAtMonthStart, // Balance before this month
@@ -343,7 +324,7 @@ export default function LeaveManagement() {
               totalDays: 0,
             },
             annualLeaveBalance: {
-              totalEntitled: annualEntitled, // Annual total (e.g., 31 for whole year)
+              totalEntitled: monthlyEntitled, // Monthly quota
               used: usedBeforeThisMonth, // Total used before this month
               remaining: balanceAtMonthStart, // IMPORTANT: Shows actual remaining balance (not 31)
               balanceAtMonthStart: balanceAtMonthStart, // Balance at start of this month
@@ -1004,7 +985,7 @@ export default function LeaveManagement() {
           {/* Detailed breakdown */}
           <div className="space-y-0.5 pt-2 border-t border-slate-200">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">Annual:</span>
+              <span className="text-slate-500">Monthly:</span>
               <span className="font-semibold text-slate-700">{leave.annualLeaveBalance.totalEntitled || payrollConfig?.annualPaidLeaveQuota || 31}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
@@ -1674,7 +1655,7 @@ export default function LeaveManagement() {
                   Leave Management
                 </h1>
                 <p className="text-slate-600 text-sm mt-0.5">
-                  Track employee leaves with annual balance ({payrollConfig?.annualPaidLeaveQuota || 0} days/year)
+                  Track employee leaves with monthly quota ({payrollConfig?.annualPaidLeaveQuota || 0} days)
                 </p>
               </div>
             </div>
@@ -1702,7 +1683,7 @@ export default function LeaveManagement() {
                   {stats.totalEmployees}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Annual balance tracking
+                  Monthly quota tracking
                 </p>
               </div>
               <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
@@ -1986,7 +1967,7 @@ export default function LeaveManagement() {
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 mt-1">
-                  Showing {pagination.total} employee{pagination.total !== 1 ? "s" : ""} - Annual balance deducts all approved leaves
+                  Showing {pagination.total} employee{pagination.total !== 1 ? "s" : ""} - Monthly quota resets every month
                 </p>
               </div>
             </div>
@@ -2141,7 +2122,7 @@ export default function LeaveManagement() {
                       Total Days
                     </th>
                     <th className="text-center px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                      Open Balance
+                      Monthly Balance
                     </th>
                     <th className="text-center px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Status

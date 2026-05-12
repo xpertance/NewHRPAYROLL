@@ -455,6 +455,18 @@ export default function EmployeeList() {
               </div>
             </div>
 
+            {employee.jobDetails?.teamId?.name && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center border border-amber-100">
+                  <Users className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Team</p>
+                  <p className="text-xs font-bold text-slate-700">{employee.jobDetails.teamId.name}</p>
+                </div>
+              </div>
+            )}
+
             {employee.jobDetails?.location && (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center border border-purple-100">
@@ -1078,7 +1090,7 @@ export default function EmployeeList() {
                           <tr>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Employee</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
-                            <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Department</th>
+                            <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Dept / Team</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Position</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Shift</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
@@ -1109,11 +1121,19 @@ export default function EmployeeList() {
                                   {employee.organizationType || employee.jobDetails?.organizationId?.name || 'N/A'}
                                 </td>
                                 <td className="py-4 px-6">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-slate-50 rounded flex items-center justify-center border border-blue-100">
-                                      <DeptIcon className="w-3 h-3 text-blue-600" />
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-5 h-5 bg-slate-50 rounded flex items-center justify-center border border-blue-100">
+                                        <DeptIcon className="w-3 h-3 text-blue-600" />
+                                      </div>
+                                      <span className="text-slate-900 text-sm font-medium">{employee.jobDetails?.department || 'N/A'}</span>
                                     </div>
-                                    <span className="text-slate-900 text-sm font-medium">{employee.jobDetails?.department || 'N/A'}</span>
+                                    {employee.jobDetails?.teamId?.name && (
+                                      <div className="flex items-center gap-2 ml-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                                        <span className="text-[11px] text-slate-500 font-medium">{employee.jobDetails.teamId.name}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="py-4 px-6 text-slate-900 text-sm">{employee.jobDetails?.designation || 'N/A'}</td>

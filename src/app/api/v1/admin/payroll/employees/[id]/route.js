@@ -15,64 +15,41 @@ import { logActivity } from '@/lib/logger';
 import bcrypt from 'bcryptjs';
 
 // Helper function to clean ObjectId fields
+const cleanObjectId = (val) => {
+  if (!val || val === '') return null;
+  if (typeof val === 'object' && val._id) return val._id;
+  if (mongoose.Types.ObjectId.isValid(val)) return val;
+  return val;
+};
+
 const cleanObjectIdFields = (data) => {
   const cleaned = { ...data };
 
   if (cleaned.jobDetails) {
-    if (cleaned.jobDetails.departmentId === '' || !cleaned.jobDetails.departmentId) {
-      cleaned.jobDetails.departmentId = null;
-    }
-    if (cleaned.jobDetails.organizationId === '' || !cleaned.jobDetails.organizationId) {
-      cleaned.jobDetails.organizationId = null;
-    }
-    if (cleaned.jobDetails.reportingManager === '' || !cleaned.jobDetails.reportingManager) {
-      cleaned.jobDetails.reportingManager = null;
-    }
-    // Clean new ObjectId fields
-    if (cleaned.jobDetails.teamLead === '' || !cleaned.jobDetails.teamLead) {
-      cleaned.jobDetails.teamLead = null;
-    }
-    if (cleaned.jobDetails.supervisor === '' || !cleaned.jobDetails.supervisor) {
-      cleaned.jobDetails.supervisor = null;
-    }
-    // Clean nested hierarchy ObjectId fields
-    if (cleaned.jobDetails.employeeTypeId === '' || !cleaned.jobDetails.employeeTypeId) {
-      cleaned.jobDetails.employeeTypeId = null;
-    }
-    if (cleaned.jobDetails.categoryId === '' || !cleaned.jobDetails.categoryId) {
-      cleaned.jobDetails.categoryId = null;
-    }
-    if (cleaned.jobDetails.businessUnitId === '' || !cleaned.jobDetails.businessUnitId) {
-      cleaned.jobDetails.businessUnitId = null;
-    }
-    if (cleaned.jobDetails.teamId === '' || !cleaned.jobDetails.teamId) {
-      cleaned.jobDetails.teamId = null;
-    }
-    if (cleaned.jobDetails.costCenterId === '' || !cleaned.jobDetails.costCenterId) {
-      cleaned.jobDetails.costCenterId = null;
-    }
-    if (cleaned.jobDetails.businessUnitId === '' || !cleaned.jobDetails.businessUnitId) {
-      cleaned.jobDetails.businessUnitId = null;
-    }
-    if (cleaned.jobDetails.teamId === '' || !cleaned.jobDetails.teamId) {
-      cleaned.jobDetails.teamId = null;
-    }
-    if (cleaned.jobDetails.assignedOfficeId === '' || !cleaned.jobDetails.assignedOfficeId) {
-      cleaned.jobDetails.assignedOfficeId = null;
-    }
-    if (cleaned.jobDetails.defaultShift === '' || !cleaned.jobDetails.defaultShift) {
-      cleaned.jobDetails.defaultShift = null;
-    }
+    cleaned.jobDetails = { ...cleaned.jobDetails };
+    cleaned.jobDetails.departmentId = cleanObjectId(cleaned.jobDetails.departmentId);
+    cleaned.jobDetails.organizationId = cleanObjectId(cleaned.jobDetails.organizationId);
+    cleaned.jobDetails.reportingManager = cleanObjectId(cleaned.jobDetails.reportingManager);
+    cleaned.jobDetails.teamLead = cleanObjectId(cleaned.jobDetails.teamLead);
+    cleaned.jobDetails.supervisor = cleanObjectId(cleaned.jobDetails.supervisor);
+    cleaned.jobDetails.employeeTypeId = cleanObjectId(cleaned.jobDetails.employeeTypeId);
+    cleaned.jobDetails.categoryId = cleanObjectId(cleaned.jobDetails.categoryId);
+    cleaned.jobDetails.businessUnitId = cleanObjectId(cleaned.jobDetails.businessUnitId);
+    cleaned.jobDetails.teamId = cleanObjectId(cleaned.jobDetails.teamId);
+    cleaned.jobDetails.costCenterId = cleanObjectId(cleaned.jobDetails.costCenterId);
+    cleaned.jobDetails.assignedOfficeId = cleanObjectId(cleaned.jobDetails.assignedOfficeId);
+    cleaned.jobDetails.defaultShift = cleanObjectId(cleaned.jobDetails.defaultShift);
+    cleaned.jobDetails.holidayListId = cleanObjectId(cleaned.jobDetails.holidayListId);
   }
 
   if (cleaned.attendanceApproval) {
-    if (cleaned.attendanceApproval.shift1Supervisor === '' || !cleaned.attendanceApproval.shift1Supervisor) {
-      cleaned.attendanceApproval.shift1Supervisor = null;
-    }
-    if (cleaned.attendanceApproval.shift2Supervisor === '' || !cleaned.attendanceApproval.shift2Supervisor) {
-      cleaned.attendanceApproval.shift2Supervisor = null;
-    }
+    cleaned.attendanceApproval = { ...cleaned.attendanceApproval };
+    cleaned.attendanceApproval.shift1Supervisor = cleanObjectId(cleaned.attendanceApproval.shift1Supervisor);
+    cleaned.attendanceApproval.shift2Supervisor = cleanObjectId(cleaned.attendanceApproval.shift2Supervisor);
   }
+
+  if (cleaned.createdBy) cleaned.createdBy = cleanObjectId(cleaned.createdBy);
+  if (cleaned.updatedBy) cleaned.updatedBy = cleanObjectId(cleaned.updatedBy);
 
   return cleaned;
 };
@@ -170,12 +147,14 @@ export async function PUT(request, { params }) {
 
       // New fields from form
       experienceType: cleanedBody.experienceType || existingEmployee.experienceType || '',
-      workingHr: (cleanedBody.workingHr !== undefined) ? cleanedBody.workingHr : existingEmployee.workingHr,
+      workingHr: (cleanedBody.workingHr !== undefined) ? cleanedBody.workingHr : (existingEmployee.workingHr || 9),
       otApplicable: cleanedBody.otApplicable || existingEmployee.otApplicable || 'no',
       esicApplicable: cleanedBody.esicApplicable || existingEmployee.esicApplicable || 'no',
       pfApplicable: cleanedBody.pfApplicable || existingEmployee.pfApplicable || 'no',
       probation: cleanedBody.probation || existingEmployee.probation || 'no',
       isAttending: cleanedBody.isAttending || existingEmployee.isAttending || 'no',
+      isTDSApplicable: (cleanedBody.isTDSApplicable !== undefined) ? cleanedBody.isTDSApplicable : (existingEmployee.isTDSApplicable || false),
+      createdBy: existingEmployee.createdBy || cleanedBody.updatedBy || cleanedBody.createdBy || null,
 
       // Job details
       jobDetails: {

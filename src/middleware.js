@@ -39,6 +39,7 @@ const protectedRoutes = [
 
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
+  const isApiPath = pathname.startsWith('/api/');
 
   // Allow public routes
   if (publicRoutes.some(route => pathname.startsWith(route))) {
@@ -50,13 +51,18 @@ export async function middleware(req) {
     pathname.startsWith(route.path)
   );
 
-  if (!routeConfig) return NextResponse.next(); // Route not protected
+  // If not in protectedRoutes, but it's an API path, we should still handle it carefully
+  // but for now, we follow the existing logic of allowing it if not matched.
+  if (!routeConfig) {
+    // Optional: could enforce that ALL /api/v1/ routes MUST be in protectedRoutes
+    return NextResponse.next();
+  }
 
-  // Check for token in cookies (support both system-wide and employee-specific tokens)
+  // Check for token in cookies
   const token = req.cookies.get('authToken')?.value || req.cookies.get('employee_token')?.value;
 
   if (!token) {
-    if (routeConfig.isApi) {
+    if (routeConfig.isApi || isApiPath) {
       return NextResponse.json({ error: "Unauthorized: No active session" }, { status: 401 });
     }
     console.log(`Middleware: Redirecting to login - No token found for ${pathname}`);
@@ -73,7 +79,7 @@ export async function middleware(req) {
     if (!routeConfig.roles.includes(payload.role)) {
       console.warn(`Middleware: Unauthorized access attempt for ${pathname} (Role: ${payload.role})`);
       
-      if (routeConfig.isApi) {
+      if (routeConfig.isApi || isApiPath) {
         return NextResponse.json({ error: `Forbidden: Role ${payload.role} does not have permission for this route.` }, { status: 403 });
       }
       
@@ -84,7 +90,6 @@ export async function middleware(req) {
     }
 
     // Pass the payload strictly into isolated Next Request Headers
-    // Allows the global database singleton to reliably filter multi-tenancy via x-org-id
     const requestHeaders = new Headers(req.headers);
     if (payload.organizationId) {
       requestHeaders.set("x-organization-id", payload.organizationId);
@@ -100,7 +105,7 @@ export async function middleware(req) {
   } catch (error) {
     console.error(`Middleware: Token verification failed for ${pathname}:`, error.message);
     
-    if (routeConfig && routeConfig.isApi) {
+    if (routeConfig.isApi || isApiPath) {
       return NextResponse.json({ error: "Session expired or invalid token." }, { status: 401 });
     }
     

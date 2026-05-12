@@ -46,6 +46,7 @@ export default function ESSLeaveManagement({ employeeId }) {
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
     const [customApprovers, setCustomApprovers] = useState([]); // Array of employee objects
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     useEffect(() => {
         if (employeeId) {
@@ -101,11 +102,11 @@ export default function ESSLeaveManagement({ employeeId }) {
                 const data = await res.json();
                 setEmployeeProfile(data);
                 
-                // Default selection: Both TL and Manager if they exist
-                const defaults = [];
-                if (data.jobDetails?.teamLead?._id) defaults.push(data.jobDetails.teamLead._id);
-                if (data.jobDetails?.reportingManager?._id) defaults.push(data.jobDetails.reportingManager._id);
-                setSelectedApprovers(defaults);
+                // Default selection: Both TL and Manager if they exist (deduplicated as strings)
+                const defaults = new Set();
+                if (data.jobDetails?.teamLead?._id) defaults.add(data.jobDetails.teamLead._id.toString());
+                if (data.jobDetails?.reportingManager?._id) defaults.add(data.jobDetails.reportingManager._id.toString());
+                setSelectedApprovers(Array.from(defaults));
             }
         } catch (error) {
             console.error("Failed to fetch profile for approver selection");
@@ -114,21 +115,24 @@ export default function ESSLeaveManagement({ employeeId }) {
 
     // Debounced search for approvers
     useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            if (searchQuery.length >= 2) {
-                performSearch();
-            } else {
-                setSearchResults([]);
-            }
-        }, 300);
+        if (searchQuery.length >= 2) {
+            const delayDebounceFn = setTimeout(() => {
+                performSearch(searchQuery);
+            }, 300);
+            return () => clearTimeout(delayDebounceFn);
+        } else if (isSearchFocused && searchQuery.length < 2) {
+            // Do not fetch random suggestions on focus to avoid cluttering.
+            // Only show results when user actually searches.
+            setSearchResults([]);
+        } else if (!isSearchFocused && searchQuery.length < 2) {
+            setSearchResults([]);
+        }
+    }, [searchQuery, isSearchFocused]);
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
-
-    const performSearch = async () => {
+    const performSearch = async (query = searchQuery) => {
         setSearching(true);
         try {
-            const res = await fetch(`/api/v1/employee/leaves/approvers?search=${encodeURIComponent(searchQuery)}`);
+            const res = await fetch(`/api/v1/employee/leaves/approvers?search=${encodeURIComponent(query)}`);
             if (res.ok) {
                 const data = await res.json();
                 setSearchResults(data.data || []);
@@ -237,6 +241,7 @@ export default function ESSLeaveManagement({ employeeId }) {
         }
 
         try {
+            setSubmitLoading(true);
             const res = await fetch('/api/v1/employee/leaves/applications', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -313,6 +318,7 @@ export default function ESSLeaveManagement({ employeeId }) {
                                     <option value="Casual">Casual Leave</option>
                                     <option value="Sick">Sick Leave</option>
                                     <option value="Earned">Earned Leave</option>
+                                    <option value="Unpaid">Unpaid Leave</option>
                                     <option value="Other">Other</option>
                                 </select>
                             </div>
@@ -379,17 +385,17 @@ export default function ESSLeaveManagement({ employeeId }) {
                             </div>
                             
                             <p className="text-xs text-slate-500">
-                                assigned managers are selected by default. You can uncheck them or search for others to take their place.
+                                Assigned team managers are automatically selected. You can add more approvers if needed.
                             </p>
 
                             {/* Standard Approvers (from Profile) */}
                             {(employeeProfile?.jobDetails?.teamLead || employeeProfile?.jobDetails?.reportingManager) && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 outline-none">
+                                <div className="flex flex-col md:flex-row gap-4 outline-none">
                                     {employeeProfile.jobDetails.teamLead && (
                                         <button
                                             type="button"
                                             onClick={() => toggleApprover(employeeProfile.jobDetails.teamLead._id)}
-                                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                            className={`flex-1 flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                                 selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id)
                                                     ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
                                                     : 'border-slate-200 bg-white hover:border-slate-300'
@@ -414,11 +420,12 @@ export default function ESSLeaveManagement({ employeeId }) {
                                         </button>
                                     )}
 
-                                    {employeeProfile.jobDetails.reportingManager && (
+                                    {employeeProfile.jobDetails.reportingManager && 
+                                     employeeProfile.jobDetails.reportingManager._id !== employeeProfile.jobDetails.teamLead?._id && (
                                         <button
                                             type="button"
                                             onClick={() => toggleApprover(employeeProfile.jobDetails.reportingManager._id)}
-                                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                            className={`flex-1 flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                                 selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id)
                                                     ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
                                                     : 'border-slate-200 bg-white hover:border-slate-300'
@@ -457,6 +464,11 @@ export default function ESSLeaveManagement({ employeeId }) {
                                         placeholder="Search by name or Employee ID..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setIsSearchFocused(true)}
+                                        onBlur={() => {
+                                            // Delay blur to allow clicking on results
+                                            setTimeout(() => setIsSearchFocused(false), 200);
+                                        }}
                                         className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white"
                                     />
                                     {searching && (
@@ -790,50 +802,47 @@ export default function ESSLeaveManagement({ employeeId }) {
                 )}
             </div>
             )}
+            
             {/* Action Modal */}
             {showActionModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">
-                                {showActionModal.action === 'approve' ? 'Approve Leave Request' : 'Reject Leave Request'}
+                            <h3 className="text-lg font-black text-slate-900 uppercase">
+                                {showActionModal.action === 'approve' ? 'Approve Leave' : 'Reject Leave'}
                             </h3>
-                            <button onClick={() => setShowActionModal(null)} className="text-slate-400 hover:text-slate-600">
-                                <XCircle className="w-5 h-5" />
+                            <button onClick={() => setShowActionModal(null)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                                <XCircle className="w-5 h-5 text-slate-400" />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Remarks (Optional)</label>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remarks (Optional)</label>
                                 <textarea
                                     value={actionRemark}
                                     onChange={(e) => setActionRemark(e.target.value)}
-                                    placeholder={`Enter reason for ${showActionModal.action}...`}
-                                    className="w-full mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
+                                    placeholder="Enter your comments here..."
+                                    rows={3}
+                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none"
                                 />
                             </div>
-                        </div>
-                        <div className="p-4 bg-slate-50 flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowActionModal(null)}
-                                className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleApprovalAction(showActionModal.id, showActionModal.action)}
-                                disabled={actioningId === showActionModal.id}
-                                className={`px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${showActionModal.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'} disabled:opacity-50`}
-                            >
-                                {actioningId === showActionModal.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" /> 
-                                ) : showActionModal.action === 'approve' ? (
-                                    <CheckCircle2 className="w-4 h-4" />
-                                ) : (
-                                    <AlertCircle className="w-4 h-4" />
-                                )}
-                                Confirm {showActionModal.action === 'approve' ? 'Approval' : 'Rejection'}
-                            </button>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setShowActionModal(null)}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={() => handleApprovalAction(showActionModal.id, showActionModal.action)}
+                                    disabled={actioningId}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-black text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                        showActionModal.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100'
+                                    }`}
+                                >
+                                    {actioningId ? <Loader2 className="w-4 h-4 animate-spin" /> : showActionModal.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

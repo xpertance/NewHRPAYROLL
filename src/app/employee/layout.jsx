@@ -261,11 +261,6 @@ function DashboardLayoutContent({ children }) {
           icon: ShieldCheck,
         },
         {
-          name: t("myPortal"),
-          href: "/employee/dashboard",
-          icon: Eye,
-        },
-        {
           name: t("talentManagement"),
           href: "/admin/talent",
           icon: Award,
@@ -354,7 +349,8 @@ function DashboardLayoutContent({ children }) {
 
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
-    { name: t("dashboard"), href: "/employee/dashboard", icon: Home },
+    { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
+    { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
     { name: t("myTimesheet"), href: "/employee/timesheets", icon: ListTodo },
     {
       name: t("projectTracking"),
@@ -379,6 +375,11 @@ function DashboardLayoutContent({ children }) {
     { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
   ];
 
+  if (role === 'admin' || role === 'super_admin') {
+    if (!employeeNavigation.some(item => item.href === '/admin/dashboard')) {
+      employeeNavigation.unshift({ name: "Admin Panel", href: "/admin/dashboard", icon: Shield });
+    }
+  }
 
   // Attendance-only user navigation - minimal access
   const attendanceOnlyNavigation = [

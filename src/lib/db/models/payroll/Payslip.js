@@ -131,6 +131,26 @@ const payslipSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalDays: {
+      type: Number,
+      default: 0,
+    },
+    weeklyOffs: {
+      type: Number,
+      default: 0,
+    },
+    halfDays: {
+      type: Number,
+      default: 0,
+    },
+    holidays: {
+      type: Number,
+      default: 0,
+    },
+    paidDays: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       default: "Draft",
