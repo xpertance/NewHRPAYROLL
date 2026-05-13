@@ -504,7 +504,6 @@ export function ExpenseFormModal({ employeeId, editData, isAdmin = false, defaul
         e.preventDefault();
         try {
             setSubmitting(true);
-            
             // If an employee is submitting a draft, change status to Pending
             const finalStatus = (!isAdmin && formData.status === 'Draft') ? 'Pending' : formData.status;
             

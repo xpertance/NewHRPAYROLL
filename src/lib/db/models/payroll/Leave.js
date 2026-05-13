@@ -207,9 +207,19 @@ leaveSchema.methods.updateAnnualBalance = async function () {
     
     const employee = await Employee.findById(this.employeeId);
     
-    // Resolve monthly quota from config
-    const config = await PayrollConfig.findOne({ company: this.organizationId });
-    const totalEntitled = config?.annualPaidLeaveQuota || 0;
+    // Resolve quota: 
+    // 1. Employee Specific Override
+    // 2. Organization Policy (PayrollConfig)
+    // 3. Legacy/Branch fallback
+    let totalEntitled = employee?.totalLeaveEntitled;
+    
+    if (!totalEntitled) {
+      const config = await PayrollConfig.findOne({ company: this.organizationId });
+      totalEntitled = config?.annualPaidLeaveQuota || 
+                      employee?.annualLeaveBalance || 
+                      employee?.payslipStructure?.totalLeaveEntitled || 
+                      0;
+    }
     
     // Get all leave records for this employee in this year
     const LeaveModel = mongoose.model("Leave");
@@ -242,7 +252,10 @@ leaveSchema.methods.updateAnnualBalance = async function () {
       };
       
       await monthRecord.save();
+      console.log(`   Month ${monthRecord.month}: Start=${balanceAtMonthStart}, Used=${thisMonthPaidUsed}, End=${balanceAtMonthEnd}`);
     }
+    
+    console.log(`   ✅ Updated ${allYearLeaves.length} month records`);
     
     return this.annualLeaveBalance;
   } catch (error) {

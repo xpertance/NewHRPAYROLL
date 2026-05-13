@@ -90,7 +90,6 @@ export default function AttendanceDashboard() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [otRequests, setOtRequests] = useState([]);
   const [loadingOT, setLoadingOT] = useState(false);
-
   // New Filter States
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -224,7 +223,6 @@ export default function AttendanceDashboard() {
       }
 
       params.append("limit", "1000"); // Ensure we get all records for the month/week
-
       const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
       const response = await fetch(
         `${baseUrl}/attendance?${params.toString()}`
@@ -938,7 +936,6 @@ export default function AttendanceDashboard() {
                   Bulk Import
                 </button>
               )}
-              
               <button
                 onClick={() =>
                   router.push(user?.role === 'employee' ? '/employee/attendance/add-attendance' : "/admin/attendance/add-attendance")

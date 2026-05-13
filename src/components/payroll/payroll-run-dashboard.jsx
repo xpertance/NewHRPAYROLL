@@ -65,6 +65,7 @@ export default function PayrollRunDashboard() {
       return;
     }
 
+    // Safety check for month index
     const mIndex = (parseInt(formData.month) || 1) - 1;
     const confirmText = `Are you sure you want to run payroll for ${months[mIndex] || "selected month"} ${formData.year}?\n\nThis will generate Draft payslips for ALL active employees.`;
     

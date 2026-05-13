@@ -1547,28 +1547,22 @@ export default function TaxCalculator() {
                                 {formatCurrency(calculatedValues.cess)}
                               </span>
                             </div>
-
-                            <div className="flex justify-between items-center py-2 bg-red-50 px-3 rounded-lg border mt-2">
-                              <span className="text-sm font-medium text-red-900">Total Tax Liability</span>
-                              <span className="font-bold text-red-900">
-                                {formatCurrency(calculatedValues.finalTax)}
-                              </span>
-                            </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Effective Tax Rate */}
-                      {calculatedValues.grossSalary > 0 && (
-                        <div className="pt-4 border-t border-slate-200">
-                          <div className="flex justify-between items-center py-2 bg-yellow-50 px-3 rounded-lg">
-                            <span className="text-sm font-medium text-yellow-900">Effective Tax Rate</span>
-                            <span className="font-bold text-yellow-900">
-                              {((calculatedValues.finalTax / calculatedValues.grossSalary) * 100).toFixed(2)}%
-                            </span>
+                      {/* Final Result */}
+                      <div className="pt-6 border-t border-slate-200">
+                        <div className="bg-yellow-500 text-white p-4 rounded-xl shadow-lg shadow-yellow-100">
+                          <div className="text-xs uppercase font-bold opacity-80 mb-1">Total Annual Tax</div>
+                          <div className="text-3xl font-black">
+                            {formatCurrency(calculatedValues.finalTax)}
+                          </div>
+                          <div className="text-xs mt-2 opacity-80">
+                            Estimated Monthly TDS: <span className="font-bold">{formatCurrency(Math.round(calculatedValues.finalTax / 12))}</span>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
@@ -1577,17 +1571,17 @@ export default function TaxCalculator() {
                     <button
                       type="submit"
                       disabled={loading || employeesLoading}
-                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Calculating...
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Processing...
                         </>
                       ) : (
                         <>
-                          <Save className="w-4 h-4" />
-                          Save Tax Calculation
+                          <Save className="w-5 h-5" />
+                          Save Calculation
                         </>
                       )}
                     </button>
@@ -1595,11 +1589,18 @@ export default function TaxCalculator() {
                     <button
                       type="button"
                       onClick={handleBack}
-                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors font-medium"
+                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 text-slate-600 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 transition-all font-bold"
                     >
-                      <X className="w-4 h-4" />
-                      Cancel
+                      <X className="w-5 h-5" />
+                      Discard Changes
                     </button>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-3 items-start">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                      <strong>Note:</strong> These calculations are estimates based on provided data. Actual tax liability may vary according to government rules and declarations.
+                    </p>
                   </div>
                 </div>
               </div>

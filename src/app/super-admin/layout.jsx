@@ -168,7 +168,6 @@ function DashboardLayoutContent({ children }) {
       href: "/admin/organization",
       icon: Cog,
       children: [
-        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
         { name: t("department"), href: "/admin/organization/department", icon: Building2 },
         { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
         {
@@ -177,6 +176,7 @@ function DashboardLayoutContent({ children }) {
           icon: Target,
         },
         { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
+        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
       ],
     },
     { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },

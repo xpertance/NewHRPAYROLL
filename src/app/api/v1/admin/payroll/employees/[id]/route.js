@@ -11,6 +11,7 @@ import Organization from '@/lib/db/models/crm/organization/Organization';
 import BusinessUnit from '@/lib/db/models/crm/organization/BusinessUnit';
 import Team from '@/lib/db/models/crm/organization/Team';
 import CostCenter from '@/lib/db/models/finance/CostCenter';
+import WorkingShift from '@/lib/db/models/payroll/WorkingShift';
 import { logActivity } from '@/lib/logger';
 import bcrypt from 'bcryptjs';
 
@@ -50,7 +51,6 @@ const cleanObjectIdFields = (data) => {
 
   if (cleaned.createdBy) cleaned.createdBy = cleanObjectId(cleaned.createdBy);
   if (cleaned.updatedBy) cleaned.updatedBy = cleanObjectId(cleaned.updatedBy);
-
   return cleaned;
 };
 
@@ -64,8 +64,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
     }
 
-    const employee = await Employee.findById(id)
+    let employee = await Employee.findById(id)
       .populate('jobDetails.reportingManager', 'personalDetails.firstName personalDetails.lastName employeeId')
+      .populate('jobDetails.teamLead', 'personalDetails.firstName personalDetails.lastName employeeId')
       .populate('jobDetails.departmentId', 'departmentName')
       .populate('jobDetails.organizationId', 'name')
       .populate('jobDetails.businessUnitId', 'name')
@@ -75,7 +76,27 @@ export async function GET(request, { params }) {
       .populate('attendanceApproval.shift2Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
       .populate('jobDetails.employeeTypeId', 'employeeType')
       .populate('jobDetails.categoryId', 'employeeCategory')
-      .populate('jobDetails.defaultShift', 'name startTime endTime color')
+      .populate('jobDetails.defaultShift', 'name startTime endTime color');
+
+    // Fallback: If not found by document _id, check if 'id' is a User ID
+    if (!employee) {
+      const user = await User.findById(id);
+      if (user && user.employeeId) {
+        employee = await Employee.findOne({ employeeId: user.employeeId })
+          .populate('jobDetails.reportingManager', 'personalDetails.firstName personalDetails.lastName employeeId')
+          .populate('jobDetails.teamLead', 'personalDetails.firstName personalDetails.lastName employeeId')
+          .populate('jobDetails.departmentId', 'departmentName')
+          .populate('jobDetails.organizationId', 'name')
+          .populate('jobDetails.businessUnitId', 'name')
+          .populate('jobDetails.teamId', 'name')
+          .populate('jobDetails.costCenterId', 'name code')
+          .populate('attendanceApproval.shift1Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
+          .populate('attendanceApproval.shift2Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
+          .populate('jobDetails.employeeTypeId', 'employeeType')
+          .populate('jobDetails.categoryId', 'employeeCategory')
+          .populate('jobDetails.defaultShift', 'name startTime endTime color');
+      }
+    }
 
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });

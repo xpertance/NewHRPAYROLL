@@ -165,9 +165,9 @@ export default function MyPayslipPage() {
       // Info Table
       autoTable(doc, {
         startY: 35,
-        head: [['Payslip ID', 'Status']],
+        head: [['Payslip ID', 'Status', 'Working Days', 'Present']],
         body: [
-          [slip.payslipId, slip.status]
+          [slip.payslipId, slip.status, slip.workingDays || '-', slip.presentDays || '-']
         ],
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] }
@@ -575,6 +575,13 @@ export default function MyPayslipPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
+                {/* Attendance Summary */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <CompactStat label={t("workingDays")} value={selectedPayslip.workingDays} icon={Calendar} color="indigo" />
+                  <CompactStat label={t("present")} value={selectedPayslip.presentDays} icon={CheckCircle2} color="emerald" />
+                  <CompactStat label={t("leave")} value={selectedPayslip.leaveDays} icon={Briefcase} color="amber" />
+                  <CompactStat label={t("lop")} value={selectedPayslip.lopDays} icon={AlertCircle} color="rose" />
+                </div>
                 {/* Items Breakdown */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   <div className="space-y-4">

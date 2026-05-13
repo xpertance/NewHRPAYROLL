@@ -578,6 +578,7 @@ const EditPayrollSettings = ({ organizationId, onBack }) => {
     );
 };
 
+
 export default function ComplianceSettingsPage() {
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -615,7 +616,6 @@ export default function ComplianceSettingsPage() {
             setLoading(true);
             const res = await fetch(`/api/v1/admin/payroll/settings?orgId=${orgId}`);
             const data = await res.json();
-            // The API returns the config object directly
             if (data && !data.error) {
                 setConfig(data);
             } else {
@@ -637,10 +637,13 @@ export default function ComplianceSettingsPage() {
     const handleSave = async (updatedData) => {
         try {
             setSaving(true);
+            // Sanitize data: remove system fields that can break update/upsert
+            const { _id, __v, createdAt, updatedAt, ...saveData } = updatedData || config || {};
+
             const res = await fetch(`/api/v1/admin/payroll/settings?orgId=${selectedOrg}`, {
-                method: "POST", // The API uses POST for upsert
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedData)
+                body: JSON.stringify({ ...saveData, company: selectedOrg })
             });
             const data = await res.json();
             if (!data.error) {
@@ -666,6 +669,7 @@ export default function ComplianceSettingsPage() {
             </div>
         );
     }
+
 
     // Hide sidebar if activeTab is 'edit-payroll'
     const isEditPayroll = activeTab === 'edit-payroll';
@@ -859,6 +863,7 @@ export default function ComplianceSettingsPage() {
                                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
                                             />
                                         </div>
+
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-2">Working Days / Month</label>
                                             <input
@@ -962,6 +967,19 @@ export default function ComplianceSettingsPage() {
                                 onBack={() => setActiveTab('general')} 
                             />
                         )}
+
+                        <div className="mt-8 bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex gap-4">
+                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0">
+                                <AlertCircle className="w-6 h-6 text-indigo-600" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-indigo-900">Configuring Payroll Rules</h4>
+                                <p className="text-sm text-indigo-700 leading-relaxed mt-1">
+                                    Ensure that these settings align with your organization's legal registration and employment contracts.
+                                    Variable Pay components should be assigned to specific employees in their profiles after creation.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

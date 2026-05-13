@@ -168,7 +168,6 @@ function DashboardLayoutContent({ children }) {
       href: "/admin/organization",
       icon: Cog,
       children: [
-        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
         { name: t("department"), href: "/admin/organization/department", icon: Building2 },
         { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
         {
@@ -177,6 +176,7 @@ function DashboardLayoutContent({ children }) {
           icon: Target,
         },
         { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
+        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
       ],
     },
     { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
@@ -266,6 +266,11 @@ function DashboardLayoutContent({ children }) {
           icon: ShieldCheck,
         },
         {
+          name: t("myPortal"),
+          href: "/employee/dashboard",
+          icon: Eye,
+        },
+        {
           name: t("talentManagement"),
           href: "/admin/talent",
           icon: Award,
@@ -304,9 +309,7 @@ function DashboardLayoutContent({ children }) {
       children: [
         { name: t("financeHub"), href: "/admin/finance", icon: GitGraph },
         { name: t("expenseClaims"), href: "/admin/finance/expenses", icon: Receipt },
-        { name: "Approvals", href: "/admin/finance?tab=approvals", icon: CheckSquare },
-        { name: "Reimbursements / Payments", href: "/admin/finance?tab=payments", icon: CreditCard },
-        { name: "Reports", href: "/admin/finance?tab=reports", icon: BarChart3 },
+        { name: t("generalLedger"), href: "/admin/finance/ledger", icon: History },
         { name: t("vendorManagement"), href: "/admin/finance/vendors", icon: Users },
       ],
     },

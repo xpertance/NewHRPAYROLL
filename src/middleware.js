@@ -27,6 +27,7 @@ const protectedRoutes = [
   { path: '/api/v1/admin/payroll/leave-applications', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
   { path: '/api/v1/admin/payroll/overtime', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
   { path: '/api/v1/admin/payroll/comp-off', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
+  
   { path: '/api/v1/admin/finance/expenses', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
   { path: '/api/v1/admin/finance/cost-centers', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
   { path: '/api/v1/admin/crm/business-units', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
@@ -90,6 +91,7 @@ export async function middleware(req) {
     }
 
     // Pass the payload strictly into isolated Next Request Headers
+    // Allows the global database singleton to reliably filter multi-tenancy via x-org-id
     const requestHeaders = new Headers(req.headers);
     if (payload.organizationId) {
       requestHeaders.set("x-organization-id", payload.organizationId);
