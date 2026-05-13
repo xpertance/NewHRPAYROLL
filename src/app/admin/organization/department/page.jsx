@@ -1482,6 +1482,7 @@ export default function DepartmentsPage() {
               </div>
             </div>
 
+
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -1496,6 +1497,7 @@ export default function DepartmentsPage() {
                 </div>
               </div>
             </div>
+
           </div>
         )}
 

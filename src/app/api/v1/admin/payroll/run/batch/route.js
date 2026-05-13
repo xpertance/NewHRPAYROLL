@@ -10,6 +10,8 @@ import { getAuthUser, authorize } from "@/lib/auth-util";
 import RetroAdjustment from "@/lib/db/models/payroll/RetroAdjustment";
 import VariablePayConfig from "@/lib/db/models/payroll/VariablePayConfig";
 import PayrollVariableInput from "@/lib/db/models/payroll/PayrollVariableInput";
+import Attendance from "@/lib/db/models/payroll/Attendance";
+import Leave from "@/lib/db/models/payroll/Leave";
 
 export async function POST(request) {
   let payrollRun = null;
@@ -36,6 +38,16 @@ export async function POST(request) {
       return NextResponse.json({ error: "Missing required fields (month, year, orgId)" }, { status: 400 });
     }
 
+    // --- FUTURE DATE PROTECTION --- //
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+      return NextResponse.json({ 
+        error: "Cannot run payroll for future months. Please select the current or a previous month." 
+      }, { status: 400 });
+    }
     // 1. Check if a Payroll Run already exists for this Org + Month + Year
     const existingRun = await PayrollRun.findOne({ month, year, organizationId: orgId });
     if (existingRun) {
@@ -159,11 +171,16 @@ export async function POST(request) {
             percentage: d.percentage || 0,
             calculationType: d.calculationType || "percentage"
           })),
-          workingDays: totalDays,
-          presentDays: totalDays - (salaryCalc.lopDays || 0),
-          leaveDays: salaryCalc.lopDays || 0,
-          paidLeaveDays: 0, // Should be fetched if needed separately, but LOP is key for deduction
+          leaveDays: salaryCalc.paidLeaves + salaryCalc.lopDays,
+          paidLeaveDays: salaryCalc.paidLeaves || 0,
           unpaidLeaveDays: salaryCalc.lopDays || 0,
+          totalDays: salaryCalc.totalDays || totalDays,
+          weeklyOffs: salaryCalc.weeklyOffs || 0,
+          halfDays: salaryCalc.halfDays || 0,
+          holidays: salaryCalc.holidays || 0,
+          workingDays: salaryCalc.workingDays || 0,
+          presentDays: salaryCalc.presentDays || 0,
+          paidDays: salaryCalc.paidDays || 0,
           overtimeHours: salaryCalc.overtimeHours || 0,
           overtimeRate: employeeDoc.salaryDetails?.overtimeRate || 0,
           overtimeAmount: salaryCalc.overtimeAmount || 0,

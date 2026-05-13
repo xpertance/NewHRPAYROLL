@@ -19,10 +19,19 @@ export default function PayrollRunDashboard() {
     year: new Date().getFullYear(),
   });
 
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+
+  const isFutureDate = (m, y) => {
+    if (y > currentYear) return true;
+    if (y === currentYear && m > currentMonth) return true;
+    return false;
+  };
 
   const fetchPayrollHistory = async () => {
     try {
@@ -50,6 +59,12 @@ export default function PayrollRunDashboard() {
   const handleGenerateBatch = async () => {
     console.log("Starting batch generation for month:", formData.month, "year:", formData.year, "org:", user?.organizationId);
     
+    // Future date validation
+    if (isFutureDate(formData.month, formData.year)) {
+      toast.error(`Cannot run payroll for future months (${months[formData.month - 1]} ${formData.year})`);
+      return;
+    }
+
     // Safety check for month index
     const mIndex = (parseInt(formData.month) || 1) - 1;
     const confirmText = `Are you sure you want to run payroll for ${months[mIndex] || "selected month"} ${formData.year}?\n\nThis will generate Draft payslips for ALL active employees.`;
@@ -113,6 +128,10 @@ export default function PayrollRunDashboard() {
   };
 
   const handleValidate = async () => {
+    if (isFutureDate(formData.month, formData.year)) {
+      toast.error("Cannot validate future months.");
+      return;
+    }
     setValidating(true);
     setValidationResult(null);
     try {
@@ -202,9 +221,15 @@ export default function PayrollRunDashboard() {
                   onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow appearance-none"
                 >
-                  {months.map((month, index) => (
-                    <option key={index} value={index + 1}>{month}</option>
-                  ))}
+                  {months.map((month, index) => {
+                    const mValue = index + 1;
+                    const disabled = isFutureDate(mValue, formData.year);
+                    return (
+                      <option key={index} value={mValue} disabled={disabled}>
+                        {month} {disabled ? "(Future)" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -213,13 +238,22 @@ export default function PayrollRunDashboard() {
               <label className="block text-sm font-medium text-slate-700 mb-2">Target Year</label>
               <select
                 value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value);
+                  // If switching to current year and selected month is future, reset to current month
+                  let newMonth = formData.month;
+                  if (newYear === currentYear && formData.month > currentMonth) {
+                    newMonth = currentMonth;
+                  }
+                  setFormData({ ...formData, year: newYear, month: newMonth });
+                }}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow appearance-none"
               >
-                {[...Array(5)].map((_, i) => {
-                  const y = new Date().getFullYear() - 1 + i;
+                {[...Array(3)].map((_, i) => {
+                  const y = currentYear - 1 + i;
+                  if (y > currentYear) return null; // Don't show future years
                   return <option key={y} value={y}>{y}</option>;
-                })}
+                }).filter(Boolean)}
               </select>
             </div>
 

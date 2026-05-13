@@ -31,6 +31,8 @@ export default function EmployeeList() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [organizationFilter, setOrganizationFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
   const [viewMode, setViewMode] = useState('grid');
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [error, setError] = useState(null);
@@ -68,7 +70,8 @@ export default function EmployeeList() {
 
   useEffect(() => {
     fetchEmployees();
-  }, [searchTerm, departmentFilter, statusFilter, organizationFilter]);
+    }, [searchTerm, departmentFilter, statusFilter, organizationFilter, roleFilter]);
+
 
   const fetchEmployees = async () => {
     try {
@@ -81,6 +84,8 @@ export default function EmployeeList() {
       if (departmentFilter) params.append('department', departmentFilter);
       if (statusFilter) params.append('status', statusFilter);
       if (organizationFilter) params.append('organization', organizationFilter);
+      if (roleFilter) params.append('role', roleFilter);
+
       // Fetch all employees for client-side pagination
       params.append('limit', '1000');
 
@@ -392,7 +397,7 @@ export default function EmployeeList() {
     emp.organizationType || emp.jobDetails?.organizationId?.name
   ).filter(Boolean))];
 
-  const hasActiveFilters = searchTerm || departmentFilter || statusFilter || organizationFilter;
+  const hasActiveFilters = searchTerm || departmentFilter || statusFilter || organizationFilter || roleFilter;
 
   // Employee Card Component (to avoid duplication)
   const EmployeeCard = ({ employee }) => {
@@ -411,7 +416,15 @@ export default function EmployeeList() {
                 <h3 className="font-semibold text-slate-900 text-sm">
                   {employee.personalDetails?.firstName} {employee.personalDetails?.lastName}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">ID: {employee.employeeId}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-slate-500 font-medium">ID: {employee.employeeId}</p>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    employee.role === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {employee.role || 'employee'}
+                  </span>
+                </div>
+
               </div>
             </div>
           </div>
@@ -441,6 +454,18 @@ export default function EmployeeList() {
                 </p>
               </div>
             </div>
+
+            {employee.jobDetails?.teamId?.name && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center border border-amber-100">
+                  <Users className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Team</p>
+                  <p className="text-xs font-bold text-slate-700">{employee.jobDetails.teamId.name}</p>
+                </div>
+              </div>
+            )}
 
             {employee.jobDetails?.location && (
               <div className="flex items-center gap-3">
@@ -816,7 +841,7 @@ export default function EmployeeList() {
 
             {/* Search and Filters */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-3">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Search Employees</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -828,6 +853,19 @@ export default function EmployeeList() {
                     className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   />
                 </div>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Role</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                >
+                  <option value="">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                </select>
               </div>
 
               {/* NEW: Organization Filter */}
@@ -883,6 +921,7 @@ export default function EmployeeList() {
                       setDepartmentFilter('');
                       setStatusFilter('');
                       setOrganizationFilter('');
+                      setRoleFilter('');
                     }}
                     className="w-full px-4 py-2.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors font-medium"
                     title="Clear all filters"
@@ -959,6 +998,7 @@ export default function EmployeeList() {
                       setDepartmentFilter('');
                       setStatusFilter('');
                       setOrganizationFilter('');
+                      setRoleFilter('');
                     }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 border border-indigo-200 text-sm font-medium transition-colors"
                   >
@@ -1050,7 +1090,7 @@ export default function EmployeeList() {
                           <tr>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Employee</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
-                            <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Department</th>
+                            <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Dept / Team</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Position</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Shift</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
@@ -1081,11 +1121,19 @@ export default function EmployeeList() {
                                   {employee.organizationType || employee.jobDetails?.organizationId?.name || 'N/A'}
                                 </td>
                                 <td className="py-4 px-6">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-slate-50 rounded flex items-center justify-center border border-blue-100">
-                                      <DeptIcon className="w-3 h-3 text-blue-600" />
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-5 h-5 bg-slate-50 rounded flex items-center justify-center border border-blue-100">
+                                        <DeptIcon className="w-3 h-3 text-blue-600" />
+                                      </div>
+                                      <span className="text-slate-900 text-sm font-medium">{employee.jobDetails?.department || 'N/A'}</span>
                                     </div>
-                                    <span className="text-slate-900 text-sm font-medium">{employee.jobDetails?.department || 'N/A'}</span>
+                                    {employee.jobDetails?.teamId?.name && (
+                                      <div className="flex items-center gap-2 ml-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                                        <span className="text-[11px] text-slate-500 font-medium">{employee.jobDetails.teamId.name}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="py-4 px-6 text-slate-900 text-sm">{employee.jobDetails?.designation || 'N/A'}</td>

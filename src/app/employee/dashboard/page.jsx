@@ -132,11 +132,11 @@ function ESSDashboardContent() {
                 fetch(`/api/v1/employee/payroll/overtime?employeeId=${empId}`),
                 fetch(`/api/v1/employee/payroll/comp-off?employeeId=${empId}`)
             ]);
-            if (otRes.ok) {
+            if (otRes.ok && otRes.headers.get('content-type')?.includes('application/json')) {
                 const otData = await otRes.json();
                 if (otData.success) setOtRequests(otData.requests);
             }
-            if (coRes.ok) {
+            if (coRes.ok && coRes.headers.get('content-type')?.includes('application/json')) {
                 const coData = await coRes.json();
                 if (coData.success) {
                     setCoRequests(coData.requests);
@@ -152,7 +152,7 @@ function ESSDashboardContent() {
         try {
             setLoadingTeamLeaves(true);
             const res = await fetch('/api/v1/employee/leaves/team-availability');
-            if (res.ok) {
+            if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
                 const data = await res.json();
                 if (data.success) setTeamLeaves(data.data || []);
             }
@@ -365,15 +365,15 @@ function ESSDashboardContent() {
                 fetch(`/api/v1/employee/payroll/investments?employeeId=${employeeId}&financialYear=2025-26`)
             ]);
 
-            if (empRes.ok) {
+            if (empRes.ok && empRes.headers.get('content-type')?.includes('application/json')) {
                 const empData = await empRes.json();
                 setEmployee(empData);
             }
-            if (slipsRes.ok) {
+            if (slipsRes.ok && slipsRes.headers.get('content-type')?.includes('application/json')) {
                 const slipsData = await slipsRes.json();
                 setPayslips(slipsData.payslips || []);
             }
-            if (invRes.ok) {
+            if (invRes.ok && invRes.headers.get('content-type')?.includes('application/json')) {
                 const invData = await invRes.json();
                 setInvestments(invData);
             }

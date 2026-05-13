@@ -96,7 +96,7 @@ const leaveSchema = new mongoose.Schema(
       },
     },
     
-    // Annual leave balance - ANNUAL QUOTA SYSTEM (e.g., 31 days for whole year)
+    // Monthly leave balance - MONTHLY QUOTA SYSTEM
     annualLeaveBalance: {
       totalEntitled: {
         type: Number,
@@ -104,15 +104,15 @@ const leaveSchema = new mongoose.Schema(
       },
       used: {
         type: Number,
-        default: 0, // Total unpaid leaves used from Jan 1st to end of this month
+        default: 0, // Total paid leaves used in this month
       },
       remaining: {
         type: Number,
-        default: 31, // Remaining annual quota at END of this month
+        default: 0, // Remaining monthly quota at END of this month
       },
       balanceAtMonthStart: {
         type: Number,
-        default: 31, // Remaining annual quota at START of this month (before this month's leaves)
+        default: 0, // Remaining monthly quota at START of this month
       },
       thisMonthUnpaid: {
         type: Number,
@@ -199,11 +199,9 @@ leaveSchema.methods.calculateSummary = function () {
   return this.summary;
 };
 
-// Method to update annual leave balance
-// This recalculates balance for ALL records of this employee in this year
+// Method to update monthly leave balance
 leaveSchema.methods.updateAnnualBalance = async function () {
   try {
-    // Get employee's total entitled leaves
     const Employee = mongoose.model("Employee");
     const PayrollConfig = mongoose.model("PayrollConfig");
     
@@ -223,57 +221,45 @@ leaveSchema.methods.updateAnnualBalance = async function () {
                       0;
     }
     
-    // Get all leave records for this employee in this year, sorted by month
+    // Get all leave records for this employee in this year
     const LeaveModel = mongoose.model("Leave");
     const allYearLeaves = await LeaveModel.find({
       employeeId: this.employeeId,
       year: this.year,
-    }).sort({ month: 1 }); // Sort by month ascending
+    });
     
-    console.log(`📊 Recalculating balances for employee ${this.employeeCode} in ${this.year}`);
-    console.log(`   Total entitled: ${totalEntitled}`);
-    console.log(`   Found ${allYearLeaves.length} month records`);
-    
-    // Process each month in order
-    let cumulativeUsed = 0;
+    console.log(`📊 Updating monthly balances for ${this.employeeCode} in ${this.year} (Monthly Quota: ${totalEntitled})`);
     
     for (const monthRecord of allYearLeaves) {
-      // Calculate total leaves used this month (sum of all types)
-      const thisMonthUsed = (monthRecord.summary.unpaidLeaves || 0) + 
-                           (monthRecord.summary.paidLeaves || 0) +
-                           ((monthRecord.summary.halfDayUnpaidLeaves || 0) * 0.5) +
-                           ((monthRecord.summary.halfDayPaidLeaves || 0) * 0.5);
+      // In monthly mode, each month starts with the full quota
+      const balanceAtMonthStart = totalEntitled;
       
-      // Balance at START of this month (before this month's leaves)
-      const balanceAtMonthStart = totalEntitled - cumulativeUsed;
+      // Calculate total paid leaves used this month (half days count as 0.5)
+      const thisMonthPaidUsed = (monthRecord.summary.paidLeaves || 0) + 
+                               ((monthRecord.summary.halfDayPaidLeaves || 0) * 0.5);
       
-      // Add this month's used to cumulative
-      cumulativeUsed += thisMonthUsed;
+      // Balance at END of this month
+      const balanceAtMonthEnd = balanceAtMonthStart - thisMonthPaidUsed;
       
-      // Balance at END of this month (after this month's leaves)
-      const balanceAtMonthEnd = totalEntitled - cumulativeUsed;
-      
-      // Update this month's record
+      // Update the record's balance info
       monthRecord.annualLeaveBalance = {
-        totalEntitled: totalEntitled,
-        used: cumulativeUsed, // Total used till end of this month
-        remaining: balanceAtMonthEnd, // Balance at END of this month
+        totalEntitled: totalEntitled, // Monthly quota
+        used: thisMonthPaidUsed, // Used this month
+        remaining: balanceAtMonthEnd, // Balance at end of month
         balanceAtMonthStart: balanceAtMonthStart,
         thisMonthUnpaid: (monthRecord.summary.unpaidLeaves || 0) + 
                         ((monthRecord.summary.halfDayUnpaidLeaves || 0) * 0.5)
       };
       
       await monthRecord.save();
-      
-      console.log(`   Month ${monthRecord.month}: Start=${balanceAtMonthStart}, Used=${thisMonthUsed}, End=${balanceAtMonthEnd}`);
+      console.log(`   Month ${monthRecord.month}: Start=${balanceAtMonthStart}, Used=${thisMonthPaidUsed}, End=${balanceAtMonthEnd}`);
     }
     
     console.log(`   ✅ Updated ${allYearLeaves.length} month records`);
-    console.log(`   Final cumulative used: ${cumulativeUsed}, Remaining: ${totalEntitled - cumulativeUsed}`);
-
+    
     return this.annualLeaveBalance;
   } catch (error) {
-    console.error("❌ Error updating annual balance:", error);
+    console.error("❌ Error updating monthly balance:", error);
     throw error;
   }
 };

@@ -582,7 +582,6 @@ export default function MyPayslipPage() {
                   <CompactStat label={t("leave")} value={selectedPayslip.leaveDays} icon={Briefcase} color="amber" />
                   <CompactStat label={t("lop")} value={selectedPayslip.lopDays} icon={AlertCircle} color="rose" />
                 </div>
-
                 {/* Items Breakdown */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   <div className="space-y-4">

@@ -44,6 +44,10 @@ const TaskList = () => {
         try {
             setLoading(true);
             const res = await fetch("/api/v1/admin/tasks");
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Failed to fetch tasks: ${res.status} ${res.statusText}`);
+            }
             const data = await res.json();
             if (data.success) {
                 setTasks(data.data || []);

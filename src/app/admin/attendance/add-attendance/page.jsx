@@ -19,6 +19,7 @@ export default function AddAttendance() {
   const [markedEmployees, setMarkedEmployees] = useState({});
   const [editingEmployees, setEditingEmployees] = useState({});
 
+
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);

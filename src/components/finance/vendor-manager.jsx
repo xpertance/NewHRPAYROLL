@@ -1,116 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-    Users, Plus, Search, Filter,
-    FileText, CreditCard, ExternalLink,
-    MoreVertical, Trash2, Edit3,
-    Building2, Mail, Phone, MapPin,
-    CheckCircle2, Clock, AlertCircle, Loader2
+import { useState } from "react";
+import { 
+    LayoutDashboard, Users, CreditCard, 
+    IndianRupee, ChevronRight, Settings,
+    FileText, Activity, MoreVertical
 } from "lucide-react";
-import toast from "react-hot-toast";
+import VendorDashboard from "./vendor-dashboard";
+import VendorMaster from "./vendor-master";
+import VendorExpenses from "./vendor-expenses";
+import VendorPayments from "./vendor-payments";
+import VendorDetails from "./vendor-details";
 
-import VendorModal from "./vendor-modal";
+export default function VendorManager({ activeSection = 'dashboard', setActiveSection }) {
+    const [selectedVendor, setSelectedVendor] = useState(null);
 
-export default function VendorManager() {
-    const [vendors, setVendors] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
+    const renderContent = () => {
+        if (selectedVendor) {
+            return <VendorDetails vendor={selectedVendor} onBack={() => setSelectedVendor(null)} />;
+        }
 
-    useEffect(() => {
-        fetchVendors();
-    }, []);
-
-    const fetchVendors = async () => {
-        try {
-            const res = await fetch('/api/v1/admin/finance/vendors');
-            const data = await res.json();
-            if (data.vendors) {
-                setVendors(data.vendors);
-            }
-        } catch (error) {
-            toast.error("Failed to load vendors");
-            console.error(error);
-        } finally {
-            setLoading(false);
+        switch (activeSection) {
+            case 'dashboard': return <VendorDashboard />;
+            case 'master': return <VendorMaster onSelectVendor={setSelectedVendor} />;
+            case 'expenses': return <VendorExpenses />;
+            case 'payments': return <VendorPayments />;
+            default: return <VendorDashboard />;
         }
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h3 className="text-xl font-black text-slate-900">Vendor Directory</h3>
-                    <p className="text-slate-500 text-xs font-medium">Manage external service providers and contract terms.</p>
-                </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                    <Plus className="w-4 h-4" /> Add New Vendor
-                </button>
+        <div className="flex flex-col gap-8 animate-in fade-in duration-500 min-h-[600px] relative">
+            {/* Main Content Area - Full Width */}
+            <div className="w-full">
+                {renderContent()}
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading ? (
-                    Array(3).fill(0).map((_, i) => (
-                        <div key={i} className="bg-slate-50 rounded-[2rem] h-64 animate-pulse border border-slate-100"></div>
-                    ))
-                ) : vendors.length === 0 ? (
-                    <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[2rem]">
-                        <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p className="font-bold">No vendors found. Add your first vendor!</p>
-                    </div>
-                ) : (
-                    vendors.map((vendor) => (
-                        <div key={vendor._id} className="bg-white border border-slate-200 rounded-[2rem] p-6 hover:shadow-xl transition-all group relative overflow-hidden">
-                            <div className={`absolute top-0 right-0 w-24 h-24 ${vendor.status === 'Active' ? 'bg-emerald-50' : 'bg-slate-50'} rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700`}></div>
-
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-12 h-12 ${vendor.status === 'Active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'} rounded-2xl flex items-center justify-center`}>
-                                        <Building2 className="w-6 h-6" />
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><Edit3 className="w-4 h-4" /></button>
-                                        <button className="p-2 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all"><Trash2 className="w-4 h-4" /></button>
-                                    </div>
-                                </div>
-
-                                <h4 className="text-lg font-black text-slate-900 mb-1">{vendor.name}</h4>
-                                <span className="inline-block px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-tight mb-4">{vendor.category}</span>
-
-                                <div className="space-y-2 mb-6">
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                        <Mail className="w-3 h-3 text-slate-400" /> {vendor.email || "No email"}
-                                    </div>
-                                    {vendor.gstin && (
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                                            GSTIN: <span className="text-slate-600">{vendor.gstin}</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                                    <span className={`flex items-center gap-1.5 text-[9px] font-black uppercase ${vendor.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${vendor.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
-                                        {vendor.status}
-                                    </span>
-                                    <button className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
-                                        View Invoices <ExternalLink className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            <VendorModal
-                isOpen={showModal}
-                onClose={() => setShowModal(false)}
-                onVendorSaved={fetchVendors}
-            />
         </div>
     );
 }
+

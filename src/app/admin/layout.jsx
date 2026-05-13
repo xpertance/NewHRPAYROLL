@@ -221,6 +221,11 @@ function DashboardLayoutContent({ children }) {
           icon: CalculatorIcon,
         },
         {
+          name: "Tax Calculations",
+          href: "/admin/payroll/tax-calculations",
+          icon: Calculator,
+        },
+        {
           name: t("loansAdvances"),
           href: "/admin/payroll/loans",
           icon: BanknoteArrowUp,
@@ -369,6 +374,12 @@ function DashboardLayoutContent({ children }) {
     { name: t("changePassword"), href: "/admin/change-password", icon: Lock },
   ];
 
+  if (role === 'admin' || role === 'super_admin') {
+    if (!employeeNavigation.some(item => item.href === '/admin/dashboard')) {
+      employeeNavigation.unshift({ name: "Admin Panel", href: "/admin/dashboard", icon: Shield });
+    }
+  }
+
   // Attendance-only user navigation - minimal access
   const attendanceOnlyNavigation = [
     {
@@ -411,10 +422,13 @@ function DashboardLayoutContent({ children }) {
   }
 
   let navigation = [];
+  const isEmployeePath = pathname?.startsWith('/employee');
+
   if (role === "super_admin") {
     navigation = superAdminNavigation;
   } else if (role === "admin") {
-    navigation = adminNavigation;
+    // If admin is visiting an employee page, show employee navigation
+    navigation = isEmployeePath ? employeeNavigation : adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
   } else if (role === "supervisor") {

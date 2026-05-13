@@ -168,6 +168,7 @@ function DashboardLayoutContent({ children }) {
       href: "/admin/organization",
       icon: Cog,
       children: [
+        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
         { name: t("department"), href: "/admin/organization/department", icon: Building2 },
         { name: t("employee"), href: "/admin/organization/employeeType", icon: Contact },
         {
@@ -176,7 +177,6 @@ function DashboardLayoutContent({ children }) {
           icon: Target,
         },
         { name: t("orgChart"), href: "/admin/organization/org-chart", icon: GitGraph },
-        { name: t("orgSettings"), href: "/admin/organization/org-settings", icon: Settings2 },
       ],
     },
     { name: t("employeeDirectory"), href: "/admin/employees", icon: Users },
@@ -259,11 +259,6 @@ function DashboardLayoutContent({ children }) {
           name: t("investmentReviews"),
           href: "/admin/payroll/investments",
           icon: ShieldCheck,
-        },
-        {
-          name: t("myPortal"),
-          href: "/employee/dashboard",
-          icon: Eye,
         },
         {
           name: t("talentManagement"),
@@ -370,6 +365,7 @@ function DashboardLayoutContent({ children }) {
     { name: t("myLoans"), href: "/employee/loans", icon: BanknoteArrowUp },
     { name: t("myAttendance"), href: "/employee/attendance", icon: UserCheck },
     { name: t("myHolidays") || "My Holidays", href: "/employee/holidays", icon: Calendar },
+    { name: t("myClaims") || "My Claims", href: "/employee/claims", icon: Receipt },
     { name: t("exitManagement"), href: "/employee/exit", icon: LogOut },
     { name: t("hrHelpdesk"), href: "/employee/helpdesk", icon: MessageSquare },
     { name: t("employeeHandbook"), href: "/employee/handbook", icon: BookOpen },
@@ -378,6 +374,12 @@ function DashboardLayoutContent({ children }) {
     { name: t("notifications"), href: "/employee/notifications", icon: Bell },
     { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
   ];
+
+  if (role === 'admin' || role === 'super_admin') {
+    if (!employeeNavigation.some(item => item.href === '/admin/dashboard')) {
+      employeeNavigation.unshift({ name: "Admin Panel", href: "/admin/dashboard", icon: Shield });
+    }
+  }
 
   // Attendance-only user navigation - minimal access
   const attendanceOnlyNavigation = [
@@ -421,10 +423,13 @@ function DashboardLayoutContent({ children }) {
   }
 
   let navigation = [];
+  const isEmployeePath = pathname?.startsWith('/employee');
+
   if (role === "super_admin") {
     navigation = superAdminNavigation;
   } else if (role === "admin") {
-    navigation = adminNavigation;
+    // If admin is visiting an employee page, show employee navigation
+    navigation = isEmployeePath ? employeeNavigation : adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
   } else if (role === "supervisor") {

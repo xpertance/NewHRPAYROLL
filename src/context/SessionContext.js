@@ -16,6 +16,7 @@ export const SessionProvider = ({ children }) => {
         return await response.json();
       } catch (e) {
         console.error('Failed to parse JSON despite content-type:', e);
+        return { error: 'JSON Parse Error', details: 'The server returned an invalid JSON response', status: response.status };
       }
     }
     const text = await response.text();

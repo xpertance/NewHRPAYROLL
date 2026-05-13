@@ -164,6 +164,7 @@ export async function GET(request) {
     const pfApplicable = searchParams.get('pfApplicable');
     const probation = searchParams.get('probation');
     const supervisorUserId = searchParams.get('supervisorUserId');
+    const role = searchParams.get('role');
 
     const skip = (page - 1) * limit;
 
@@ -243,6 +244,9 @@ export async function GET(request) {
     }
     if (probation) {
       filter.probation = probation;
+    }
+    if (role) {
+      filter.role = role;
     }
 
     if (search) {

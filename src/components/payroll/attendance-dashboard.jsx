@@ -30,10 +30,22 @@ import {
   Send,
   XCircle
 } from "lucide-react";
-import MarkAttendance from "./attendance/MarkAttendance";
+import toast, { Toaster } from "react-hot-toast";
+import AttendanceAnalytics from "./attendance/AttendanceAnalytics";
+import AttendanceInsights from "./attendance/AttendanceInsights";
+import AttendanceFilters from "./attendance/AttendanceFilters";
+import AttendanceTable from "./attendance/AttendanceTable";
+import EmployeeDetailsDrawer from "./attendance/EmployeeDetailsDrawer";
 import { useSession } from "@/context/SessionContext";
 import { exportToExcel } from "@/utils/exportToExcel";
-import toast, { Toaster } from "react-hot-toast";
+import MarkAttendance from "./attendance/MarkAttendance";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export default function AttendanceDashboard() {
   const router = useRouter();
@@ -78,6 +90,11 @@ export default function AttendanceDashboard() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [otRequests, setOtRequests] = useState([]);
   const [loadingOT, setLoadingOT] = useState(false);
+  // New Filter States
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
   const { user } = useSession();
 
@@ -179,6 +196,20 @@ export default function AttendanceDashboard() {
 
       if (viewMode === "daily") {
         params.append("date", selectedDate);
+      } else if (viewMode === "weekly") {
+        // Weekly view - get start (Monday) and end (Sunday) of the week containing selectedDate
+        const curr = new Date(selectedDate);
+        const day = curr.getDay();
+        const diff = curr.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        
+        const startDate = new Date(curr.setDate(diff));
+        startDate.setHours(0, 0, 0, 0);
+        
+        const endDate = new Date(curr.setDate(diff + 6));
+        endDate.setHours(23, 59, 59, 999);
+        
+        params.append("startDate", startDate.toISOString());
+        params.append("endDate", endDate.toISOString());
       } else {
         // Monthly view
         const startDate = new Date(selectedYear, selectedMonth - 1, 1);
@@ -191,6 +222,7 @@ export default function AttendanceDashboard() {
         params.append("organizationId", selectedOrganization);
       }
 
+      params.append("limit", "1000"); // Ensure we get all records for the month/week
       const baseUrl = user?.role === 'employee' ? '/api/v1/employee' : '/api/v1/admin';
       const response = await fetch(
         `${baseUrl}/attendance?${params.toString()}`
@@ -206,7 +238,10 @@ export default function AttendanceDashboard() {
         setAttendance(supervisedAttendanceRecord);
       } else if (user?.role === "employee" || user?.role === "attendance_only") {
         // Employees see their own records returned by /api/v1/employee/attendance
-        setAttendance(data.attendance || []);
+        const myAttendance = (data.attendance || []).filter(record => 
+          record.employee?._id === user.id || record.employee === user.id
+        );
+        setAttendance(myAttendance);
       } else {
         setAttendance([]);
       }
@@ -577,15 +612,23 @@ export default function AttendanceDashboard() {
 
   // Calculate statistics
   const calculateStatistics = () => {
+    const recordsToUse = attendance;
+    
     if (viewMode === "daily") {
-      const presentToday = attendance.filter(
-        (record) => record.status === "Present"
+      const presentToday = recordsToUse.filter(
+        (record) => record.status === "Present" || record.status === "Half-day"
       ).length;
-      const absentToday = attendance.filter(
+      const absentToday = recordsToUse.filter(
         (record) => record.status === "Absent"
       ).length;
-      const leaveToday = attendance.filter(
+      const leaveToday = recordsToUse.filter(
         (record) => record.status === "Leave"
+      ).length;
+      const lateToday = recordsToUse.filter(
+        (record) => record.lateMinutes > 0
+      ).length;
+      const missingPunches = recordsToUse.filter(
+        (record) => record.checkIn && !record.checkOut
       ).length;
 
       return {
@@ -593,6 +636,10 @@ export default function AttendanceDashboard() {
         absent: absentToday,
         leave: leaveToday,
         total: employees.length,
+        late: lateToday,
+        missingPunches: missingPunches,
+        overtimeCount: recordsToUse.filter(r => r.overtimeHours > 0).length,
+        attendancePercentage: employees.length > 0 ? ((presentToday / employees.length) * 100).toFixed(1) : 0
       };
     } else {
       // Monthly stats
@@ -625,8 +672,57 @@ export default function AttendanceDashboard() {
         total: employeeData.length,
         totalHours: totalHours.toFixed(1),
         totalOvertime: totalOvertime.toFixed(1),
+        late: employeeData.filter(e => Object.values(e.records).some(r => r.lateMinutes > 0)).length,
+        missingPunches: employeeData.filter(e => Object.values(e.records).some(r => r.checkIn && !r.checkOut)).length,
+        overtimeCount: employeeData.filter(e => e.stats.totalOvertime > 0).length,
+        attendancePercentage: employeeData.length > 0 ? ((totalPresent / (employeeData.length * 30)) * 100).toFixed(1) : 0
       };
     }
+  };
+
+  // Prepare data for insights
+  const prepareTrendData = () => {
+    // Last 7 days or current month days
+    const data = [];
+    if (viewMode === 'daily') {
+        // Mocking some trend for daily view if not enough history
+        return [
+            { date: 'Mon', present: 45 },
+            { date: 'Tue', present: 52 },
+            { date: 'Wed', present: 48 },
+            { date: 'Thu', present: 61 },
+            { date: 'Fri', present: 55 },
+            { date: 'Sat', present: 30 },
+            { date: 'Sun', present: 10 },
+        ];
+    }
+    
+    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
+    for (let i = 1; i <= daysInMonth; i++) {
+        const presentCount = attendance.filter(r => new Date(r.date).getDate() === i && r.status === 'Present').length;
+        data.push({ date: i.toString(), present: presentCount });
+    }
+    return data;
+  };
+
+  const prepareDeptData = () => {
+    const depts = {};
+    attendance.forEach(r => {
+        const dept = r.employee?.jobDetails?.department || 'Other';
+        if (!depts[dept]) depts[dept] = { name: dept, present: 0, absent: 0 };
+        if (r.status === 'Present') depts[dept].present++;
+        else if (r.status === 'Absent') depts[dept].absent++;
+    });
+    return Object.values(depts);
+  };
+
+  const prepareRatioData = () => {
+    const stats = calculateStatistics();
+    return [
+      { name: 'Present', value: stats.present },
+      { name: 'Absent', value: stats.absent },
+      { name: 'On Leave', value: stats.leave },
+    ];
   };
 
   const stats = calculateStatistics();
@@ -636,17 +732,27 @@ export default function AttendanceDashboard() {
     const fullName =
       `${record.employee?.personalDetails?.firstName} ${record.employee?.personalDetails?.lastName}`.toLowerCase();
     const employeeId = record.employee?.employeeId?.toLowerCase() || "";
-    return (
-      fullName.includes(searchTerm.toLowerCase()) ||
-      employeeId.includes(searchTerm.toLowerCase())
-    );
+    const department = record.employee?.jobDetails?.department || "";
+    
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                         employeeId.includes(searchTerm.toLowerCase());
+    const matchesDept = !selectedDepartment || department === selectedDepartment;
+    const matchesStatus = !selectedStatus || record.status === selectedStatus;
+
+    return matchesSearch && matchesDept && matchesStatus;
   });
 
+  const uniqueDepartments = [...new Set(employees.map(e => e.jobDetails?.department).filter(Boolean))];
+
+  const handleViewDetails = (record) => {
+    setSelectedRecord(record);
+    setIsDrawerOpen(true);
+  };
+
   // Export function
-  const handleExport = async () => {
+  const handleExport = async (format = 'excel') => {
     try {
       setExportLoading(true);
-
       let exportData = [];
 
       if (viewMode === "daily") {
@@ -658,28 +764,14 @@ export default function AttendanceDashboard() {
           Department: record.employee?.jobDetails?.department || "N/A",
           Date: new Date(record.date).toLocaleDateString(),
           Status: record.status,
-          "Check In": record.checkIn
-            ? new Date(record.checkIn).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-            : "N/A",
-          "Check Out": record.checkOut
-            ? new Date(record.checkOut).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-            : "N/A",
+          "Check In": formatTime(record.checkIn),
+          "Check Out": formatTime(record.checkOut),
           "Total Hours": record.totalHours || "N/A",
           "Overtime Hours": record.overtimeHours || "N/A",
         }));
       } else {
-        // Monthly export
         const employeeData = getMonthlyAttendanceByEmployee();
-        const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-
-        exportData = employeeData.map((empData) => {
-          const row = {
+        exportData = employeeData.map((empData) => ({
             "Employee ID": empData.employee?.employeeId || "N/A",
             "Employee Name": `${empData.employee?.personalDetails?.firstName || ""
               } ${empData.employee?.personalDetails?.lastName || ""}`.trim(),
@@ -689,40 +781,51 @@ export default function AttendanceDashboard() {
             "Total Leave": empData.stats.totalLeave,
             "Total Hours": empData.stats.totalHours.toFixed(2),
             "Overtime Hours": empData.stats.totalOvertime.toFixed(2),
-          };
-
-          // Add daily data
-          for (let day = 1; day <= daysInMonth; day++) {
-            const record = empData.records[day];
-            if (record) {
-              row[`Day ${day} Status`] = record.status;
-              row[`Day ${day} Hours`] = record.totalHours || 0;
-            } else {
-              row[`Day ${day} Status`] = "-";
-              row[`Day ${day} Hours`] = 0;
-            }
-          }
-
-          return row;
-        });
+        }));
       }
 
-      if (exportData.length > 0) {
-        const filename =
-          viewMode === "daily"
-            ? `attendance_${selectedDate}`
-            : `attendance_${months.find((m) => m.value === selectedMonth)?.label
-            }_${selectedYear}`;
+      const filename = `attendance_${viewMode}_${new Date().getTime()}`;
+
+      if (format === 'excel') {
         exportToExcel(exportData, filename);
-      } else {
-        toast.error("No data available to export");
+      } else if (format === 'csv') {
+        const csvContent = "data:text/csv;charset=utf-8," + 
+          [Object.keys(exportData[0]).join(","), ...exportData.map(row => Object.values(row).join(","))].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${filename}.csv`);
+        document.body.appendChild(link);
+        link.click();
+      } else if (format === 'pdf') {
+        const { jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
+        const doc = new jsPDF();
+        doc.text("Attendance Report", 14, 15);
+        autoTable(doc, {
+          head: [Object.keys(exportData[0])],
+          body: exportData.map(row => Object.values(row)),
+          startY: 20,
+        });
+        doc.save(`${filename}.pdf`);
       }
+
+      toast.success(`Report exported as ${format.toUpperCase()}`);
     } catch (error) {
       console.error("Error exporting data:", error);
-      toast.error("Error exporting data. Please try again.");
+      toast.error("Error exporting data");
     } finally {
       setExportLoading(false);
     }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return '--:--';
+    return new Date(time).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   // Get status badge
@@ -799,34 +902,48 @@ export default function AttendanceDashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleExport}
-                disabled={exportLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {exportLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                {exportLoading ? "Exporting..." : "Export"}
-              </button>
-              {user?.role === "admin" && <button
-                onClick={() => router.push(user?.role === 'employee' ? '/employee/attendance/import' : "/admin/attendance/import-attendance")}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors font-medium"
-              >
-                <Upload className="w-4 h-4" />
-                Import Excel
-              </button>}
+            <div className="flex flex-wrap gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={exportLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 shadow-sm transition-all font-bold text-sm active:scale-95"
+                  >
+                    {exportLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                    ) : (
+                      <Download className="w-4 h-4 text-indigo-600" />
+                    )}
+                    Export Report
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>Excel Format</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>CSV Format</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>PDF Document</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => window.print()}>Print Report</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => router.push("/admin/attendance/import-attendance")}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 shadow-sm transition-all font-bold text-sm active:scale-95"
+                >
+                  <Upload className="w-4 h-4 text-blue-600" />
+                  Bulk Import
+                </button>
+              )}
               <button
                 onClick={() =>
                   router.push(user?.role === 'employee' ? '/employee/attendance/add-attendance' : "/admin/attendance/add-attendance")
                 }
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors font-medium"
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-100 transition-all font-bold text-sm active:scale-95"
               >
                 <Plus className="w-4 h-4" />
-                Add Attendance
+                Add Entry
               </button>
             </div>
           </div>
@@ -838,6 +955,7 @@ export default function AttendanceDashboard() {
             <MarkAttendance onAttendanceMarked={fetchAttendance} />
           </div>
         )}
+
 
         {/* View Mode Toggle */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
@@ -854,6 +972,16 @@ export default function AttendanceDashboard() {
                 Daily View
               </button>
               <button
+                onClick={() => setViewMode("weekly")}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 text-sm font-medium transition-colors ${viewMode === "weekly"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                  }`}
+              >
+                <Clock className="w-4 h-4" />
+                Weekly View
+              </button>
+              <button
                 onClick={() => setViewMode("monthly")}
                 className={`flex items-center gap-2 py-4 px-1 border-b-2 text-sm font-medium transition-colors ${viewMode === "monthly"
                   ? "border-indigo-500 text-indigo-600"
@@ -863,142 +991,22 @@ export default function AttendanceDashboard() {
                 <Layers className="w-4 h-4" />
                 Monthly View
               </button>
+              <button
+                onClick={() => setViewMode("calendar")}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 text-sm font-medium transition-colors ${viewMode === "calendar"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                  }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Calendar View
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="flex flex-wrap gap-6 mb-8 overflow-x-auto">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">
-                  Total Employees
-                </p>
-                <p className="text-2xl font-bold text-slate-900 mt-2">
-                  {stats.total}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {viewMode === "daily"
-                    ? "Active workforce"
-                    : "Tracked this month"}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center border border-blue-100">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">
-                  {viewMode === "daily" ? "Present Today" : "Total Present"}
-                </p>
-                <p className="text-2xl font-bold text-green-700 mt-2">
-                  {stats.present}
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  {viewMode === "daily" && stats.total > 0
-                    ? `${((stats.present / stats.total) * 100).toFixed(
-                      1
-                    )}% present`
-                    : "Days present"}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
-                <UserCheck className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-red-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">
-                  {viewMode === "daily" ? "Absent Today" : "Total Absent"}
-                </p>
-                <p className="text-2xl font-bold text-red-700 mt-2">
-                  {stats.absent}
-                </p>
-                <p className="text-xs text-red-600 mt-1">
-                  {viewMode === "daily" && stats.total > 0
-                    ? `${((stats.absent / stats.total) * 100).toFixed(
-                      1
-                    )}% absent`
-                    : "Days absent"}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center border border-red-100">
-                <UserX className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-yellow-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">On Leave</p>
-                <p className="text-2xl font-bold text-yellow-700 mt-2">
-                  {stats.leave}
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  {stats.total > 0
-                    ? `${((stats.leave / stats.total) * 100).toFixed(
-                      1
-                    )}% on leave`
-                    : "On leave"}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center border border-yellow-100">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          {viewMode === "monthly" && (
-            <>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-blue-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">
-                      Total Hours
-                    </p>
-                    <p className="text-2xl font-bold text-blue-700 mt-2">
-                      {stats.totalHours}
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Hours worked this month
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center border border-blue-100">
-                    <Clock className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-purple-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">
-                      Overtime Hours
-                    </p>
-                    <p className="text-2xl font-bold text-purple-700 mt-2">
-                      {stats.totalOvertime}
-                    </p>
-                    <p className="text-xs text-purple-600 mt-1">
-                      Extra hours worked
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
-                    <Clock className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Professional Attendance Analytics */}
+        <AttendanceAnalytics stats={stats} viewMode={viewMode} role={user?.role} />
 
         {/* Organization Grouping Toggle */}
         {organizations.length > 1 && (
@@ -1074,166 +1082,108 @@ export default function AttendanceDashboard() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Filter Attendance
-            </h2>
-          </div>
+        {/* Professional Filters */}
+        <AttendanceFilters 
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOrganization={selectedOrganization}
+          setSelectedOrganization={setSelectedOrganization}
+          organizations={organizations}
+          viewMode={viewMode}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          selectedMonth={selectedMonth}
+          setSelectedMonth={setSelectedMonth}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          months={months}
+          years={years}
+          departments={uniqueDepartments}
+          selectedDepartment={selectedDepartment}
+          setSelectedDepartment={setSelectedDepartment}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          role={user?.role}
+        />
 
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              {/* Organization Filter */}
-              {user?.role !== 'employee' && organizations.length > 1 && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Organization
-                  </label>
-                  <select
-                    value={selectedOrganization}
-                    onChange={(e) => setSelectedOrganization(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                  >
-                    <option value="">All Organizations</option>
-                    {organizations.map((org) => (
-                      <option key={org.value} value={org.value}>
-                        {org.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+        {/* Attendance Table */}
+        {viewMode !== "monthly" && viewMode !== "weekly" && (
+          <AttendanceTable 
+            attendance={filteredAttendance}
+            onViewDetails={handleViewDetails}
+            onRegularize={(record) => {
+              setRegData({ ...regData, date: record.date, type: 'Absent Correction' });
+              setShowRegModal(true);
+            }}
+            userRole={user?.role}
+            loading={loading}
+          />
+        )}
 
+        {/* Employee Details Side Drawer */}
+        <EmployeeDetailsDrawer 
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          record={selectedRecord}
+        />
 
-              {/* Date/Month Picker */}
-              {viewMode === "daily" ? (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      Month
-                    </label>
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) =>
-                        setSelectedMonth(parseInt(e.target.value))
-                      }
-                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                    >
-                      {months.map((month) => (
-                        <option key={month.value} value={month.value}>
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      Year
-                    </label>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) =>
-                        setSelectedYear(parseInt(e.target.value))
-                      }
-                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                    >
-                      {years.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {/* Search */}
-              {user?.role !== 'employee' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Search Employee
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search by name or ID..."
-                      className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    />
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-
-        {/* DAILY VIEW CONTENT */}
-        {viewMode === "daily" && (
+        {/* WEEKLY VIEW CONTENT */}
+        {viewMode === "weekly" && (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="p-6 border-b border-slate-200">
-              <h2 className="text-xl font-semibold text-slate-900">
-                {groupByOrganization ? "Organizations" : "Attendance Records"} -{" "}
-                {new Date(selectedDate).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </h2>
-              <p className="text-sm text-slate-600 mt-1">
-                {attendance.length} record{attendance.length !== 1 ? "s" : ""}{" "}
-                found
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Weekly Attendance
+                  </h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {(() => {
+                      const curr = new Date(selectedDate);
+                      const day = curr.getDay();
+                      const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+                      const start = new Date(curr.setDate(diff));
+                      const end = new Date(curr.setDate(diff + 6));
+                      return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    })()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const d = new Date(selectedDate);
+                      d.setDate(d.getDate() - 7);
+                      setSelectedDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const d = new Date(selectedDate);
+                      d.setDate(d.getDate() + 7);
+                      setSelectedDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {filteredAttendance.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="w-8 h-8 text-slate-400" />
+            <div className="divide-y divide-slate-200">
+              {getGroupedMonthlyAttendance().length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <Calendar className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    No records for this week
+                  </h3>
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  No attendance records
-                </h3>
-                <p className="text-slate-600">
-                  No attendance has been marked for this date yet.
-                </p>
-                {user?.role === 'employee' && new Date(selectedDate).setHours(0,0,0,0) >= new Date().setHours(0,0,0,0) && (
-                    <div className="mt-6">
-                        <button
-                            onClick={() => {
-                                setRegData({ ...regData, date: selectedDate, type: 'Half-Day', halfDaySlot: 'First Half' });
-                                setShowRegModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black shadow-lg shadow-indigo-100 transition-all group"
-                        >
-                            <Clock className="w-4 h-4" />
-                            Apply for Half-Day
-                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                    </div>
-                )}
-              </div>
-
-            ) : groupByOrganization ? (
-              // Grouped View
-              <div className="divide-y divide-slate-200">
-                {getGroupedAttendance().map((org) => (
+              ) : (
+                getGroupedMonthlyAttendance().map((org) => (
                   <div key={org.name}>
                     <div
                       onClick={() => toggleOrganization(org.name)}
@@ -1248,23 +1198,11 @@ export default function AttendanceDashboard() {
                             <h3 className="text-base font-semibold text-slate-900">
                               {org.name}
                             </h3>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <p className="text-xs text-slate-600">
-                                {org.count} employee{org.count !== 1 ? "s" : ""}
-                              </p>
-                              <span className="text-xs text-green-600 font-medium">
-                                {org.present} present
-                              </span>
-                              <span className="text-xs text-red-600 font-medium">
-                                {org.absent} absent
-                              </span>
-                              <span className="text-xs text-blue-600 font-medium">
-                                {org.leave} leave
-                              </span>
-                            </div>
+                            <p className="text-xs text-slate-600 mt-1">
+                              {org.count} employee{org.count !== 1 ? "s" : ""} tracked this week
+                            </p>
                           </div>
                         </div>
-
                         <div className="flex items-center space-x-2">
                           {expandedOrgs[org.name] ? (
                             <ChevronUp className="w-5 h-5 text-slate-500" />
@@ -1277,177 +1215,102 @@ export default function AttendanceDashboard() {
 
                     {expandedOrgs[org.name] && (
                       <div className="p-6 space-y-4">
-                        {org.records.map((record) => (
-                          <div
-                            key={record._id}
-                            className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-                                <User className="w-6 h-6 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-slate-900">
-                                  {record.employee?.personalDetails?.firstName}{" "}
-                                  {record.employee?.personalDetails?.lastName}
-                                </h4>
-                                <div className="flex items-center gap-4 mt-1">
-                                  <p className="text-sm text-slate-600">
-                                    ID: {record.employee?.employeeId}
-                                  </p>
-                                  {record.checkIn && (
-                                    <p className="text-sm text-slate-500">
-                                      In:{" "}
-                                      {new Date(
-                                        record.checkIn
-                                      ).toLocaleTimeString("en-US", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
-                                  )}
-                                  {record.checkOut && (
-                                    <p className="text-sm text-slate-500">
-                                      Out:{" "}
-                                      {new Date(
-                                        record.checkOut
-                                      ).toLocaleTimeString("en-US", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
-                                  )}
-                                  {record.totalHours > 0 && (
-                                    <p className="text-sm text-blue-600 font-medium">
-                                      {record.totalHours}h
-                                    </p>
-                                  )}
-                                  {record.dayType && (
-                                    <span
-                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${record.dayType === "Full"
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                        }`}
-                                    >
-                                      {record.dayType} Day
-                                    </span>
+                        {org.employees.map((empData) => (
+                          <div key={empData.employee._id} className="border border-slate-200 rounded-xl overflow-hidden">
+                            <div
+                              onClick={() => toggleEmployee(empData.employee._id)}
+                              className="px-4 py-3 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                                    <User className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-slate-900 text-sm">
+                                      {empData.employee.personalDetails?.firstName} {empData.employee.personalDetails?.lastName}
+                                    </h4>
+                                    <p className="text-xs text-slate-500">ID: {empData.employee.employeeId}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                  <div className="text-right">
+                                    <p className="text-xs text-slate-600">Present</p>
+                                    <p className="text-sm font-bold text-green-700">{empData.stats.totalPresent}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-slate-600">Total Hrs</p>
+                                    <p className="text-sm font-bold text-blue-700">{empData.stats.totalHours.toFixed(1)}h</p>
+                                  </div>
+                                  {expandedEmployees[empData.employee._id] ? (
+                                    <ChevronUp className="w-4 h-4 text-slate-500" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-slate-500" />
                                   )}
                                 </div>
                               </div>
                             </div>
-                            <div>{getStatusBadge(record.status)}</div>
+
+                            {expandedEmployees[empData.employee._id] && (
+                              <div className="p-4 bg-white overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-slate-200">
+                                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-600">Date</th>
+                                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-600">Status</th>
+                                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-600">In Time</th>
+                                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-600">Out Time</th>
+                                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-600">Total Hrs</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {(() => {
+                                      const curr = new Date(selectedDate);
+                                      const day = curr.getDay();
+                                      const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+                                      return Array.from({ length: 7 }, (_, i) => {
+                                        const d = new Date(new Date(selectedDate).setDate(diff + i));
+                                        const dayNum = d.getDate();
+                                        const record = empData.records[dayNum];
+                                        const isSunday = d.getDay() === 0;
+                                        
+                                        return (
+                                          <tr key={i} className={`hover:bg-slate-50 ${isSunday ? "bg-red-50" : ""}`}>
+                                            <td className="py-2 px-3">
+                                              <div className="flex flex-col">
+                                                <span className="font-medium text-slate-900">{d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                                <span className="text-[10px] text-slate-500 uppercase">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                                              </div>
+                                            </td>
+                                            <td className="py-2 px-3">{record ? getStatusBadge(record.status) : <span className="text-xs text-slate-400">-</span>}</td>
+                                            <td className="py-2 px-3 text-slate-700">{record?.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "-"}</td>
+                                            <td className="py-2 px-3 text-slate-700">{record?.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "-"}</td>
+                                            <td className="py-2 px-3">
+                                              {record?.totalHours ? <span className="font-medium text-blue-700">{record.totalHours}h</span> : <span className="text-xs text-slate-400">-</span>}
+                                            </td>
+                                          </tr>
+                                        );
+                                      });
+                                    })()}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              // Flat View
-              <div className="p-6 space-y-4">
-                {filteredAttendance.map((record) => (
-                  <div
-                    key={record._id}
-                    className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-900">
-                          {record.employee?.personalDetails?.firstName}{" "}
-                          {record.employee?.personalDetails?.lastName}
-                        </h4>
-                        <div className="flex items-center gap-4 mt-1">
-                          <p className="text-sm text-slate-600">
-                            ID: {record.employee?.employeeId}
-                          </p>
-                          <p className="text-sm text-slate-500">
-                            {getOrganizationName(record)}
-                          </p>
-                          {record.checkIn && (
-                            <p className="text-sm text-slate-500">
-                              In:{" "}
-                              {new Date(record.checkIn).toLocaleTimeString(
-                                "en-US",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </p>
-                          )}
-                          {record.checkOut && (
-                            <p className="text-sm text-slate-500">
-                              Out:{" "}
-                              {new Date(record.checkOut).toLocaleTimeString(
-                                "en-US",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </p>
-                          )}
-                          {record.totalHours > 0 && (
-                            <p className="text-sm text-blue-600 font-medium">
-                              {record.totalHours}h
-                            </p>
-                          )}
-                          {record.dayType && (
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${record.dayType === "Full"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                                }`}
-                            >
-                              {record.dayType} Day
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            {user?.role === 'employee' && record.status === 'Absent' && (
-                                <button
-                                    onClick={() => {
-                                        setRegData({ ...regData, date: record.date, type: 'Absent Correction' });
-                                        setShowRegModal(true);
-                                    }}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold transition-colors border border-orange-100"
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    Regularize
-                                </button>
-                            )}
-                            {user?.role === 'employee' && record.status === 'Present' && (
-                                <button
-                                    onClick={() => {
-                                        setRegData({ ...regData, date: record.date, type: 'Half-Day' });
-                                        setShowRegModal(true);
-                                    }}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors border border-indigo-100"
-                                >
-                                    <Clock className="w-3.5 h-3.5" />
-                                    Apply Half-Day
-                                </button>
-                            )}
-                            {getStatusBadge(record.status)}
-                        </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         )}
 
 
         {/* MONTHLY VIEW CONTENT */}
         {viewMode === "monthly" && (
+
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="p-6 border-b border-slate-200">
               <div className="flex items-center justify-between">

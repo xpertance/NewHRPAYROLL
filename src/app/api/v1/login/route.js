@@ -380,12 +380,14 @@ export async function POST(req) {
         return NextResponse.json({ message: 'Credentials do not match' }, { status: 401 });
       }
 
+      /* 
       // Check if employee is a supervisor (shouldn't login as regular employee)
       if (employee.jobDetails.designation?.match(/supervisor|manager|lead|head/i)) {
         return NextResponse.json({
           message: 'Supervisors should use Supervisor login with email'
         }, { status: 403 });
       }
+      */
 
       // Create token with role as "employee"
       const token = jwt.sign(

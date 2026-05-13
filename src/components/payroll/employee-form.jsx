@@ -308,7 +308,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/v1/admin/admin/payroll/employees/${employeeData._id}?permanent=true`, {
+      const response = await fetch(`/api/v1/admin/payroll/employees/${employeeData._id}?permanent=true`, {
         method: "DELETE",
       });
 
@@ -479,6 +479,16 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   const fetchShifts = async () => {
     try {
       const response = await fetch("/api/v1/admin/payroll/shifts");
+      if (!response.ok) {
+        console.warn("Failed to fetch shifts: Server returned status", response.status);
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.warn("Failed to fetch shifts: Expected JSON but received", contentType);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         const shifts = Array.isArray(data.shifts) ? data.shifts : Array.isArray(data.data) ? data.data : [];
@@ -493,12 +503,30 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     try {
       setFetchLoading(true);
       const response = await fetch("/api/v1/admin/crm/organizations?limit=1000");
+      if (response.status === 403) {
+        console.error("❌ Access Denied: Your account does not have admin permissions to fetch organizations.");
+        toast.error("Access Denied: You don't have permission to view organizations. Please login as Admin.", { id: "auth-error" });
+        setOrganizations([]);
+        return;
+      }
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch organizations");
+        const errorText = await response.text();
+        console.error("❌ Organization API Error:", response.status, errorText.substring(0, 100));
+        throw new Error(`Failed to fetch organizations: ${response.status}`);
       }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Organization API returned non-JSON");
+        throw new Error("Server returned an invalid response. Please check your connection.");
+      }
+
       const orgArray = Array.isArray(data.organizations) ? data.organizations : Array.isArray(data.data) ? data.data : [];
+      
+      if (orgArray.length === 0) {
+        console.warn("⚠️ No organizations found in the database.");
+      }
       const organizationOptions = orgArray.map((org) => ({
         value: String(org._id),
         label: org.name,
@@ -507,12 +535,12 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
       setOrganizations(organizationOptions);
 
-      // Auto-select if there's only one organization (e.g., for regular admins)
       if (organizationOptions.length === 1) {
         handleSelectChange("jobDetails.organizationId", organizationOptions[0].value);
       }
     } catch (error) {
       console.error("Error fetching organizations:", error);
+      toast.error(error.message || "Failed to load organizations");
       setOrganizations([]);
     } finally {
       setFetchLoading(false);
@@ -526,8 +554,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         return;
       }
       const response = await fetch(`/api/v1/admin/crm/business-units?organizationId=${organizationId}&limit=1000`);
+      if (!response.ok) {
+        console.error("❌ Business Units API Error:", response.status);
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Business Units API returned non-JSON");
+        return;
+      }
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch business units");
       const buArray = Array.isArray(data.data) ? data.data : Array.isArray(data.businessUnits) ? data.businessUnits : [];
       setBusinessUnits(buArray.map(bu => ({ value: String(bu._id), label: bu.name })));
     } catch (error) {
@@ -539,8 +577,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   const fetchCostCenters = async () => {
     try {
       const response = await fetch("/api/v1/admin/finance/cost-centers?limit=1000");
+      if (!response.ok) {
+        console.error("❌ Cost Centers API Error:", response.status);
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Cost Centers API returned non-JSON");
+        return;
+      }
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch cost centers");
       const ccArray = Array.isArray(data.data) ? data.data : Array.isArray(data.costCenters) ? data.costCenters : [];
       setCostCenters(ccArray.map(cc => ({ value: String(cc._id), label: `${cc.name} (${cc.code})` })));
     } catch (error) {
@@ -556,9 +604,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         return;
       }
       const response = await fetch(`/api/v1/admin/crm/teams?departmentId=${departmentId}&limit=1000`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch teams");
+      if (!response.ok) {
+        console.error("❌ Teams API Error:", response.status);
+        return;
+      }
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Teams API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
       const teamsArray = Array.isArray(data.data) ? data.data : Array.isArray(data.teams) ? data.teams : [];
       const mapped = teamsArray.map(team => ({ value: String(team._id), label: team.name }));
       setTeams(mapped);
@@ -578,11 +635,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch(
         `/api/v1/admin/crm/departments?businessUnitId=${businessUnitId}&limit=1000`
       );
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch departments");
+        console.error("❌ Departments API Error:", response.status);
+        return;
       }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Departments API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
       const deptArray = Array.isArray(data.data) ? data.data : Array.isArray(data.departments) ? data.departments : [];
       const departmentOptions = deptArray
         .filter((dept) => dept.status === "Active")
@@ -616,11 +680,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch(
         `/api/v1/admin/crm/employeetype?${params.toString()}`
       );
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch employee types");
+        console.error("❌ Employee Types API Error:", response.status);
+        return;
       }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Employee Types API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
       const etArray = Array.isArray(data.data) ? data.data : Array.isArray(data.employeeTypes) ? data.employeeTypes : [];
       const employeeTypeOptions = etArray.map((item) => ({
         value: String(item._id),
@@ -647,11 +718,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       const response = await fetch(
         `/api/v1/admin/employees?organizationId=${organizationId}&status=Active&limit=1000`
       );
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch supervisors");
+        console.error("❌ Supervisors API Error:", response.status);
+        return;
       }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Supervisors API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
       const empArray = Array.isArray(data.employees) ? data.employees : Array.isArray(data.data) ? data.data : [];
       const supervisorOptions = empArray
         .filter((emp) => emp._id !== employeeData?._id)

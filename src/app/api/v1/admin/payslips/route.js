@@ -76,6 +76,18 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
+    // --- FUTURE DATE PROTECTION --- //
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Cannot generate payslip for future months." 
+      }, { status: 400 });
+    }
+
     // Pre-process earnings and deductions to match schema (e.g. name -> type if needed)
     const formattedEarnings = (earnings || []).map(e => ({
       type: e.type || e.name || 'Other',

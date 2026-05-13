@@ -40,7 +40,7 @@ export function DropdownMenu({ children }) {
   );
 }
 
-export function DropdownMenuTrigger({ children, className = "", ...props }) {
+export function DropdownMenuTrigger({ children, className = "", asChild, ...props }) {
   const { toggle } = useContext(DropdownMenuContext);
   return (
     <div

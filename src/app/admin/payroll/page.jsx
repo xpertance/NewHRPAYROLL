@@ -12,38 +12,38 @@ export default function PayrollPage() {
       title: 'Employee Management',
       description: 'Add, edit, and manage employee details and salary information',
       icon: Users,
-      href: '/payroll/employees',
+      href: '/admin/employees',
       color: 'text-blue-600'
     },
     {
       title: 'Payslip Generation',
       description: 'Generate and manage employee payslips',
       icon: FileText,
-      href: '/dashboard/payroll',
+      href: '/admin/payroll/payslip',
       color: 'text-green-600',
-      disabled: true
+      disabled: false
     },
     {
       title: 'Tax Calculations',
       description: 'Calculate TDS, PF, and other deductions',
       icon: Calculator,
-      href: '/dashboard/payroll',
+      href: '/admin/payroll/tax-calculations',
       color: 'text-yellow-600',
-      disabled: true
+      disabled: false
     },
     {
       title: 'Compliance Reporting',
       description: 'Generate compliance reports for regulatory requirements',
       icon: BarChart3,
-      href: '/dashboard/payroll',
+      href: '/admin/payroll/compliance',
       color: 'text-purple-600',
-      disabled: true
+      disabled: false
     },
     {
       title: 'Bonus & Incentives',
       description: 'Manage employee bonuses, incentives and rewards',
       icon: Gift,
-      href: '/payroll/bonuses',
+      href: '/admin/payroll/bonuses',
       color: 'text-pink-600',
       disabled: false
     }
