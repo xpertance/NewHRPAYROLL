@@ -777,6 +777,7 @@ export default function EmployeeTypesPage() {
 
   // Fetch organizations
   async function fetchOrganizations() {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set("page", "1");
@@ -785,10 +786,19 @@ export default function EmployeeTypesPage() {
       const res = await fetch(`/api/v1/admin/crm/organizations?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
-        setOrganizations(data.organizations || []);
+        setOrganizations(data.data || []);
+        // If no organizations, we should stop loading here
+        if (!data.data || data.data.length === 0) {
+          setLoading(false);
+        }
+      } else {
+        setError(data.message || "Failed to fetch organizations");
+        setLoading(false);
       }
     } catch (err) {
       console.error("Organizations fetch error:", err);
+      setError("Network error while fetching organizations");
+      setLoading(false);
     }
   }
 
@@ -863,7 +873,10 @@ export default function EmployeeTypesPage() {
   // Fetch all data
   async function fetchAllData() {
     try {
-      setLoading(true);
+      // Only show full-page loading if we don't have data yet
+      if (employeeTypes.length === 0 && categories.length === 0) {
+        setLoading(true);
+      }
       setError("");
       const selectedOrg = organizations.find(org => org.name === selectedOrganization);
       const orgId = selectedOrg?._id || "";
@@ -907,9 +920,8 @@ export default function EmployeeTypesPage() {
 
   // Fetch data when filters change
   useEffect(() => {
-    if (organizations.length > 0) {
-      fetchAllData();
-    }
+    // Only fetch data if we have organizations OR if we've already tried fetching them
+    fetchAllData();
   }, [selectedOrganization, selectedDepartment, organizations]);
 
   // Handle modal success
