@@ -186,6 +186,93 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get("limit")) || 100;
     const skip = (page - 1) * limit;
 
+    let isPastDate = false;
+    if (date) {
+      const queryDate = new Date(date);
+      const today = new Date();
+      isPastDate = new Date(queryDate.toDateString()) < new Date(today.toDateString());
+    }
+
+    // --- SELF-HEALING & AUTO-ABSENT/LEAVE/HOLIDAY GENERATION FOR PAST DATES ---
+    if (date && isPastDate) {
+      const queryDate = new Date(date);
+      const startOfQueryDay = new Date(queryDate);
+      startOfQueryDay.setHours(0, 0, 0, 0);
+      const endOfQueryDay = new Date(queryDate);
+      endOfQueryDay.setHours(23, 59, 59, 999);
+
+      // Fetch SaaS scoped active employees
+      let orgQuery = { status: "Active" };
+      if (authUser.role === "admin" || authUser.role === "supervisor") {
+        orgQuery["jobDetails.organizationId"] = authUser.organizationId;
+      } else if (authUser.role === "super_admin" && organizationId) {
+        orgQuery["jobDetails.organizationId"] = organizationId;
+      }
+
+      const activeEmployees = await Employee.find(orgQuery);
+
+      // Find existing attendance records for this date
+      const existingRecords = await Attendance.find({
+        date: { $gte: startOfQueryDay, $lte: endOfQueryDay }
+      });
+      const existingEmployeeIds = new Set(existingRecords.map(r => r.employee.toString()));
+
+      // Check if there is an active Holiday for this date
+      const HolidayModel = (await import("@/lib/db/models/payroll/Holiday")).default;
+      const holiday = await HolidayModel.findOne({
+        organizationId: authUser.organizationId || (authUser.role === "super_admin" ? organizationId : null),
+        date: { $gte: startOfQueryDay, $lte: endOfQueryDay },
+        status: 'Active'
+      });
+
+      // Check approved Leave Applications
+      const LeaveApplicationModel = (await import("@/lib/db/models/payroll/LeaveApplication")).default;
+
+      const dayOfWeek = queryDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
+
+      // Self-heal: Create physical documents in the database for past dates
+      for (const emp of activeEmployees) {
+        if (!existingEmployeeIds.has(emp._id.toString())) {
+          try {
+            // Check if this specific employee is on approved leave
+            const approvedLeave = await LeaveApplicationModel.findOne({
+              employee: emp._id,
+              status: "Approved",
+              startDate: { $lte: endOfQueryDay },
+              endDate: { $gte: startOfQueryDay }
+            });
+
+            let defaultStatus = "Absent";
+            let notes = "Auto-marked Absent (Shift End)";
+            
+            if (approvedLeave) {
+              defaultStatus = "Leave";
+              notes = `Approved Leave: ${approvedLeave.leaveType}`;
+            } else if (holiday) {
+              defaultStatus = "Holiday";
+              notes = `Holiday: ${holiday.name}`;
+            } else if (isWeekend) {
+              defaultStatus = "Weekly Off";
+              notes = "Weekly Off";
+            }
+
+            await Attendance.create({
+              employee: emp._id,
+              date: queryDate,
+              status: defaultStatus,
+              checkIn: null,
+              checkOut: null,
+              totalHours: 0,
+              notes: notes
+            });
+          } catch (err) {
+            console.error(`Failed to self-heal attendance for employee ${emp._id}:`, err);
+          }
+        }
+      }
+    }
+
     let filter = {};
 
     // SaaS PROTECTION: Restrict data by organization
@@ -262,10 +349,177 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit);
 
-    // Filter logic integrated into MongoDB query above for security and performance
+    // --- VIRTUAL ABSENT/WEEKEND/HOLIDAY/LEAVE GENERATION FOR TODAY ---
+    if (date && !isPastDate) {
+      const queryDate = new Date(date);
+      // Find SaaS scoped active employees
+      let orgQuery = { status: "Active" };
+      if (authUser.role === "admin" || authUser.role === "supervisor") {
+        orgQuery["jobDetails.organizationId"] = authUser.organizationId;
+      } else if (authUser.role === "super_admin" && organizationId) {
+        orgQuery["jobDetails.organizationId"] = organizationId;
+      }
 
+      const activeEmployees = await Employee.find(orgQuery).populate({
+        path: "jobDetails.organizationId",
+        select: "name",
+      });
 
-    const total = await Attendance.countDocuments(filter);
+      // Get set of employee IDs present in the physical attendance response
+      const physicalEmpIds = new Set(attendance.map(r => r.employee?._id?.toString() || r.employee?.toString()));
+
+      // Check if there is an active Holiday for today
+      const startOfQueryDay = new Date(queryDate);
+      startOfQueryDay.setHours(0, 0, 0, 0);
+      const endOfQueryDay = new Date(queryDate);
+      endOfQueryDay.setHours(23, 59, 59, 999);
+      const HolidayModel = (await import("@/lib/db/models/payroll/Holiday")).default;
+      const holiday = await HolidayModel.findOne({
+        organizationId: authUser.organizationId || (authUser.role === "super_admin" ? organizationId : null),
+        date: { $gte: startOfQueryDay, $lte: endOfQueryDay },
+        status: 'Active'
+      });
+
+      // Import Leave Application Model
+      const LeaveApplicationModel = (await import("@/lib/db/models/payroll/LeaveApplication")).default;
+
+      const dayOfWeek = queryDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
+
+      const virtualRecords = [];
+      for (const emp of activeEmployees) {
+        if (!physicalEmpIds.has(emp._id.toString())) {
+          // Apply employee filter if requested
+          if (employeeId && employeeId !== emp._id.toString()) continue;
+
+          // Check if this specific employee has approved leave today
+          const approvedLeave = await LeaveApplicationModel.findOne({
+            employee: emp._id,
+            status: "Approved",
+            startDate: { $lte: endOfQueryDay },
+            endDate: { $gte: startOfQueryDay }
+          });
+
+          let defaultStatus = "Absent";
+          let notes = "Expected Absent (No Clock-In Yet)";
+          
+          if (approvedLeave) {
+            defaultStatus = "Leave";
+            notes = `Approved Leave: ${approvedLeave.leaveType}`;
+          } else if (holiday) {
+            defaultStatus = "Holiday";
+            notes = `Holiday: ${holiday.name}`;
+          } else if (isWeekend) {
+            defaultStatus = "Weekly Off";
+            notes = "Weekly Off";
+          }
+
+          // Apply status filter if present
+          if (status && defaultStatus !== status) continue;
+
+          virtualRecords.push({
+            _id: `virtual-${emp._id}-${date}`,
+            employee: emp,
+            date: queryDate,
+            status: defaultStatus,
+            checkIn: null,
+            checkOut: null,
+            totalHours: 0,
+            notes: notes,
+            isVirtual: true
+          });
+        }
+      }
+
+      // Merge physical and virtual records
+      attendance = [...attendance, ...virtualRecords];
+    }
+
+    // --- DYNAMIC LATE-MINUTES & HALF-DAY CALCULATION ---
+    const ShiftRosterModel = (await import("@/lib/db/models/payroll/ShiftRoster")).default;
+    const WorkingShiftModel = (await import("@/lib/db/models/payroll/WorkingShift")).default;
+
+    // Fetch default shift to avoid querying inside map loop repeatedly
+    const defaultShift = await WorkingShiftModel.findOne({
+      organizationId: authUser.organizationId || (authUser.role === "super_admin" ? organizationId : null),
+      isDefault: true
+    });
+
+    attendance = await Promise.all(attendance.map(async (record) => {
+      const rec = record.toObject ? record.toObject() : record;
+      
+      if (rec.employee && rec.employee._id) {
+        // Find their shift for this record's date
+        const recDate = new Date(rec.date);
+        const startOfRecDay = new Date(recDate);
+        startOfRecDay.setHours(0, 0, 0, 0);
+        const endOfRecDay = new Date(recDate);
+        endOfRecDay.setHours(23, 59, 59, 999);
+
+        const roster = await ShiftRosterModel.findOne({
+          employeeId: rec.employee._id,
+          date: { $gte: startOfRecDay, $lte: endOfRecDay }
+        }).populate("shiftId");
+
+        const shift = roster?.shiftId || defaultShift;
+
+        // Extract shift settings or use fallbacks
+        const shiftStartStr = shift?.startTime || "09:00";
+        const lateCutoffStr = shift?.lateCutoffTime || "09:15";
+        const absentCutoffStr = shift?.absentCutoffTime || "11:00";
+        const halfDayCutoffStr = shift?.halfDayCutoffTime || "12:30";
+        const minHours = shift?.halfDayMinHours || 4;
+
+        if (rec.checkIn && rec.status === 'Present') {
+          const checkInTime = new Date(rec.checkIn);
+          
+          // Parse lateCutoffTime to Date
+          const [lateH, lateM] = lateCutoffStr.split(':').map(Number);
+          const lateCutoffTime = new Date(checkInTime);
+          lateCutoffTime.setHours(lateH, lateM, 0, 0);
+
+          // Parse shiftStartTime to Date
+          const [startH, startM] = shiftStartStr.split(':').map(Number);
+          const shiftStartTime = new Date(checkInTime);
+          shiftStartTime.setHours(startH, startM, 0, 0);
+
+          // Calculate late minutes if they checked in after lateCutoffTime
+          if (checkInTime > lateCutoffTime) {
+            const diffMs = checkInTime - shiftStartTime;
+            rec.lateMinutes = Math.floor(diffMs / (1000 * 60));
+          } else {
+            rec.lateMinutes = 0;
+          }
+
+          // Parse halfDayCutoffTime to Date
+          const [hdH, hdM] = halfDayCutoffStr.split(':').map(Number);
+          const halfDayCutoffTime = new Date(checkInTime);
+          halfDayCutoffTime.setHours(hdH, hdM, 0, 0);
+
+          // Dynamic Half-Day logic: 
+          // 1. If checked in after halfDayCutoffTime -> Auto Half-day!
+          // 2. If checked out and total hours worked < minHours -> Auto Half-day!
+          if (checkInTime > halfDayCutoffTime) {
+            rec.status = 'Half-day';
+            rec.notes = rec.notes ? `${rec.notes} (Auto Half-day: Checked-in after cutoff)` : "Auto Half-day: Checked-in after cutoff";
+          } else if (rec.checkOut) {
+            const totalHours = rec.totalHours || 0;
+            if (totalHours > 0 && totalHours < minHours) {
+              rec.status = 'Half-day';
+              rec.notes = rec.notes ? `${rec.notes} (Auto Half-day: Worked hours < ${minHours}h)` : `Auto Half-day: Worked hours < ${minHours}h`;
+            }
+          }
+        }
+      } else {
+        rec.lateMinutes = 0;
+      }
+      return rec;
+    }));
+
+    let total = await Attendance.countDocuments(filter);
+    if (date && !isPastDate) {
+      total = attendance.length;
+    }
 
     return NextResponse.json({
       success: true,

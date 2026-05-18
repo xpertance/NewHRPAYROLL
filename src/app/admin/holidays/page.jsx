@@ -277,7 +277,7 @@ function AdminHolidaysContent() {
             if (data.success) {
                 toast.success(`Holiday ${editingHoliday ? "updated" : "created"} successfully`);
                 setShowModal(false);
-                fetchHolidays();
+                fetchHolidays(selectedListId);
             } else {
                 toast.error(data.error || "Failed to save holiday");
             }
@@ -293,7 +293,7 @@ function AdminHolidaysContent() {
             const data = await response.json();
             if (data.success) {
                 toast.success("Holiday deleted successfully");
-                fetchHolidays();
+                fetchHolidays(selectedListId);
             } else {
                 toast.error(data.error || "Failed to delete holiday");
             }

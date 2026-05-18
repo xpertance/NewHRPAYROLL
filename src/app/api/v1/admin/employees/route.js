@@ -360,6 +360,11 @@ export async function POST(request) {
       cleanedBody.createdBy = authUser.id;
     }
 
+    // Ensure currentAddress is mapped to address for DB schema compatibility
+    if (cleanedBody.personalDetails) {
+      cleanedBody.personalDetails.address = cleanedBody.personalDetails.currentAddress || cleanedBody.personalDetails.address || {};
+    }
+
     const employee = await Employee.create(cleanedBody);
     
     // Asynchronous document check

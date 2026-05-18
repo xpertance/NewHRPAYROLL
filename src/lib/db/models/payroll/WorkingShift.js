@@ -20,6 +20,22 @@ const workingShiftSchema = new mongoose.Schema(
             type: String, // "18:00"
             required: true,
         },
+        lateCutoffTime: {
+            type: String, // e.g., "09:15"
+            default: "09:15",
+        },
+        absentCutoffTime: {
+            type: String, // e.g., "11:00"
+            default: "11:00",
+        },
+        halfDayCutoffTime: {
+            type: String, // e.g., "12:30"
+            default: "12:30",
+        },
+        halfDayMinHours: {
+            type: Number, // Minimum worked hours to count as full day
+            default: 4,
+        },
         breakDuration: {
             type: Number, // in minutes
             default: 60,
