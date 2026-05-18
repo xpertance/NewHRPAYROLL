@@ -151,6 +151,12 @@ export async function PUT(request, { params }) {
     }
 
     const cleanedBody = cleanObjectIdFields(body);
+    
+    // Ensure currentAddress is mapped to address for DB schema compatibility
+    if (cleanedBody.personalDetails) {
+      cleanedBody.personalDetails.address = cleanedBody.personalDetails.currentAddress || cleanedBody.personalDetails.address || {};
+    }
+
     const updateData = {
       ...cleanedBody,
       password: cleanedBody.password ? await bcrypt.hash(cleanedBody.password, 10) : existingEmployee.password,

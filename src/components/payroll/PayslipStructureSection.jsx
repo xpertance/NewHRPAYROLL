@@ -166,17 +166,9 @@ export default function PayslipStructureSection({
     };
 
     const calculateTotalDeductions = () => {
-        const { employeePF } = calculatePFContributions();
-        const pt = calculatePT();
-        const otherDeductions = payslipStructure.deductions
-            .filter(
-                (d) =>
-                    d.enabled &&
-                    d.name !== "Professional Tax" &&
-                    d.name !== "Provident Fund (Employee)"
-            )
+        return payslipStructure.deductions
+            .filter((d) => d.enabled)
             .reduce((sum, d) => sum + calculateDeductionAmount(d), 0);
-        return employeePF + pt + otherDeductions;
     };
 
     const calculateNetSalary = () => {
@@ -712,9 +704,7 @@ export default function PayslipStructureSection({
                                             })}
                                         </span>
                                     )}
-                                    {deduction.editable &&
-                                        deduction.name !== "Professional Tax" &&
-                                        deduction.name !== "Provident Fund (Employee)" && (
+                                    {(deduction.editable || true) && (
                                             <button
                                                 type="button"
                                                 onClick={() => removeDeduction(index)}
@@ -802,7 +792,7 @@ export default function PayslipStructureSection({
                 {/* Deductions Section */}
                 <div className="space-y-4">
                     {/* PF Breakdown */}
-                    {pfApplicable === "yes" && (
+                    {pfApplicable === "yes" && payslipStructure.deductions.some(d => d.name === "Provident Fund (Employee)" && d.enabled) && (
                         <div>
                             <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                                 <BadgeDollarSign className="w-4 h-4 text-red-600" />
@@ -832,42 +822,44 @@ export default function PayslipStructureSection({
                     )}
 
                     {/* Professional Tax Section */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                            <FileWarning className="w-4 h-4 text-red-600" />
-                            Professional Tax (PT) <span>({selectedMonth || "Select Month"})</span>
-                        </h4>
-                        <p className="text-lg font-medium text-red-600">
-                            ₹{calculatePT().toLocaleString("en-IN")}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                            {selectedMonth === "February"
-                                ? "Fixed ₹300 for February"
-                                : employeeGender === "Female" && calculatePT() === 0
-                                    ? "Female employee exempt (salary < ₹25,000)"
-                                    : employeeGender === "Male" && calculatePT() === 0
-                                        ? "Male employee exempt (salary ≤ ₹10,000)"
-                                        : "Applicable as per rules"}
-                        </p>
-                        <div className="flex space-x-2 mt-2">
-                            {employeeGender === "Female" ? (
-                                <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                                    <Users className="w-3 h-3 mr-1" />
-                                    Female
-                                </span>
-                            ) : employeeGender === "Male" ? (
-                                <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                    <Users className="w-3 h-3 mr-1" />
-                                    Male
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs">
-                                    <Users className="w-3 h-3 mr-1" />
-                                    Not specified
-                                </span>
-                            )}
+                    {payslipStructure.deductions.some(d => d.name === "Professional Tax" && d.enabled) && (
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                <FileWarning className="w-4 h-4 text-red-600" />
+                                Professional Tax (PT) <span>({selectedMonth || "Select Month"})</span>
+                            </h4>
+                            <p className="text-lg font-medium text-red-600">
+                                ₹{calculatePT().toLocaleString("en-IN")}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                {selectedMonth === "February"
+                                    ? "Fixed ₹300 for February"
+                                    : employeeGender === "Female" && calculatePT() === 0
+                                        ? "Female employee exempt (salary < ₹25,000)"
+                                        : employeeGender === "Male" && calculatePT() === 0
+                                            ? "Male employee exempt (salary ≤ ₹10,000)"
+                                            : "Applicable as per rules"}
+                            </p>
+                            <div className="flex space-x-2 mt-2">
+                                {employeeGender === "Female" ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        Female
+                                    </span>
+                                ) : employeeGender === "Male" ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        Male
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        Not specified
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Other Deductions */}
                     {payslipStructure.deductions.filter(
@@ -927,15 +919,12 @@ export default function PayslipStructureSection({
                                 })}
                             </p>
                             <p className="text-xs text-slate-500">
-                                Includes: PF{" "}
-                                {calculatePFContributions().employeePF > 0
-                                    ? `(₹${calculatePFContributions().employeePF.toLocaleString(
-                                        "en-IN"
-                                    )})`
+                                Includes: 
+                                {payslipStructure.deductions.some(d => d.name === "Provident Fund (Employee)" && d.enabled) && calculatePFContributions().employeePF > 0
+                                    ? ` PF (₹${calculatePFContributions().employeePF.toLocaleString("en-IN")})`
                                     : ""}{" "}
-                                , PT{" "}
-                                {calculatePT() > 0
-                                    ? `(₹${calculatePT().toLocaleString("en-IN")})`
+                                {payslipStructure.deductions.some(d => d.name === "Professional Tax" && d.enabled) && calculatePT() > 0
+                                    ? ` , PT (₹${calculatePT().toLocaleString("en-IN")})`
                                     : ""}
                             </p>
                         </div>

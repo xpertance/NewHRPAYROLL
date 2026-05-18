@@ -20,8 +20,23 @@ export default function ShiftManagement() {
         workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         color: '#4f46e5',
         description: '',
-        isDefault: false
+        isDefault: false,
+        lateCutoffTime: '09:15',
+        absentCutoffTime: '11:00',
+        halfDayCutoffTime: '12:30',
+        halfDayMinHours: 4
     });
+
+    const [globalLateTime, setGlobalLateTime] = useState('09:15');
+    const [globalAbsentTime, setGlobalAbsentTime] = useState('11:00');
+    const [globalHalfDayHours, setGlobalHalfDayHours] = useState(4);
+    const [globalHalfDayTime, setGlobalHalfDayTime] = useState('12:30');
+    const [globalStartTime, setGlobalStartTime] = useState('09:00');
+    const [globalEndTime, setGlobalEndTime] = useState('18:00');
+    const [selectedShiftId, setSelectedShiftId] = useState('');
+    const [editLate, setEditLate] = useState(false);
+    const [editAbsent, setEditAbsent] = useState(false);
+    const [editHalfDay, setEditHalfDay] = useState(false);
 
     const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const colorPresets = ['#4f46e5', '#ecc94b', '#48bb78', '#f56565', '#ed64a6', '#9f7aea', '#4299e1'];
@@ -36,7 +51,24 @@ export default function ShiftManagement() {
             const response = await fetch('/api/v1/admin/payroll/shifts');
             const data = await response.json();
             if (data.success) {
-                setShifts(data.shifts || []);
+                const shiftList = data.shifts || [];
+                setShifts(shiftList);
+                
+                // Maintain selected shift if it exists, otherwise fallback to default or first shift
+                let activeShift = shiftList.find(s => s._id === selectedShiftId) || shiftList.find(s => s.isDefault);
+                if (!activeShift && shiftList.length > 0) {
+                    activeShift = shiftList[0];
+                }
+                
+                if (activeShift) {
+                    setSelectedShiftId(activeShift._id);
+                    setGlobalLateTime(activeShift.lateCutoffTime || '09:15');
+                    setGlobalAbsentTime(activeShift.absentCutoffTime || '11:00');
+                    setGlobalHalfDayHours(activeShift.halfDayMinHours || 4);
+                    setGlobalHalfDayTime(activeShift.halfDayCutoffTime || '12:30');
+                    setGlobalStartTime(activeShift.startTime || '09:00');
+                    setGlobalEndTime(activeShift.endTime || '18:00');
+                }
             }
         } catch (error) {
             toast.error("Failed to load shifts");
@@ -56,7 +88,11 @@ export default function ShiftManagement() {
                 workingDays: shift.workingDays,
                 color: shift.color,
                 description: shift.description || '',
-                isDefault: shift.isDefault || false
+                isDefault: shift.isDefault || false,
+                lateCutoffTime: shift.lateCutoffTime || '09:15',
+                absentCutoffTime: shift.absentCutoffTime || '11:00',
+                halfDayCutoffTime: shift.halfDayCutoffTime || '12:30',
+                halfDayMinHours: shift.halfDayMinHours || 4
             });
         } else {
             setEditingShift(null);
@@ -68,7 +104,11 @@ export default function ShiftManagement() {
                 workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
                 color: '#4f46e5',
                 description: '',
-                isDefault: false
+                isDefault: false,
+                lateCutoffTime: '09:15',
+                absentCutoffTime: '11:00',
+                halfDayCutoffTime: '12:30',
+                halfDayMinHours: 4
             });
         }
         setShowModal(true);
@@ -122,6 +162,48 @@ export default function ShiftManagement() {
             }
         } catch (error) {
             toast.error("An error occurred");
+        }
+    };
+
+    const handleSelectShiftChange = (shiftId) => {
+        const activeShift = shifts.find(s => s._id === shiftId);
+        if (activeShift) {
+            setSelectedShiftId(shiftId);
+            setGlobalLateTime(activeShift.lateCutoffTime || '09:15');
+            setGlobalAbsentTime(activeShift.absentCutoffTime || '11:00');
+            setGlobalHalfDayHours(activeShift.halfDayMinHours || 4);
+            setGlobalHalfDayTime(activeShift.halfDayCutoffTime || '12:30');
+            setGlobalStartTime(activeShift.startTime || '09:00');
+            setGlobalEndTime(activeShift.endTime || '18:00');
+        }
+    };
+
+    const handleSaveGlobalPolicy = async (policyData) => {
+        const activeShiftObj = shifts.find(s => s._id === selectedShiftId) || shifts.find(s => s.isDefault) || shifts[0];
+        if (!activeShiftObj) {
+            toast.error("Please create a shift first!");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/v1/admin/payroll/shifts', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...activeShiftObj,
+                    ...policyData
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                toast.success("Policy updated successfully!");
+                fetchShifts();
+            } else {
+                toast.error(data.error || "Failed to update policy");
+            }
+        } catch (error) {
+            toast.error("An error occurred while saving the policy");
         }
     };
 
@@ -252,6 +334,222 @@ export default function ShiftManagement() {
                         )}
                     </div>
                 )}
+
+                {/* Global Attendance Policy Rules */}
+                <div className="mt-16 pt-8 border-t border-slate-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Shift Rules & Policies</h2>
+                            <p className="text-slate-500 font-medium">Configure timings and automated thresholds for the selected shift.</p>
+                        </div>
+                        {shifts.length > 0 && (
+                            <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Selected Shift:</span>
+                                <select
+                                    value={selectedShiftId}
+                                    onChange={e => handleSelectShiftChange(e.target.value)}
+                                    className="font-bold text-slate-900 outline-none bg-transparent cursor-pointer"
+                                >
+                                    {shifts.map(s => (
+                                        <option key={s._id} value={s._id}>
+                                            {s.name} {s.isDefault ? '(Default)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+
+                        {/* Card 2: Late Arrival Management */}
+                        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full relative group">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                                            <Clock className="h-5 w-5 text-indigo-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-900">Late Arrival</h3>
+                                            <p className="text-xs text-slate-400 font-bold">Configure grace check-in timings</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setEditLate(!editLate)} 
+                                        className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                </div>
+                                
+                                {!editLate ? (
+                                    <div className="flex items-center gap-4 text-slate-600 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <Clock className="text-indigo-600 animate-pulse" size={20} />
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Late Cutoff Time</p>
+                                            <p className="font-black text-slate-900 text-lg mt-0.5">
+                                                {formatTime12h(globalLateTime)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-400">Late Cutoff Time</label>
+                                        <input
+                                            type="time"
+                                            value={globalLateTime}
+                                            onChange={e => setGlobalLateTime(e.target.value)}
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {editLate && (
+                                <button
+                                    onClick={async () => {
+                                        await handleSaveGlobalPolicy({ lateCutoffTime: globalLateTime });
+                                        setEditLate(false);
+                                    }}
+                                    className="w-full py-4 rounded-[1.5rem] font-bold transition-all active:scale-[0.98] mt-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100"
+                                >
+                                    Update
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Card 3: Present & Absent Management */}
+                        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full relative group">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                                            <AlertCircle className="h-5 w-5 text-indigo-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-900">Absent Cutoff</h3>
+                                            <p className="text-xs text-slate-400 font-bold">Configure auto-absent thresholds</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setEditAbsent(!editAbsent)} 
+                                        className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                </div>
+                                
+                                {!editAbsent ? (
+                                    <div className="flex items-center gap-4 text-slate-600 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <AlertCircle className="text-indigo-600 animate-pulse" size={20} />
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Auto-Absent Cutoff Time</p>
+                                            <p className="font-black text-slate-900 text-lg mt-0.5">
+                                                {formatTime12h(globalAbsentTime)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-400">Auto-Absent Cutoff Time</label>
+                                        <input
+                                            type="time"
+                                            value={globalAbsentTime}
+                                            onChange={e => setGlobalAbsentTime(e.target.value)}
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {editAbsent && (
+                                <button
+                                    onClick={async () => {
+                                        await handleSaveGlobalPolicy({ absentCutoffTime: globalAbsentTime });
+                                        setEditAbsent(false);
+                                    }}
+                                    className="w-full py-4 rounded-[1.5rem] font-bold transition-all active:scale-[0.98] mt-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100"
+                                >
+                                    Update
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Card 4: Half-Day Management */}
+                        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full relative group">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                                            <Clock className="h-5 w-5 text-indigo-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-900">Half-Day Settings</h3>
+                                            <p className="text-xs text-slate-400 font-bold">Configure worked hours & cutoffs</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setEditHalfDay(!editHalfDay)} 
+                                        className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                </div>
+                                
+                                {!editHalfDay ? (
+                                    <div className="flex items-center gap-4 text-slate-600 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <Clock className="text-indigo-600 animate-pulse" size={20} />
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Half-Day Settings</p>
+                                            <p className="font-black text-slate-900 text-lg mt-0.5">
+                                                &lt; {globalHalfDayHours} hrs or after {formatTime12h(globalHalfDayTime)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">Min Hours</label>
+                                            <input
+                                                type="number"
+                                                value={globalHalfDayHours}
+                                                onChange={e => setGlobalHalfDayHours(parseInt(e.target.value) || 0)}
+                                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                                                min="0"
+                                                max="24"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">Check-In Cutoff</label>
+                                            <input
+                                                type="time"
+                                                value={globalHalfDayTime}
+                                                onChange={e => setGlobalHalfDayTime(e.target.value)}
+                                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {editHalfDay && (
+                                <button
+                                    onClick={async () => {
+                                        await handleSaveGlobalPolicy({ 
+                                            halfDayMinHours: globalHalfDayHours, 
+                                            halfDayCutoffTime: globalHalfDayTime 
+                                        });
+                                        setEditHalfDay(false);
+                                    }}
+                                    className="w-full py-4 rounded-[1.5rem] font-bold transition-all active:scale-[0.98] mt-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100"
+                                >
+                                    Update
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Modal Form */}

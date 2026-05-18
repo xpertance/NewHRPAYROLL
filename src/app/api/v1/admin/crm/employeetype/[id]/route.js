@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
+import mongoose from "mongoose";
 import EmployeeType from "@/lib/db/models/crm/employee/EmployeeType";
 import Organization from "@/lib/db/models/crm/organization/Organization";
 import Department from "@/lib/db/models/crm/Department/department";

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAuthUser, authorize } from "@/lib/auth-util";
 import dbConnect from "@/lib/db/connect";
-import User from "@/lib/db/models/User";
+import Employee from "@/lib/db/models/payroll/Employee";
 
 export async function POST(req) {
   try {
@@ -33,7 +33,7 @@ export async function POST(req) {
     await dbConnect();
 
     // 3. Fetch employee from DB
-    const dbUser = await User.findById(user.id).select('+password');
+    const dbUser = await Employee.findById(user.id).select('+password');
     if (!dbUser) {
       return NextResponse.json({ success: false, error: "Employee not found" }, { status: 404 });
     }
@@ -44,8 +44,8 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Invalid current password" }, { status: 401 });
     }
 
-    // 5. Hash new password & 6. Update DB
-    dbUser.password = await bcrypt.hash(newPassword, 10);
+    // 5. Update DB (pre-save hook in Employee model will handle hashing securely)
+    dbUser.password = newPassword;
     await dbUser.save();
 
     // 7. Return success

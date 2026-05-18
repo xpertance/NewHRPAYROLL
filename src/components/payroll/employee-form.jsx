@@ -78,6 +78,57 @@ const employmentTypeOptions = [
   { value: "Intern", label: "Intern" },
 ];
 
+const designationOptions = [
+  { value: "Software Engineer", label: "Software Engineer" },
+  { value: "Senior Software Engineer", label: "Senior Software Engineer" },
+  { value: "Tech Lead", label: "Tech Lead" },
+  { value: "QA Engineer", label: "QA Engineer" },
+  { value: "DevOps Engineer", label: "DevOps Engineer" },
+  { value: "UI/UX Designer", label: "UI/UX Designer" },
+  { value: "Product Manager", label: "Product Manager" },
+  { value: "CTO", label: "CTO" },
+  { value: "HR Executive", label: "HR Executive" },
+  { value: "HR Recruiter", label: "HR Recruiter" },
+  { value: "HR Generalist", label: "HR Generalist" },
+  { value: "HR Manager", label: "HR Manager" },
+  { value: "Admin Executive", label: "Admin Executive" },
+  { value: "Business Development Associate (BDA)", label: "Business Development Associate (BDA)" },
+  { value: "Sales Executive", label: "Sales Executive" },
+  { value: "Marketing Executive", label: "Marketing Executive" },
+  { value: "Digital Marketing Specialist", label: "Digital Marketing Specialist" },
+  { value: "Sales Manager", label: "Sales Manager" },
+  { value: "Operations Executive", label: "Operations Executive" },
+  { value: "Operations Manager", label: "Operations Manager" },
+  { value: "Customer Support Executive", label: "Customer Support Executive" },
+  { value: "Technical Support Engineer", label: "Technical Support Engineer" },
+  { value: "Accountant", label: "Accountant" },
+  { value: "Senior Accountant", label: "Senior Accountant" },
+  { value: "Finance Manager", label: "Finance Manager" },
+  { value: "Team Leader", label: "Team Leader" },
+  { value: "Project Manager", label: "Project Manager" },
+  { value: "Delivery Manager", label: "Delivery Manager" },
+  { value: "CEO / Founder", label: "CEO / Founder" }
+];
+
+const bankOptions = [
+  { value: "HDFC Bank", label: "HDFC Bank" },
+  { value: "ICICI Bank", label: "ICICI Bank" },
+  { value: "State Bank of India (SBI)", label: "State Bank of India (SBI)" },
+  { value: "Axis Bank", label: "Axis Bank" },
+  { value: "Kotak Mahindra Bank", label: "Kotak Mahindra Bank" },
+  { value: "Punjab National Bank (PNB)", label: "Punjab National Bank (PNB)" },
+  { value: "Bank of Baroda (BOB)", label: "Bank of Baroda (BOB)" },
+  { value: "Canara Bank", label: "Canara Bank" },
+  { value: "Union Bank of India", label: "Union Bank of India" },
+  { value: "IndusInd Bank", label: "IndusInd Bank" },
+  { value: "IDFC FIRST Bank", label: "IDFC FIRST Bank" },
+  { value: "Yes Bank", label: "Yes Bank" },
+  { value: "Federal Bank", label: "Federal Bank" },
+  { value: "Bank of India (BOI)", label: "Bank of India (BOI)" },
+  { value: "Indian Bank", label: "Indian Bank" }
+];
+
+
 const validators = {
   name: (v) => /^[A-Za-z\s]{1,40}$/.test(v?.trim() || ""),
   email: (v) => /^\S+@\S+\.\S+$/.test(v?.trim() || ""),
@@ -841,7 +892,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
             ...(employeeData.personalDetails || {}),
             currentAddress: {
               ...prev.personalDetails.currentAddress,
-              ...(employeeData.personalDetails?.currentAddress || {}),
+              ...(employeeData.personalDetails?.currentAddress || employeeData.personalDetails?.address || {}),
             },
             permanentAddress: {
               ...prev.personalDetails.permanentAddress,
@@ -855,14 +906,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
           jobDetails: {
             ...prev.jobDetails,
             ...(employeeData.jobDetails || {}),
-            // Ensure ID fields are used if populated (though Page usually sends IDs)
+            // Ensure ID fields are extracted correctly if they are populated objects
             reportingManager: employeeData.jobDetails?.reportingManager?._id || employeeData.jobDetails?.reportingManager || "",
             teamLead: employeeData.jobDetails?.teamLead?._id || employeeData.jobDetails?.teamLead || "",
-            // Handle potentially missing nested IDs
-            organizationId: employeeData.jobDetails?.organizationId || "",
-            organizationId: employeeData.jobDetails?.organizationId || "",
-            departmentId: employeeData.jobDetails?.departmentId || "",
-            assignedOfficeId: employeeData.jobDetails?.assignedOfficeId || "",
+            organizationId: employeeData.jobDetails?.organizationId?._id || employeeData.jobDetails?.organizationId || "",
+            departmentId: employeeData.jobDetails?.departmentId?._id || employeeData.jobDetails?.departmentId || "",
+            businessUnitId: employeeData.jobDetails?.businessUnitId?._id || employeeData.jobDetails?.businessUnitId || "",
+            teamId: employeeData.jobDetails?.teamId?._id || employeeData.jobDetails?.teamId || "",
+            costCenterId: employeeData.jobDetails?.costCenterId?._id || employeeData.jobDetails?.costCenterId || "",
+            employeeTypeId: employeeData.jobDetails?.employeeTypeId?._id || employeeData.jobDetails?.employeeTypeId || "",
+            categoryId: employeeData.jobDetails?.categoryId?._id || employeeData.jobDetails?.categoryId || "",
+            defaultShift: employeeData.jobDetails?.defaultShift?._id || employeeData.jobDetails?.defaultShift || "",
+            assignedOfficeId: employeeData.jobDetails?.assignedOfficeId?._id || employeeData.jobDetails?.assignedOfficeId || "",
             biometricDeviceId: employeeData.jobDetails?.biometricDeviceId || "",
           },
           salaryDetails: {
@@ -1034,7 +1089,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       params.set("status", "Active"); // Only active employees
       params.set("limit", "1000");
 
-      const response = await fetch(`/api/v1/admin/admin/payroll/employees?${params.toString()}`);
+      const response = await fetch(`/api/v1/admin/payroll/employees?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -2190,23 +2245,19 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                             <label className="block text-sm font-semibold text-slate-700">
                               Designation <span className="text-red-500">*</span>
                             </label>
-                            <input
-                              name="jobDetails.designation"
+                            <SimpleSelect
                               value={formData.jobDetails.designation || ""}
-                              onChange={handleChange}
-                              placeholder="Software Engineer"
-                              className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
-                                errors["jobDetails.designation"]
-                                  ? "border-red-300 bg-red-50"
-                                  : "border-slate-300"
-                              }`}
+                              onChange={(e) =>
+                                handleSelectChange("jobDetails.designation", e.target.value)
+                              }
+                              options={
+                                formData.jobDetails.designation && !designationOptions.some(opt => opt.value === formData.jobDetails.designation)
+                                  ? [{ value: formData.jobDetails.designation, label: formData.jobDetails.designation }, ...designationOptions]
+                                  : designationOptions
+                              }
+                              placeholder="Select Designation"
+                              error={errors["jobDetails.designation"]}
                             />
-                            {errors["jobDetails.designation"] && (
-                              <div className="flex items-center space-x-1 text-red-600 text-xs">
-                                <AlertCircle className="w-3 h-3" />
-                                <span>{errors["jobDetails.designation"]}</span>
-                              </div>
-                            )}
                           </div>
 
                           <div className="space-y-2">
@@ -2823,25 +2874,19 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                         <label className="block text-sm font-semibold text-slate-700">
                           Bank Name <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          name="salaryDetails.bankAccount.bankName"
-                          value={formData.salaryDetails.bankAccount.bankName}
-                          onChange={handleChange}
-                          placeholder="HDFC Bank"
-                          maxLength={40}
-                          className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${errors["salaryDetails.bankAccount.bankName"]
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-slate-300"
-                            }`}
+                        <SimpleSelect
+                          value={formData.salaryDetails.bankAccount.bankName || ""}
+                          onChange={(e) =>
+                            handleSelectChange("salaryDetails.bankAccount.bankName", e.target.value)
+                          }
+                          options={
+                            formData.salaryDetails.bankAccount.bankName && !bankOptions.some(opt => opt.value === formData.salaryDetails.bankAccount.bankName)
+                              ? [{ value: formData.salaryDetails.bankAccount.bankName, label: formData.salaryDetails.bankAccount.bankName }, ...bankOptions]
+                              : bankOptions
+                          }
+                          placeholder="Select Bank"
+                          error={errors["salaryDetails.bankAccount.bankName"]}
                         />
-                        {errors["salaryDetails.bankAccount.bankName"] && (
-                          <div className="flex items-center space-x-1 text-red-600 text-xs">
-                            <AlertCircle className="w-3 h-3" />
-                            <span>
-                              {errors["salaryDetails.bankAccount.bankName"]}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

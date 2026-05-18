@@ -163,7 +163,14 @@ export default function AttendanceTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {getStatusBadge(record.status)}
+                  <div className="flex flex-col gap-1 items-start">
+                    {getStatusBadge(record.status)}
+                    {record.lateMinutes > 0 && (
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold py-0.5 px-1.5 rounded">
+                        Late Arrival ({record.lateMinutes}m)
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
