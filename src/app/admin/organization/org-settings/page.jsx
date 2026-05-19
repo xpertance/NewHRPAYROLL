@@ -21,7 +21,8 @@ import {
     Link,
     Copy,
     ExternalLink,
-    Award
+    Award,
+    Landmark
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -53,7 +54,8 @@ export default function OrgSettingsPage() {
         costCenters: [],
         organizations: [],
         departments: [],
-        designations: []
+        designations: [],
+        banks: []
     });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -78,13 +80,14 @@ export default function OrgSettingsPage() {
     const fetchAllData = async () => {
         try {
             setLoading(true);
-            const [buRes, teamRes, ccRes, orgRes, deptRes, desigRes] = await Promise.all([
+            const [buRes, teamRes, ccRes, orgRes, deptRes, desigRes, bankRes] = await Promise.all([
                 fetch("/api/v1/admin/crm/business-units?limit=1000"),
                 fetch("/api/v1/admin/crm/teams?limit=1000"),
                 fetch("/api/v1/admin/finance/cost-centers?limit=1000"),
                 fetch("/api/v1/admin/crm/organizations?limit=1000"),
                 fetch("/api/v1/admin/crm/departments?limit=1000"),
-                fetch("/api/v1/admin/crm/designations?limit=1000")
+                fetch("/api/v1/admin/crm/designations?limit=1000"),
+                fetch("/api/v1/admin/crm/banks?limit=1000")
             ]);
 
             const safeJson = async (res) => {
@@ -96,13 +99,14 @@ export default function OrgSettingsPage() {
                 return res.json();
             };
 
-            const [buData, teamData, ccData, orgData, deptData, desigData] = [
+            const [buData, teamData, ccData, orgData, deptData, desigData, bankData] = [
                 await safeJson(buRes),
                 await safeJson(teamRes),
                 await safeJson(ccRes),
                 await safeJson(orgRes),
                 await safeJson(deptRes),
-                await safeJson(desigRes)
+                await safeJson(desigRes),
+                await safeJson(bankRes)
             ];
 
             setData({
@@ -111,7 +115,8 @@ export default function OrgSettingsPage() {
                 costCenters: ccData.data || [],
                 organizations: orgData.data || orgData.organizations || [],
                 departments: deptData.data || [],
-                designations: desigData.data || []
+                designations: desigData.data || [],
+                banks: bankData.data || []
             });
 
             // Set initial LinkedIn ID from the first organization found
@@ -164,7 +169,8 @@ export default function OrgSettingsPage() {
             setSubmitting(true);
             const type = activeTab === 'business-units' ? 'business-units' :
                 activeTab === 'teams' ? 'teams' : 
-                activeTab === 'designations' ? 'designations' : 'cost-centers';
+                activeTab === 'designations' ? 'designations' : 
+                activeTab === 'banks' ? 'banks' : 'cost-centers';
 
             const endpoint = type === 'cost-centers' ? `/api/v1/admin/finance/${type}` : `/api/v1/admin/crm/${type}`;
             const method = editingItem ? 'PUT' : 'POST';
@@ -175,17 +181,18 @@ export default function OrgSettingsPage() {
             if (activeTab === 'teams') { delete payload.organizationId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
             if (activeTab === 'cost-centers') { delete payload.organizationId; delete payload.businessUnitId; delete payload.departmentId; }
             if (activeTab === 'designations') { delete payload.departmentId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
+            if (activeTab === 'banks') { delete payload.departmentId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
 
             if (editingItem) payload.id = editingItem._id;
 
-            // Handle bulk add for designations
-            if (activeTab === 'designations' && !editingItem) {
+            // Handle bulk add for designations/banks
+            if ((activeTab === 'designations' || activeTab === 'banks') && !editingItem) {
                 payload.names = (payload.names || []).map(n => n.trim()).filter(Boolean);
                 delete payload.name;
                 if (!payload.organizationId && data.organizations.length > 0) {
                     payload.organizationId = data.organizations[0]._id;
                 }
-            } else if (activeTab === 'designations' && editingItem) {
+            } else if ((activeTab === 'designations' || activeTab === 'banks') && editingItem) {
                 // Keep payload.name for PUT and remove names array
                 delete payload.names;
             }
@@ -216,6 +223,7 @@ export default function OrgSettingsPage() {
             const endpoint = type === 'businessUnits' ? `/api/v1/admin/crm/business-units` :
                 type === 'teams' ? `/api/v1/admin/crm/teams` :
                 type === 'designations' ? `/api/v1/admin/crm/designations` :
+                type === 'banks' ? `/api/v1/admin/crm/banks` :
                     `/api/v1/admin/finance/cost-centers`;
 
             const response = await fetch(`${endpoint}?id=${id}`, { method: 'DELETE' });
@@ -267,6 +275,7 @@ export default function OrgSettingsPage() {
             else if (activeTab === "teams") items = data.teams;
             else if (activeTab === "cost-centers") items = data.costCenters;
             else if (activeTab === "designations") items = data.designations;
+            else if (activeTab === "banks") items = data.banks;
 
             if (searchQuery) {
                 items = items.filter(item =>
@@ -384,6 +393,7 @@ export default function OrgSettingsPage() {
                             {activeTab === 'teams' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>}
                             {activeTab === 'business-units' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization</th>}
                             {activeTab === 'designations' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization</th>}
+                            {activeTab === 'banks' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization</th>}
                             {activeTab === 'cost-centers' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code / Budget</th>}
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
@@ -397,11 +407,13 @@ export default function OrgSettingsPage() {
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm ${activeTab === 'business-units' ? 'bg-slate-50 text-blue-600 border-blue-100' :
                                             activeTab === 'teams' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                                             activeTab === 'designations' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                            activeTab === 'banks' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
                                                 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                             }`}>
                                             {activeTab === 'business-units' ? <Briefcase className="w-4 h-4" /> :
                                                 activeTab === 'teams' ? <Users className="w-4 h-4" /> :
                                                 activeTab === 'designations' ? <Award className="w-4 h-4" /> :
+                                                activeTab === 'banks' ? <Landmark className="w-4 h-4" /> :
                                                     <Wallet className="w-4 h-4" />}
                                         </div>
                                         <div>
@@ -421,6 +433,11 @@ export default function OrgSettingsPage() {
                                     </td>
                                 )}
                                 {activeTab === 'designations' && (
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                        {item.organizationId?.name || 'Unknown'}
+                                    </td>
+                                )}
+                                {activeTab === 'banks' && (
                                     <td className="px-6 py-4 text-sm text-slate-600">
                                         {item.organizationId?.name || 'Unknown'}
                                     </td>
@@ -450,7 +467,7 @@ export default function OrgSettingsPage() {
                                             <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : 'costCenters', item._id)}
+                                            onClick={() => handleDelete(activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : activeTab === 'banks' ? 'banks' : 'costCenters', item._id)}
                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                             title="Delete"
                                         >
@@ -494,7 +511,7 @@ export default function OrgSettingsPage() {
                         className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all scale-100 active:scale-95"
                     >
                         <PlusCircle className="w-5 h-5" />
-                        Create New {activeTab === "business-units" ? "Business Unit" : activeTab === "teams" ? "Team" : activeTab === "designations" ? "Designation" : "Cost Center"}
+                        Create New {activeTab === "business-units" ? "Business Unit" : activeTab === "teams" ? "Team" : activeTab === "designations" ? "Designation" : activeTab === "banks" ? "Bank" : "Cost Center"}
                     </button>
                 </div>
 
@@ -530,6 +547,13 @@ export default function OrgSettingsPage() {
                                 count={data.designations.length}
                             />
                             <TabButton
+                                active={activeTab === "banks"}
+                                onClick={() => setActiveTab("banks")}
+                                icon={<Landmark className="w-4 h-4" />}
+                                label="Banks"
+                                count={data.banks?.length || 0}
+                            />
+                            <TabButton
                                 active={activeTab === "integrations"}
                                 onClick={() => setActiveTab("integrations")}
                                 icon={<Link className="w-4 h-4" />}
@@ -552,7 +576,7 @@ export default function OrgSettingsPage() {
 
                         <div className="flex items-center gap-2 text-xs font-medium text-slate-400 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
                             <Info className="w-3.5 h-3.5" />
-                            Showing {data[activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : 'costCenters']?.length || 0} total records
+                            Showing {data[activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : activeTab === 'banks' ? 'banks' : 'costCenters']?.length || 0} total records
                         </div>
                     </div>
 
@@ -602,7 +626,7 @@ export default function OrgSettingsPage() {
                                     {editingItem ? <Edit2 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">{editingItem ? 'Edit' : 'Create'} {activeTab === 'business-units' ? 'Business Unit' : activeTab === 'teams' ? 'Team' : activeTab === 'designations' ? 'Designation' : 'Cost Center'}</h3>
+                                    <h3 className="font-bold text-slate-900">{editingItem ? 'Edit' : 'Create'} {activeTab === 'business-units' ? 'Business Unit' : activeTab === 'teams' ? 'Team' : activeTab === 'designations' ? 'Designation' : activeTab === 'banks' ? 'Bank' : 'Cost Center'}</h3>
                                     <p className="text-xs text-slate-500">Enter details below to {editingItem ? 'update' : 'add'} the record</p>
                                 </div>
                             </div>
@@ -619,9 +643,9 @@ export default function OrgSettingsPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2">
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                        {activeTab === 'designations' && !editingItem ? 'Designation Names' : 'Name'}
+                                        {activeTab === 'designations' && !editingItem ? 'Designation Names' : activeTab === 'banks' && !editingItem ? 'Bank Names' : 'Name'}
                                     </label>
-                                    {activeTab === 'designations' && !editingItem ? (
+                                    {(activeTab === 'designations' || activeTab === 'banks') && !editingItem ? (
                                         <div className="space-y-3">
                                             {(formData.names || ['']).map((nameValue, index) => (
                                                 <div key={index} className="flex gap-2">
@@ -635,7 +659,7 @@ export default function OrgSettingsPage() {
                                                             setFormData({ ...formData, names: newNames });
                                                         }}
                                                         className="w-full px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                                        placeholder="Enter designation name..."
+                                                        placeholder={`Enter ${activeTab === 'banks' ? 'bank' : 'designation'} name...`}
                                                     />
                                                     {(formData.names || ['']).length > 1 && (
                                                         <button
@@ -656,7 +680,7 @@ export default function OrgSettingsPage() {
                                                 onClick={() => setFormData({ ...formData, names: [...(formData.names || ['']), ''] })}
                                                 className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-2"
                                             >
-                                                <Plus className="w-4 h-4" /> Add Another Designation
+                                                <Plus className="w-4 h-4" /> Add Another {activeTab === 'banks' ? 'Bank' : 'Designation'}
                                             </button>
                                         </div>
                                     ) : (

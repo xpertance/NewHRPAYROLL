@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
-import Designation from "@/lib/db/models/crm/organization/Designation";
+import Bank from "@/lib/db/models/crm/organization/Bank";
 import Organization from "@/lib/db/models/crm/organization/Organization";
 import { logActivity } from "@/lib/logger";
 import { getAuthUser, authorize } from "@/lib/auth-util";
@@ -19,18 +19,18 @@ export async function POST(request) {
 
         if (body.names && Array.isArray(body.names)) {
             if (!body.organizationId || body.names.length === 0) {
-                return NextResponse.json({ success: false, error: "Organization ID and at least one Designation name are required" }, { status: 400 });
+                return NextResponse.json({ success: false, error: "Organization ID and at least one Bank name are required" }, { status: 400 });
             }
 
             const organization = await Organization.findById(body.organizationId);
             if (!organization) return NextResponse.json({ success: false, error: "Organization not found" }, { status: 404 });
 
             // Filter out existing ones
-            const existingDesignations = await Designation.find({
+            const existingBanks = await Bank.find({
                 name: { $in: body.names.map(n => n.trim()) },
                 organizationId: body.organizationId
             });
-            const existingNames = existingDesignations.map(d => d.name.toLowerCase());
+            const existingNames = existingBanks.map(b => b.name.toLowerCase());
             
             const toCreate = body.names
                 .map(n => n.trim())
@@ -45,21 +45,21 @@ export async function POST(request) {
                 }));
 
             if (toCreate.length === 0) {
-                return NextResponse.json({ success: false, error: "All provided designations already exist" }, { status: 400 });
+                return NextResponse.json({ success: false, error: "All provided banks already exist" }, { status: 400 });
             }
 
-            const created = await Designation.insertMany(toCreate);
+            const created = await Bank.insertMany(toCreate);
 
             await logActivity({
                 action: "created",
-                entity: "Designation",
+                entity: "Bank",
                 entityId: created[0]._id, // Just logging the first one for bulk
-                description: `Created ${created.length} designations in ${organization.name}`,
+                description: `Created ${created.length} banks in ${organization.name}`,
                 req: request
             });
 
             return NextResponse.json(
-                { success: true, message: `Successfully created ${created.length} designations` },
+                { success: true, message: `Successfully created ${created.length} banks` },
                 { status: 201 }
             );
         }
@@ -67,7 +67,7 @@ export async function POST(request) {
         // Single creation fallback
         if (!body.organizationId || !body.name) {
             return NextResponse.json(
-                { success: false, error: "Organization ID and Designation name are required" },
+                { success: false, error: "Organization ID and Bank name are required" },
                 { status: 400 }
             );
         }
@@ -77,46 +77,46 @@ export async function POST(request) {
             return NextResponse.json({ success: false, error: "Organization not found" }, { status: 404 });
         }
 
-        const existingDesignation = await Designation.findOne({
+        const existingBank = await Bank.findOne({
             name: body.name.trim(),
             organizationId: body.organizationId
         });
 
-        if (existingDesignation) {
+        if (existingBank) {
             return NextResponse.json(
-                { success: false, error: "Designation name already exists in this organization" },
+                { success: false, error: "Bank name already exists in this organization" },
                 { status: 400 }
             );
         }
 
         body.createdBy = authUser.id || authUser._id;
         body.updatedBy = authUser.id || authUser._id;
-        const designation = await Designation.create(body);
-        const populatedDesignation = await Designation.findById(designation._id)
+        const bank = await Bank.create(body);
+        const populatedBank = await Bank.findById(bank._id)
             .populate('organizationId', 'name')
             .populate('createdBy', 'name email role')
             .populate('updatedBy', 'name email role');
 
         await logActivity({
             action: "created",
-            entity: "Designation",
-            entityId: designation._id,
-            description: `Created designation: ${designation.name} in ${populatedDesignation.organizationId?.name}`,
+            entity: "Bank",
+            entityId: bank._id,
+            description: `Created bank: ${bank.name} in ${populatedBank.organizationId?.name}`,
             performedBy: {
-                userId: populatedDesignation.createdBy?._id,
-                name: populatedDesignation.createdBy?.name || "Admin/User",
-                email: populatedDesignation.createdBy?.email,
-                role: populatedDesignation.createdBy?.role
+                userId: populatedBank.createdBy?._id,
+                name: populatedBank.createdBy?.name || "Admin/User",
+                email: populatedBank.createdBy?.email,
+                role: populatedBank.createdBy?.role
             },
             req: request
         });
 
         return NextResponse.json(
-            { success: true, message: "Designation created successfully", designation: populatedDesignation },
+            { success: true, message: "Bank created successfully", bank: populatedBank },
             { status: 201 }
         );
     } catch (error) {
-        console.error("Create Designation error:", error);
+        console.error("Create Bank error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 }
@@ -145,17 +145,17 @@ export async function GET(request) {
             query.status = status;
         }
 
-        const designations = await Designation.find(query)
+        const banks = await Bank.find(query)
             .populate('organizationId', 'name')
             .skip((page - 1) * limit)
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        const total = await Designation.countDocuments(query);
+        const total = await Bank.countDocuments(query);
 
         return NextResponse.json({
             success: true,
-            data: designations,
+            data: banks,
             pagination: {
                 total,
                 page,
@@ -164,7 +164,7 @@ export async function GET(request) {
             },
         });
     } catch (error) {
-        console.error("Get Designations error:", error);
+        console.error("Get Banks error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
@@ -179,31 +179,31 @@ export async function PUT(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ success: false, error: "Designation ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Bank ID is required" }, { status: 400 });
         }
 
         const body = await request.json();
-        const existingDesignation = await Designation.findById(id);
-        if (!existingDesignation) {
-            return NextResponse.json({ success: false, error: "Designation not found" }, { status: 404 });
+        const existingBank = await Bank.findById(id);
+        if (!existingBank) {
+            return NextResponse.json({ success: false, error: "Bank not found" }, { status: 404 });
         }
 
         if (body.name) {
-            const duplicateDesignation = await Designation.findOne({
+            const duplicateBank = await Bank.findOne({
                 name: body.name.trim(),
-                organizationId: body.organizationId || existingDesignation.organizationId,
+                organizationId: body.organizationId || existingBank.organizationId,
                 _id: { $ne: id }
             });
-            if (duplicateDesignation) {
+            if (duplicateBank) {
                 return NextResponse.json(
-                    { success: false, error: "Designation name already exists in this organization" },
+                    { success: false, error: "Bank name already exists in this organization" },
                     { status: 400 }
                 );
             }
         }
 
         body.updatedBy = authUser.id || authUser._id;
-        const updatedDesignation = await Designation.findByIdAndUpdate(
+        const updatedBank = await Bank.findByIdAndUpdate(
             id,
             { ...body, updatedAt: new Date() },
             { new: true }
@@ -212,21 +212,21 @@ export async function PUT(request) {
 
         await logActivity({
             action: "updated",
-            entity: "Designation",
+            entity: "Bank",
             entityId: id,
-            description: `Updated designation: ${updatedDesignation.name}`,
+            description: `Updated bank: ${updatedBank.name}`,
             performedBy: {
-                userId: updatedDesignation.updatedBy?._id,
-                name: updatedDesignation.updatedBy?.name || "Admin/User",
-                email: updatedDesignation.updatedBy?.email,
-                role: updatedDesignation.updatedBy?.role
+                userId: updatedBank.updatedBy?._id,
+                name: updatedBank.updatedBy?.name || "Admin/User",
+                email: updatedBank.updatedBy?.email,
+                role: updatedBank.updatedBy?.role
             },
             req: request
         });
 
-        return NextResponse.json({ success: true, message: "Designation updated successfully", designation: updatedDesignation });
+        return NextResponse.json({ success: true, message: "Bank updated successfully", bank: updatedBank });
     } catch (error) {
-        console.error("Update Designation error:", error);
+        console.error("Update Bank error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
@@ -241,26 +241,26 @@ export async function DELETE(request) {
         const id = searchParams.get("id");
 
         if (!id) {
-            return NextResponse.json({ success: false, error: "Designation ID is required" }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Bank ID is required" }, { status: 400 });
         }
 
-        const designation = await Designation.findById(id);
-        if (!designation) {
-            return NextResponse.json({ success: false, error: "Designation not found" }, { status: 404 });
+        const bank = await Bank.findById(id);
+        if (!bank) {
+            return NextResponse.json({ success: false, error: "Bank not found" }, { status: 404 });
         }
 
-        await Designation.findByIdAndDelete(id);
+        await Bank.findByIdAndDelete(id);
         await logActivity({
             action: "deleted",
-            entity: "Designation",
+            entity: "Bank",
             entityId: id,
-            description: `Deleted designation: ${designation.name}`,
+            description: `Deleted bank: ${bank.name}`,
             req: request
         });
 
-        return NextResponse.json({ success: true, message: "Designation deleted successfully" });
+        return NextResponse.json({ success: true, message: "Bank deleted successfully" });
     } catch (error) {
-        console.error("Delete Designation error:", error);
+        console.error("Delete Bank error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
