@@ -56,8 +56,6 @@ export async function GET(req) {
     const employee = await Employee.findOne({ _id: id, sessionToken: token }).lean();
 
     if (employee) {
-      const isSupervisor = employee.jobDetails?.designation?.match(/supervisor|manager|lead|head/i) || employee.jobDetails?.isSupervisor;
-      
       // Fetch department permissions
       let permissions = [];
       const empDeptName = employee.jobDetails?.department?.toString().trim() || '';
@@ -79,7 +77,7 @@ export async function GET(req) {
           id: employee._id.toString(),
           email: employee.personalDetails.email,
           name: `${employee.personalDetails.firstName} ${employee.personalDetails.lastName}`,
-          role: isSupervisor ? 'supervisor' : 'employee',
+          role: employee.role || 'employee',
           department: employee.jobDetails.department,
           designation: employee.jobDetails.designation,
           organizationId: employee.jobDetails.organizationId ? employee.jobDetails.organizationId.toString() : null,

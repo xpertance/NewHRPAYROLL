@@ -11,31 +11,30 @@ const publicRoutes = ['/login', '/auth/register', '/register'];
 // Role-based protected routes
 const protectedRoutes = [
   { path: '/super-admin', roles: ['super_admin'] },
-  { path: '/dashboard', roles: ['super_admin', 'admin', 'employee', 'supervisor', 'attendance_only'] },
+  { path: '/dashboard', roles: ['super_admin', 'admin', 'employee', 'attendance_only'] },
   { path: '/dashboard/payroll', roles: ['admin', 'super_admin'] },
   { path: '/dashboard/crm', roles: ['admin', 'super_admin', 'employee'] },
-  { path: '/dashboard/tasks', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
-  { path: '/dashboard/projects', roles: ['admin', 'super_admin', 'employee', 'supervisor'] },
+  { path: '/dashboard/tasks', roles: ['admin', 'super_admin', 'employee'] },
+  { path: '/dashboard/projects', roles: ['admin', 'super_admin', 'employee'] },
   
   // Enforce rigid SaaS API layer security instead of relying manually on route-level validation
   { path: '/api/v1/super-admin', roles: ['super_admin'], isApi: true },
   
   // Specific exceptions allowing any designated employee to approve team requests, evaluated before the broader /api/v1/admin block
-  { path: '/api/v1/admin/tasks', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
-  { path: '/api/v1/admin/payroll/employees', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
-  { path: '/api/v1/admin/approvals', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
-  { path: '/api/v1/admin/payroll/leave-applications', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
-  { path: '/api/v1/admin/payroll/overtime', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
-  { path: '/api/v1/admin/payroll/comp-off', roles: ['admin', 'super_admin', 'supervisor', 'employee'], isApi: true },
+  { path: '/api/v1/admin/tasks', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/payroll/employees', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/approvals', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/payroll/leave-applications', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/payroll/overtime', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/payroll/comp-off', roles: ['admin', 'super_admin', 'employee'], isApi: true },
   
-  { path: '/api/v1/admin/finance/expenses', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
-  { path: '/api/v1/admin/finance/cost-centers', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
-  { path: '/api/v1/admin/crm/business-units', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
-  { path: '/api/v1/admin/crm/teams', roles: ['admin', 'super_admin', 'employee', 'supervisor'], isApi: true },
+  { path: '/api/v1/admin/finance/expenses', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/finance/cost-centers', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/crm/business-units', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/crm/teams', roles: ['admin', 'super_admin', 'employee'], isApi: true },
   
   { path: '/api/v1/admin', roles: ['admin', 'super_admin'], isApi: true },
-  { path: '/api/v1/employee', roles: ['employee', 'supervisor', 'attendance_only', 'admin', 'super_admin'], isApi: true },
-  { path: '/api/v1/supervisor', roles: ['supervisor', 'admin', 'super_admin'], isApi: true },
+  { path: '/api/v1/employee', roles: ['employee', 'attendance_only', 'admin', 'super_admin'], isApi: true },
 ];
 
 export async function middleware(req) {

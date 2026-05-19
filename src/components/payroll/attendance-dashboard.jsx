@@ -162,23 +162,6 @@ export default function AttendanceDashboard() {
 
       if (user.role === "admin") {
         setEmployees(data.data || data.employees || []);
-      } else if (user.role === "supervisor") {
-        // Filter employees assigned to this supervisor
-        console.log("start", data.employees);
-
-        const supervisedEmployees = data?.employees?.filter((emp) => {
-          // Check if employee's attendance approval has this supervisor assigned
-          const isShift1Supervisor =
-            emp.attendanceApproval?.shift1Supervisor === user.id;
-          const isShift2Supervisor =
-            emp.attendanceApproval?.shift2Supervisor === user.id;
-
-          // Return true if supervisor is assigned to any shift OR they're in same department
-          return isShift1Supervisor || isShift2Supervisor;
-        });
-        console.log(supervisedEmployees);
-
-        setEmployees(supervisedEmployees || []);
       } else {
         setEmployees([]);
       }
@@ -233,9 +216,6 @@ export default function AttendanceDashboard() {
         const filteredAttendance = data.attendance || [];
         console.log("Fetched attendance:", filteredAttendance);
         setAttendance(filteredAttendance);
-      } else if (user?.role === "supervisor") {
-        const supervisedAttendanceRecord = data.attendance || [];
-        setAttendance(supervisedAttendanceRecord);
       } else if (user?.role === "employee" || user?.role === "attendance_only") {
         // Employees see their own records returned by /api/v1/employee/attendance
         const myAttendance = (data.attendance || []).filter(record => 

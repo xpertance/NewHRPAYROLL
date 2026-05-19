@@ -168,7 +168,6 @@ export default function LeaveManagement() {
         status: "Active",
       });
       if (orgId) params.append("organizationId", orgId);
-      if (user?.role === 'supervisor') params.append("supervisorUserId", user.id || user._id);
 
       const response = await fetch(`/api/v1/admin/payroll/employees?${params}`);
       const data = await response.json();
@@ -224,7 +223,6 @@ export default function LeaveManagement() {
       if (selectedOrganization) {
         empParams.append("organizationId", selectedOrganization);
       }
-      if (user?.role === 'supervisor') empParams.append("supervisorUserId", user.id || user._id);
 
       const empResponse = await fetch(`/api/v1/admin/payroll/employees?${empParams}`);
       const empData = await empResponse.json();
@@ -241,7 +239,6 @@ export default function LeaveManagement() {
       if (selectedOrganization) {
         leaveParams.append("organizationId", selectedOrganization);
       }
-      if (user?.role === 'supervisor') leaveParams.append("supervisorUserId", user.id || user._id);
 
       const leaveResponse = await fetch(`/api/v1/admin/payroll/leaves?${leaveParams}`);
       const leaveData = await leaveResponse.json();

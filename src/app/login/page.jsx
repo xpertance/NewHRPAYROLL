@@ -96,7 +96,7 @@ const LoginPage = () => {
         const userRole = response.user?.role || formData.role;
         if (userRole === "super_admin") router.push("/super-admin/dashboard");
         else if (userRole === "admin" || userRole === "company_admin" || userRole === "hr") router.push("/admin/dashboard");
-        else if (userRole === "employee" || userRole === "supervisor" || userRole === "attendance_only") router.push("/employee/dashboard");
+        else if (userRole === "employee" || userRole === "attendance_only") router.push("/employee/dashboard");
         else router.push("/");
       } else {
         const msg = response.message || t('loginFailed');
