@@ -669,8 +669,8 @@ export default function EmployeeList() {
         {/* Analytics Overview */}
         {/* Analytics Overview */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between">
                   <div className="space-y-2">
@@ -684,7 +684,7 @@ export default function EmployeeList() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -716,21 +716,6 @@ export default function EmployeeList() {
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Organizations</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-2">
-                    {organizations.length}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">Business entities</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
-                  <Building2 className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-sm font-medium text-slate-600">Departments</p>
                   <p className="text-2xl font-bold text-slate-900 mt-2">
                     {departments.length}
@@ -745,51 +730,7 @@ export default function EmployeeList() {
           </div>
         )}
 
-        {/* NEW: Organization Grouping Toggle */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Layers className={`w-5 h-5 ${groupByOrganization ? 'text-blue-600' : 'text-slate-600'}`} />
-              <div>
-                <h3 className="font-semibold text-slate-900">Group by Organization</h3>
-                <p className="text-sm text-slate-600 mt-0.5">
-                  {groupByOrganization
-                    ? "Employees are grouped by their organizations"
-                    : "Showing all employees in a unified list"
-                  }
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {groupByOrganization && groupedEmployees && (
-                <>
-                  <button
-                    onClick={expandAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors"
-                  >
-                    Expand All
-                  </button>
-                  <button
-                    onClick={collapseAllOrgs}
-                    className="text-xs px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors"
-                  >
-                    Collapse All
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setGroupByOrganization(!groupByOrganization)}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${groupByOrganization ? 'bg-indigo-600' : 'bg-slate-300'
-                  }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${groupByOrganization ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Group by Organization Toggle Box removed */}
 
         {/* Controls Panel */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -1089,7 +1030,6 @@ export default function EmployeeList() {
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Employee</th>
-                            <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Organization</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Dept / Team</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Position</th>
                             <th className="text-left py-4 px-6 font-semibold text-slate-600 text-xs uppercase tracking-wider">Shift</th>
@@ -1116,9 +1056,6 @@ export default function EmployeeList() {
                                       <p className="text-xs text-slate-500">{employee.employeeId}</p>
                                     </div>
                                   </div>
-                                </td>
-                                <td className="py-4 px-6 text-slate-900 text-sm">
-                                  {employee.organizationType || employee.jobDetails?.organizationId?.name || 'N/A'}
                                 </td>
                                 <td className="py-4 px-6">
                                   <div className="flex flex-col gap-1">

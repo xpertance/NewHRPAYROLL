@@ -5,7 +5,7 @@ import {
     Calendar, FileText, Clock,
     Plus, Loader2, CheckCircle2,
     XCircle, AlertCircle, ChevronRight,
-    MoreVertical, CalendarDays, Search, UserPlus, Trash2
+    MoreVertical, CalendarDays, Search, UserPlus, Trash2, Users
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -45,15 +45,35 @@ export default function ESSLeaveManagement({ employeeId }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
-    const [customApprovers, setCustomApprovers] = useState([]); // Array of employee objects
+    const [customApprovers, setCustomApprovers] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+    // All Managers List (org-wide)
+    const [allManagers, setAllManagers] = useState([]);
+    const [loadingManagers, setLoadingManagers] = useState(false);
 
     useEffect(() => {
         if (employeeId) {
             fetchMyLeaves();
             fetchEmployeeProfile();
+            fetchAllManagers();
         }
     }, [employeeId]);
+
+    const fetchAllManagers = async () => {
+        try {
+            setLoadingManagers(true);
+            const res = await fetch('/api/v1/employee/leaves/approvers?mode=managers');
+            if (res.ok) {
+                const data = await res.json();
+                setAllManagers(data.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch managers list:', error);
+        } finally {
+            setLoadingManagers(false);
+        }
+    };
 
     useEffect(() => {
         if (activeView === 'approvals') {
@@ -132,7 +152,7 @@ export default function ESSLeaveManagement({ employeeId }) {
     const performSearch = async (query = searchQuery) => {
         setSearching(true);
         try {
-            const res = await fetch(`/api/v1/employee/leaves/approvers?search=${encodeURIComponent(query)}`);
+            const res = await fetch(`/api/v1/employee/leaves/approvers?mode=search&search=${encodeURIComponent(query)}`);
             if (res.ok) {
                 const data = await res.json();
                 setSearchResults(data.data || []);
@@ -378,97 +398,150 @@ export default function ESSLeaveManagement({ employeeId }) {
                         <div className="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100 relative">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Select Approver(s)</h3>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full uppercase">Defaults Applied</span>
-                                    <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase">Flexible Selection</span>
-                                </div>
+                                <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase">
+                                    {selectedApprovers.length} Selected
+                                </span>
                             </div>
                             
                             <p className="text-xs text-slate-500">
-                                Assigned team managers are automatically selected. You can add more approvers if needed.
+                                Select one or more managers to approve your leave. You can also search for any employee.
                             </p>
 
-                            {/* Standard Approvers (from Profile) */}
+                            {/* Profile-based Approvers (TL / Manager) — auto-selected */}
                             {(employeeProfile?.jobDetails?.teamLead || employeeProfile?.jobDetails?.reportingManager) && (
-                                <div className="flex flex-col md:flex-row gap-4 outline-none">
-                                    {employeeProfile.jobDetails.teamLead && (
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleApprover(employeeProfile.jobDetails.teamLead._id)}
-                                            className={`flex-1 flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                                                selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id)
-                                                    ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
-                                                    : 'border-slate-200 bg-white hover:border-slate-300'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold text-[10px]">TL</div>
-                                                <div className="text-left">
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Team Lead</p>
-                                                    <p className="text-sm font-black text-slate-900 truncate">
-                                                        {employeeProfile.jobDetails.teamLead.personalDetails?.firstName} {employeeProfile.jobDetails.teamLead.personalDetails?.lastName}
-                                                    </p>
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Assigned Supervisors</p>
+                                    <div className="flex flex-col md:flex-row gap-3">
+                                        {employeeProfile.jobDetails.teamLead && (
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleApprover(employeeProfile.jobDetails.teamLead._id)}
+                                                className={`flex-1 flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                                    selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id)
+                                                        ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-[10px]">TL</div>
+                                                    <div className="text-left">
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Team Lead</p>
+                                                        <p className="text-sm font-black text-slate-900 truncate">
+                                                            {employeeProfile.jobDetails.teamLead.personalDetails?.firstName} {employeeProfile.jobDetails.teamLead.personalDetails?.lastName}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                                selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id)
-                                                    ? 'bg-indigo-600 border-indigo-600'
-                                                    : 'border-slate-300'
-                                            }`}>
-                                                {selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                            </div>
-                                        </button>
-                                    )}
-
-                                    {employeeProfile.jobDetails.reportingManager && 
-                                     employeeProfile.jobDetails.reportingManager._id !== employeeProfile.jobDetails.teamLead?._id && (
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleApprover(employeeProfile.jobDetails.reportingManager._id)}
-                                            className={`flex-1 flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                                                selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id)
-                                                    ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
-                                                    : 'border-slate-200 bg-white hover:border-slate-300'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold text-[10px]">RM</div>
-                                                <div className="text-left">
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reporting Manager</p>
-                                                    <p className="text-sm font-black text-slate-900 truncate">
-                                                        {employeeProfile.jobDetails.reportingManager.personalDetails?.firstName} {employeeProfile.jobDetails.reportingManager.personalDetails?.lastName}
-                                                    </p>
+                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                    selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'
+                                                }`}>
+                                                    {selectedApprovers.includes(employeeProfile.jobDetails.teamLead._id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                                                 </div>
-                                            </div>
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                                selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id)
-                                                    ? 'bg-indigo-600 border-indigo-600'
-                                                    : 'border-slate-300'
-                                            }`}>
-                                                {selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                            </div>
-                                        </button>
-                                    )}
+                                            </button>
+                                        )}
+                                        {employeeProfile.jobDetails.reportingManager && 
+                                         employeeProfile.jobDetails.reportingManager._id !== employeeProfile.jobDetails.teamLead?._id && (
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleApprover(employeeProfile.jobDetails.reportingManager._id)}
+                                                className={`flex-1 flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                                    selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id)
+                                                        ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 font-bold text-[10px]">RM</div>
+                                                    <div className="text-left">
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reporting Manager</p>
+                                                        <p className="text-sm font-black text-slate-900 truncate">
+                                                            {employeeProfile.jobDetails.reportingManager.personalDetails?.firstName} {employeeProfile.jobDetails.reportingManager.personalDetails?.lastName}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                    selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'
+                                                }`}>
+                                                    {selectedApprovers.includes(employeeProfile.jobDetails.reportingManager._id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                                </div>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Search for any employee as approver */}
+                            {/* All Managers List (org-wide) */}
                             <div className="mt-4 pt-4 border-t border-slate-200">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Add Other Approver</label>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Users className="w-4 h-4 text-slate-500" />
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">All Managers / Leads</p>
+                                </div>
+                                {loadingManagers ? (
+                                    <div className="flex items-center justify-center p-6">
+                                        <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                                        <span className="ml-2 text-xs text-slate-500">Loading managers...</span>
+                                    </div>
+                                ) : allManagers.length === 0 ? (
+                                    <p className="text-xs text-slate-400 p-4 text-center bg-white rounded-xl border border-dashed border-slate-200">No managers found in the organization.</p>
+                                ) : (
+                                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+                                        {allManagers.map((mgr) => {
+                                            const isSelected = selectedApprovers.includes(mgr._id);
+                                            const isProfileApprover = mgr._id === employeeProfile?.jobDetails?.teamLead?._id || mgr._id === employeeProfile?.jobDetails?.reportingManager?._id;
+                                            if (isProfileApprover) return null;
+                                            return (
+                                                <button
+                                                    key={mgr._id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            removeCustomApprover(mgr._id);
+                                                        } else {
+                                                            addCustomApprover(mgr);
+                                                        }
+                                                    }}
+                                                    className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
+                                                        isSelected ? 'bg-indigo-50/80' : 'hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                                                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                                                    }`}>
+                                                        {mgr.personalDetails?.firstName?.[0]}{mgr.personalDetails?.lastName?.[0]}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-bold text-slate-900 truncate">
+                                                            {mgr.personalDetails?.firstName} {mgr.personalDetails?.lastName}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-500 truncate font-medium">
+                                                            {mgr.jobDetails?.designation} {mgr.jobDetails?.department ? `• ${mgr.jobDetails.department}` : ''} • {mgr.employeeId}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                                                        isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'
+                                                    }`}>
+                                                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Search ANY Employee */}
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Search Any Employee</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Search className="h-4 w-4 text-slate-400" />
                                     </div>
                                     <input
                                         type="text"
-                                        placeholder="Search by name or Employee ID..."
+                                        placeholder="Search by name, Employee ID, or designation..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setIsSearchFocused(true)}
-                                        onBlur={() => {
-                                            // Delay blur to allow clicking on results
-                                            setTimeout(() => setIsSearchFocused(false), 200);
-                                        }}
+                                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                         className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white"
                                     />
                                     {searching && (
@@ -478,9 +551,9 @@ export default function ESSLeaveManagement({ employeeId }) {
                                     )}
                                 </div>
 
-                                {/* Search Results Overlay */}
+                                {/* Search Results Dropdown */}
                                 {searchResults.length > 0 && (
-                                    <div className="absolute z-[60] left-6 right-6 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden divide-y divide-slate-100">
+                                    <div className="absolute z-[60] left-6 right-6 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-100">
                                         {searchResults.map((emp) => (
                                             <button
                                                 key={emp._id}
@@ -499,8 +572,8 @@ export default function ESSLeaveManagement({ employeeId }) {
                                                         {emp.personalDetails?.firstName} {emp.personalDetails?.lastName}
                                                         {selectedApprovers.includes(emp._id) && <span className="ml-2 text-[10px] text-indigo-600">(Selected)</span>}
                                                     </p>
-                                                    <p className="text-[10px] text-slate-500 truncate lowercase uppercase tracking-wider font-medium">
-                                                        {emp.jobDetails?.designation} • {emp.employeeId}
+                                                    <p className="text-[10px] text-slate-500 truncate font-medium">
+                                                        {emp.jobDetails?.designation} {emp.jobDetails?.department ? `• ${emp.jobDetails.department}` : ''} • {emp.employeeId}
                                                     </p>
                                                 </div>
                                                 {!selectedApprovers.includes(emp._id) && <UserPlus className="w-4 h-4 text-slate-400" />}
@@ -510,7 +583,7 @@ export default function ESSLeaveManagement({ employeeId }) {
                                 )}
                             </div>
 
-                            {/* Custom Selected Approvers List */}
+                            {/* Selected Approvers Chips */}
                             {customApprovers.length > 0 && (
                                 <div className="flex flex-wrap gap-3 mt-4">
                                     {customApprovers.map((emp) => (
@@ -536,12 +609,12 @@ export default function ESSLeaveManagement({ employeeId }) {
                                 </div>
                             )}
 
-                            {/* Fallback Message if none available */}
-                            {(!employeeProfile?.jobDetails?.teamLead && !employeeProfile?.jobDetails?.reportingManager && customApprovers.length === 0) && (
+                            {/* Info if no approver selected */}
+                            {selectedApprovers.length === 0 && customApprovers.length === 0 && (
                                 <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
                                     <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                                     <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                                        No supervisor assigned to your profile. You can <span className="font-bold underline">search for a colleague above</span> to approve your leave, or proceed without selection to route it to the **HR Administrator**.
+                                        No approver selected. Please select a manager from the list above or search for any employee. If you proceed without selection, the leave will be routed to the HR Administrator.
                                     </p>
                                 </div>
                             )}

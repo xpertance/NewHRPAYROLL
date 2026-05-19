@@ -990,7 +990,7 @@ export default function PayslipList() {
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Analytics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -1004,18 +1004,7 @@ export default function PayslipList() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Organizations</p>
-                <p className="text-2xl font-bold text-slate-900 mt-2">{organizations.length}</p>
-                <p className="text-xs text-slate-500 mt-1">Business entities</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
-                <Building2 className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
+
 
           <div className="bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm">
             <div className="flex items-center justify-between">
