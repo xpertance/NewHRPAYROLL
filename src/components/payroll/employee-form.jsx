@@ -347,6 +347,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
 
   const [designations, setDesignations] = useState([]);
+  const [banks, setBanks] = useState([]);
   const [formData, setFormData] = useState({
     personalDetails: {
       firstName: "",
@@ -530,18 +531,18 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         setOrganizations([]);
         return;
       }
-      const data = await response.json();
-
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Organization API Error:", response.status, errorText.substring(0, 100));
+        console.error("❌ Organization API Error:", response.status);
         throw new Error(`Failed to fetch organizations: ${response.status}`);
       }
+      
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         console.error("❌ Organization API returned non-JSON");
         throw new Error("Server returned an invalid response. Please check your connection.");
       }
+
+      const data = await response.json();
 
       const orgArray = Array.isArray(data.organizations) ? data.organizations : Array.isArray(data.data) ? data.data : [];
       
@@ -818,6 +819,33 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     }
   };
 
+  const fetchBanks = async (organizationId) => {
+    try {
+      if (!organizationId) {
+        setBanks([]);
+        return;
+      }
+      const response = await fetch(`/api/v1/admin/crm/banks?organizationId=${organizationId}&limit=1000`);
+      if (!response.ok) {
+        console.error("❌ Banks API Error:", response.status);
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Banks API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
+      const bankArray = Array.isArray(data.data) ? data.data : [];
+      setBanks(bankArray.map(b => ({ value: b.name, label: b.name })));
+    } catch (error) {
+      console.error("Error fetching banks:", error);
+      setBanks([]);
+    }
+  };
+
 
   // Fetch organizations on mount
   useEffect(() => {
@@ -833,6 +861,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       fetchSupervisors(formData.jobDetails.organizationId);
       fetchOfficeLocations(formData.jobDetails.organizationId);
       fetchDesignations(formData.jobDetails.organizationId);
+      fetchBanks(formData.jobDetails.organizationId);
     } else {
       setBusinessUnits([]);
       setDepartments([]);
@@ -841,6 +870,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       setTeamLeads([]);
       setAvailableSupervisors([]);
       setDesignations([]);
+      setBanks([]);
     }
   }, [formData.jobDetails.organizationId]);
 
@@ -958,14 +988,21 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         // Handle if organizationId is an object (populated) or string
         const orgId = typeof jobDetails.organizationId === 'object' ? jobDetails.organizationId._id : jobDetails.organizationId;
 
-        fetchDepartments(orgId);
+        fetchBusinessUnits(orgId);
         fetchSupervisors(orgId);
         fetchOfficeLocations(orgId);
         fetchDesignations(orgId);
+        fetchBanks(orgId);
+
+        if (jobDetails.businessUnitId) {
+          const buId = typeof jobDetails.businessUnitId === 'object' ? jobDetails.businessUnitId._id : jobDetails.businessUnitId;
+          fetchDepartments(buId);
+        }
 
         if (jobDetails.departmentId) {
           const deptId = typeof jobDetails.departmentId === 'object' ? jobDetails.departmentId._id : jobDetails.departmentId;
 
+          fetchTeams(deptId);
           fetchEmployeeTypes(orgId, deptId);
 
           if (jobDetails.employeeTypeId) {
@@ -2881,9 +2918,9 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                             handleSelectChange("salaryDetails.bankAccount.bankName", e.target.value)
                           }
                           options={
-                            formData.salaryDetails.bankAccount.bankName && !bankOptions.some(opt => opt.value === formData.salaryDetails.bankAccount.bankName)
-                              ? [{ value: formData.salaryDetails.bankAccount.bankName, label: formData.salaryDetails.bankAccount.bankName }, ...bankOptions]
-                              : bankOptions
+                            formData.salaryDetails.bankAccount.bankName && !banks.some(opt => opt.value === formData.salaryDetails.bankAccount.bankName)
+                              ? [{ value: formData.salaryDetails.bankAccount.bankName, label: formData.salaryDetails.bankAccount.bankName }, ...banks]
+                              : banks
                           }
                           placeholder="Select Bank"
                           error={errors["salaryDetails.bankAccount.bankName"]}
