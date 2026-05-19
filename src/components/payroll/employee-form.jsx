@@ -78,38 +78,6 @@ const employmentTypeOptions = [
   { value: "Intern", label: "Intern" },
 ];
 
-const designationOptions = [
-  { value: "Software Engineer", label: "Software Engineer" },
-  { value: "Senior Software Engineer", label: "Senior Software Engineer" },
-  { value: "Tech Lead", label: "Tech Lead" },
-  { value: "QA Engineer", label: "QA Engineer" },
-  { value: "DevOps Engineer", label: "DevOps Engineer" },
-  { value: "UI/UX Designer", label: "UI/UX Designer" },
-  { value: "Product Manager", label: "Product Manager" },
-  { value: "CTO", label: "CTO" },
-  { value: "HR Executive", label: "HR Executive" },
-  { value: "HR Recruiter", label: "HR Recruiter" },
-  { value: "HR Generalist", label: "HR Generalist" },
-  { value: "HR Manager", label: "HR Manager" },
-  { value: "Admin Executive", label: "Admin Executive" },
-  { value: "Business Development Associate (BDA)", label: "Business Development Associate (BDA)" },
-  { value: "Sales Executive", label: "Sales Executive" },
-  { value: "Marketing Executive", label: "Marketing Executive" },
-  { value: "Digital Marketing Specialist", label: "Digital Marketing Specialist" },
-  { value: "Sales Manager", label: "Sales Manager" },
-  { value: "Operations Executive", label: "Operations Executive" },
-  { value: "Operations Manager", label: "Operations Manager" },
-  { value: "Customer Support Executive", label: "Customer Support Executive" },
-  { value: "Technical Support Engineer", label: "Technical Support Engineer" },
-  { value: "Accountant", label: "Accountant" },
-  { value: "Senior Accountant", label: "Senior Accountant" },
-  { value: "Finance Manager", label: "Finance Manager" },
-  { value: "Team Leader", label: "Team Leader" },
-  { value: "Project Manager", label: "Project Manager" },
-  { value: "Delivery Manager", label: "Delivery Manager" },
-  { value: "CEO / Founder", label: "CEO / Founder" }
-];
-
 const bankOptions = [
   { value: "HDFC Bank", label: "HDFC Bank" },
   { value: "ICICI Bank", label: "ICICI Bank" },
@@ -125,7 +93,8 @@ const bankOptions = [
   { value: "Yes Bank", label: "Yes Bank" },
   { value: "Federal Bank", label: "Federal Bank" },
   { value: "Bank of India (BOI)", label: "Bank of India (BOI)" },
-  { value: "Indian Bank", label: "Indian Bank" }
+  { value: "Indian Bank", label: "Indian Bank" },
+  { value: "Bank of Maharashtra", label: "Bank of Maharashtra" }
 ];
 
 
@@ -377,6 +346,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   };
 
 
+  const [designations, setDesignations] = useState([]);
   const [formData, setFormData] = useState({
     personalDetails: {
       firstName: "",
@@ -804,7 +774,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         setOfficeLocations([]);
         return;
       }
-      const response = await fetch(`/api/v1/admin/settings/office-locations?organizationId=${organizationId}`);
+      const response = await fetch(`/api/settings/office-locations?organizationId=${organizationId}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch office locations");
 
@@ -817,6 +787,34 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     } catch (error) {
       console.error("Error fetching office locations:", error);
       setOfficeLocations([]);
+    }
+  };
+
+  const fetchDesignations = async (organizationId) => {
+    try {
+      if (!organizationId) {
+        setDesignations([]);
+        return;
+      }
+      const response = await fetch(`/api/v1/admin/crm/designations?organizationId=${organizationId}&limit=1000`);
+      if (!response.ok) {
+        console.error("❌ Designations API Error:", response.status);
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("❌ Designations API returned non-JSON");
+        return;
+      }
+
+      const data = await response.json();
+      const desigArray = Array.isArray(data.data) ? data.data : [];
+      // Use name as value to maintain backward compatibility with existing data
+      setDesignations(desigArray.map(d => ({ value: d.name, label: d.name })));
+    } catch (error) {
+      console.error("Error fetching designations:", error);
+      setDesignations([]);
     }
   };
 
@@ -834,6 +832,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       fetchBusinessUnits(formData.jobDetails.organizationId);
       fetchSupervisors(formData.jobDetails.organizationId);
       fetchOfficeLocations(formData.jobDetails.organizationId);
+      fetchDesignations(formData.jobDetails.organizationId);
     } else {
       setBusinessUnits([]);
       setDepartments([]);
@@ -841,6 +840,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       setEmployeeTypes([]);
       setTeamLeads([]);
       setAvailableSupervisors([]);
+      setDesignations([]);
     }
   }, [formData.jobDetails.organizationId]);
 
@@ -961,6 +961,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         fetchDepartments(orgId);
         fetchSupervisors(orgId);
         fetchOfficeLocations(orgId);
+        fetchDesignations(orgId);
 
         if (jobDetails.departmentId) {
           const deptId = typeof jobDetails.departmentId === 'object' ? jobDetails.departmentId._id : jobDetails.departmentId;
@@ -2251,9 +2252,9 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                                 handleSelectChange("jobDetails.designation", e.target.value)
                               }
                               options={
-                                formData.jobDetails.designation && !designationOptions.some(opt => opt.value === formData.jobDetails.designation)
-                                  ? [{ value: formData.jobDetails.designation, label: formData.jobDetails.designation }, ...designationOptions]
-                                  : designationOptions
+                                formData.jobDetails.designation && !designations.some(opt => opt.value === formData.jobDetails.designation)
+                                  ? [{ value: formData.jobDetails.designation, label: formData.jobDetails.designation }, ...designations]
+                                  : designations
                               }
                               placeholder="Select Designation"
                               error={errors["jobDetails.designation"]}

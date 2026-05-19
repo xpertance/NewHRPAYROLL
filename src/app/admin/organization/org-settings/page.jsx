@@ -20,7 +20,8 @@ import {
     Info,
     Link,
     Copy,
-    ExternalLink
+    ExternalLink,
+    Award
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -51,7 +52,8 @@ export default function OrgSettingsPage() {
         teams: [],
         costCenters: [],
         organizations: [],
-        departments: []
+        departments: [],
+        designations: []
     });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -76,29 +78,31 @@ export default function OrgSettingsPage() {
     const fetchAllData = async () => {
         try {
             setLoading(true);
-            const [buRes, teamRes, ccRes, orgRes, deptRes] = await Promise.all([
+            const [buRes, teamRes, ccRes, orgRes, deptRes, desigRes] = await Promise.all([
                 fetch("/api/v1/admin/crm/business-units?limit=1000"),
                 fetch("/api/v1/admin/crm/teams?limit=1000"),
                 fetch("/api/v1/admin/finance/cost-centers?limit=1000"),
                 fetch("/api/v1/admin/crm/organizations?limit=1000"),
-                fetch("/api/v1/admin/crm/departments?limit=1000")
+                fetch("/api/v1/admin/crm/departments?limit=1000"),
+                fetch("/api/v1/admin/crm/designations?limit=1000")
             ]);
 
             const safeJson = async (res) => {
-                if (!res.ok) {
-                    const text = await res.text();
-                    console.error(`API Error (${res.url}):`, text);
+                if (!res || !res.ok) {
+                    const text = await res?.text?.().catch(() => "");
+                    console.error(`API Error:`, text);
                     return { data: [] };
                 }
                 return res.json();
             };
 
-            const [buData, teamData, ccData, orgData, deptData] = [
+            const [buData, teamData, ccData, orgData, deptData, desigData] = [
                 await safeJson(buRes),
                 await safeJson(teamRes),
                 await safeJson(ccRes),
                 await safeJson(orgRes),
-                await safeJson(deptRes)
+                await safeJson(deptRes),
+                await safeJson(desigRes)
             ];
 
             setData({
@@ -106,7 +110,8 @@ export default function OrgSettingsPage() {
                 teams: teamData.data || [],
                 costCenters: ccData.data || [],
                 organizations: orgData.data || orgData.organizations || [],
-                departments: deptData.data || []
+                departments: deptData.data || [],
+                designations: desigData.data || []
             });
 
             // Set initial LinkedIn ID from the first organization found
@@ -126,6 +131,7 @@ export default function OrgSettingsPage() {
         setEditingItem(null);
         setFormData({
             name: '',
+            names: [''],
             code: '',
             description: '',
             organizationId: data.organizations[0]?._id || '',
@@ -157,7 +163,8 @@ export default function OrgSettingsPage() {
         try {
             setSubmitting(true);
             const type = activeTab === 'business-units' ? 'business-units' :
-                activeTab === 'teams' ? 'teams' : 'cost-centers';
+                activeTab === 'teams' ? 'teams' : 
+                activeTab === 'designations' ? 'designations' : 'cost-centers';
 
             const endpoint = type === 'cost-centers' ? `/api/v1/admin/finance/${type}` : `/api/v1/admin/crm/${type}`;
             const method = editingItem ? 'PUT' : 'POST';
@@ -167,8 +174,21 @@ export default function OrgSettingsPage() {
             if (activeTab === 'business-units') { delete payload.departmentId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
             if (activeTab === 'teams') { delete payload.organizationId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
             if (activeTab === 'cost-centers') { delete payload.organizationId; delete payload.businessUnitId; delete payload.departmentId; }
+            if (activeTab === 'designations') { delete payload.departmentId; delete payload.businessUnitId; delete payload.budget; delete payload.code; }
 
             if (editingItem) payload.id = editingItem._id;
+
+            // Handle bulk add for designations
+            if (activeTab === 'designations' && !editingItem) {
+                payload.names = (payload.names || []).map(n => n.trim()).filter(Boolean);
+                delete payload.name;
+                if (!payload.organizationId && data.organizations.length > 0) {
+                    payload.organizationId = data.organizations[0]._id;
+                }
+            } else if (activeTab === 'designations' && editingItem) {
+                // Keep payload.name for PUT and remove names array
+                delete payload.names;
+            }
 
             const response = await fetch(endpoint, {
                 method,
@@ -195,6 +215,7 @@ export default function OrgSettingsPage() {
         try {
             const endpoint = type === 'businessUnits' ? `/api/v1/admin/crm/business-units` :
                 type === 'teams' ? `/api/v1/admin/crm/teams` :
+                type === 'designations' ? `/api/v1/admin/crm/designations` :
                     `/api/v1/admin/finance/cost-centers`;
 
             const response = await fetch(`${endpoint}?id=${id}`, { method: 'DELETE' });
@@ -245,6 +266,7 @@ export default function OrgSettingsPage() {
             if (activeTab === "business-units") items = data.businessUnits;
             else if (activeTab === "teams") items = data.teams;
             else if (activeTab === "cost-centers") items = data.costCenters;
+            else if (activeTab === "designations") items = data.designations;
 
             if (searchQuery) {
                 items = items.filter(item =>
@@ -361,6 +383,7 @@ export default function OrgSettingsPage() {
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name / Info</th>
                             {activeTab === 'teams' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>}
                             {activeTab === 'business-units' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization</th>}
+                            {activeTab === 'designations' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization</th>}
                             {activeTab === 'cost-centers' && <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code / Budget</th>}
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
@@ -373,10 +396,12 @@ export default function OrgSettingsPage() {
                                     <div className="flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm ${activeTab === 'business-units' ? 'bg-slate-50 text-blue-600 border-blue-100' :
                                             activeTab === 'teams' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                            activeTab === 'designations' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                                                 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                             }`}>
                                             {activeTab === 'business-units' ? <Briefcase className="w-4 h-4" /> :
                                                 activeTab === 'teams' ? <Users className="w-4 h-4" /> :
+                                                activeTab === 'designations' ? <Award className="w-4 h-4" /> :
                                                     <Wallet className="w-4 h-4" />}
                                         </div>
                                         <div>
@@ -391,6 +416,11 @@ export default function OrgSettingsPage() {
                                     </td>
                                 )}
                                 {activeTab === 'business-units' && (
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                        {item.organizationId?.name || 'Unknown'}
+                                    </td>
+                                )}
+                                {activeTab === 'designations' && (
                                     <td className="px-6 py-4 text-sm text-slate-600">
                                         {item.organizationId?.name || 'Unknown'}
                                     </td>
@@ -420,7 +450,7 @@ export default function OrgSettingsPage() {
                                             <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : 'costCenters', item._id)}
+                                            onClick={() => handleDelete(activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : 'costCenters', item._id)}
                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                             title="Delete"
                                         >
@@ -464,7 +494,7 @@ export default function OrgSettingsPage() {
                         className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all scale-100 active:scale-95"
                     >
                         <PlusCircle className="w-5 h-5" />
-                        Create New {activeTab === "business-units" ? "Business Unit" : activeTab === "teams" ? "Team" : "Cost Center"}
+                        Create New {activeTab === "business-units" ? "Business Unit" : activeTab === "teams" ? "Team" : activeTab === "designations" ? "Designation" : "Cost Center"}
                     </button>
                 </div>
 
@@ -493,6 +523,13 @@ export default function OrgSettingsPage() {
                                 count={data.costCenters.length}
                             />
                             <TabButton
+                                active={activeTab === "designations"}
+                                onClick={() => setActiveTab("designations")}
+                                icon={<Award className="w-4 h-4" />}
+                                label="Designations"
+                                count={data.designations.length}
+                            />
+                            <TabButton
                                 active={activeTab === "integrations"}
                                 onClick={() => setActiveTab("integrations")}
                                 icon={<Link className="w-4 h-4" />}
@@ -515,7 +552,7 @@ export default function OrgSettingsPage() {
 
                         <div className="flex items-center gap-2 text-xs font-medium text-slate-400 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
                             <Info className="w-3.5 h-3.5" />
-                            Showing {data[activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : 'costCenters']?.length || 0} total records
+                            Showing {data[activeTab === 'business-units' ? 'businessUnits' : activeTab === 'teams' ? 'teams' : activeTab === 'designations' ? 'designations' : 'costCenters']?.length || 0} total records
                         </div>
                     </div>
 
@@ -565,7 +602,7 @@ export default function OrgSettingsPage() {
                                     {editingItem ? <Edit2 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">{editingItem ? 'Edit' : 'Create'} {activeTab === 'business-units' ? 'Business Unit' : activeTab === 'teams' ? 'Team' : 'Cost Center'}</h3>
+                                    <h3 className="font-bold text-slate-900">{editingItem ? 'Edit' : 'Create'} {activeTab === 'business-units' ? 'Business Unit' : activeTab === 'teams' ? 'Team' : activeTab === 'designations' ? 'Designation' : 'Cost Center'}</h3>
                                     <p className="text-xs text-slate-500">Enter details below to {editingItem ? 'update' : 'add'} the record</p>
                                 </div>
                             </div>
@@ -581,15 +618,57 @@ export default function OrgSettingsPage() {
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Name</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        placeholder={`Enter ${activeTab.slice(0, -1)} name...`}
-                                    />
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                        {activeTab === 'designations' && !editingItem ? 'Designation Names' : 'Name'}
+                                    </label>
+                                    {activeTab === 'designations' && !editingItem ? (
+                                        <div className="space-y-3">
+                                            {(formData.names || ['']).map((nameValue, index) => (
+                                                <div key={index} className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={nameValue}
+                                                        onChange={(e) => {
+                                                            const newNames = [...(formData.names || [''])];
+                                                            newNames[index] = e.target.value;
+                                                            setFormData({ ...formData, names: newNames });
+                                                        }}
+                                                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                                        placeholder="Enter designation name..."
+                                                    />
+                                                    {(formData.names || ['']).length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newNames = formData.names.filter((_, i) => i !== index);
+                                                                setFormData({ ...formData, names: newNames });
+                                                            }}
+                                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, names: [...(formData.names || ['']), ''] })}
+                                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-2"
+                                            >
+                                                <Plus className="w-4 h-4" /> Add Another Designation
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                            placeholder={`Enter ${activeTab.slice(0, -1)} name...`}
+                                        />
+                                    )}
                                 </div>
 
                                 {activeTab === 'cost-centers' && (
