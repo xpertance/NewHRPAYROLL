@@ -340,18 +340,6 @@ function DashboardLayoutContent({ children }) {
     },
   ];
 
-  const supervisorNavigation = [
-    {
-      name: t("attendanceDirectory"),
-      href: "/admin/attendance",
-      icon: UserCheck,
-    },
-    { name: t("myPayslip"), href: "/admin/payroll/my-payslip", icon: Receipt },
-    { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
-    { name: t("myLoans"), href: "/admin/payroll/loans", icon: BanknoteArrowUp },
-    { name: t("myEngagement"), href: "/admin/engagement", icon: Target },
-  ];
-
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
@@ -417,8 +405,6 @@ function DashboardLayoutContent({ children }) {
     navigation = adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
-  } else if (role === "supervisor") {
-    navigation = supervisorNavigation;
   } else if (role === "attendance_only") {
     navigation = attendanceOnlyNavigation;
   } else {
@@ -457,9 +443,8 @@ function DashboardLayoutContent({ children }) {
               href={
                 role === "admin" ? "/admin/dashboard" :
                   role === "employee" ? "/employee/dashboard" :
-                    role === "supervisor" ? "/employee/dashboard" :
-                      role === 'attendance_only' ? '/payroll/attendance' :
-                        '/dashboard'
+                    role === 'attendance_only' ? '/payroll/attendance' :
+                      '/dashboard'
               }
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >

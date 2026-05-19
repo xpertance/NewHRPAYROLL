@@ -335,18 +335,6 @@ function DashboardLayoutContent({ children }) {
     },
   ];
 
-  const supervisorNavigation = [
-    {
-      name: t("attendanceDirectory"),
-      href: "/admin/attendance",
-      icon: UserCheck,
-    },
-    { name: t("myPayslip"), href: "/employee/my-payslip", icon: Receipt },
-    { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
-    { name: t("myLoans"), href: "/employee/loans", icon: BanknoteArrowUp },
-    { name: t("myEngagement"), href: "/admin/engagement", icon: Target },
-  ];
-
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
@@ -432,8 +420,6 @@ function DashboardLayoutContent({ children }) {
     navigation = isEmployeePath ? employeeNavigation : adminNavigation;
   } else if (role === "employee") {
     navigation = employeeNavigation;
-  } else if (role === "supervisor") {
-    navigation = supervisorNavigation;
   } else if (role === "attendance_only") {
     navigation = attendanceOnlyNavigation;
   } else {
@@ -463,8 +449,9 @@ function DashboardLayoutContent({ children }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <div
-        className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl border-r border-indigo-100 transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col h-screen`}
+        className={`${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl border-r border-indigo-100 transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col h-screen`}
       >
         <div className="flex-shrink-0 p-6 border-b border-indigo-50 bg-white">
           <div className="flex items-center space-x-3 justify-center">
@@ -472,9 +459,8 @@ function DashboardLayoutContent({ children }) {
               href={
                 role === "admin" ? "/admin/dashboard" :
                   role === "employee" ? "/employee/dashboard" :
-                    role === "supervisor" ? "/employee/dashboard" :
-                      role === 'attendance_only' ? '/payroll/attendance' :
-                        '/dashboard'
+                    role === 'attendance_only' ? '/payroll/attendance' :
+                      '/dashboard'
               }
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >

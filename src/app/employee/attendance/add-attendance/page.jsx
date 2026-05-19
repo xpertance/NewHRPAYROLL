@@ -849,20 +849,6 @@ export default function AddAttendance() {
 
       if (user.role === "admin") {
         setEmployees(data.employees || []);
-      } else if (user.role === "supervisor") {
-        // Filter employees assigned to this supervisor
-        const supervisedEmployees = data?.employees?.filter((emp) => {
-          // Check if employee's attendance approval has this supervisor assigned
-          const isShift1Supervisor =
-            emp.attendanceApproval?.shift1Supervisor?._id === user.id;
-          const isShift2Supervisor =
-            emp.attendanceApproval?.shift2Supervisor?._id === user.id;
-          // Return true if supervisor is assigned to any shift OR they're in same department
-          return isShift1Supervisor || isShift2Supervisor;
-        });
-        console.log(supervisedEmployees);
-
-        setEmployees(supervisedEmployees || []);
       } else {
         setEmployees([]);
       }
@@ -1042,9 +1028,7 @@ export default function AddAttendance() {
                   Add Attendance
                 </h1>
                 <p className="text-slate-600">
-                  {user?.role === "Supervisor"
-                    ? "Mark attendance for your department"
-                    : "Mark attendance by department"}
+                  Mark attendance by department
                 </p>
               </div>
             </div>
@@ -1078,9 +1062,7 @@ export default function AddAttendance() {
               No Employees Found
             </h3>
             <p className="text-slate-600">
-              {user?.role === "Supervisor"
-                ? "No employees in your department."
-                : "No employees available."}
+              No employees available.
             </p>
           </div>
         ) : (
