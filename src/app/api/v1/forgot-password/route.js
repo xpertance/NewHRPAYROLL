@@ -66,8 +66,11 @@ export async function POST(request) {
     await targetUser.save({ validateBeforeSave: false });
 
     // Build reset link using the RAW token (not hashed)
-    // Pass the role in the link so the reset page knows which collection to use
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Priority: Use NEXT_PUBLIC_APP_URL if set (production), otherwise detect from request
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL 
+      || request.headers.get('origin') 
+      || request.headers.get('referer')?.replace(/\/[^/]*$/, '') 
+      || 'http://localhost:3000').replace(/\/$/, '');
     const resetLink = `${appUrl}/reset-password?token=${rawToken}&role=${role}`;
 
     // Send email
