@@ -99,6 +99,8 @@ function ESSDashboardContent() {
     const [payslips, setPayslips] = useState([]);
     const [investments, setInvestments] = useState(null);
     const [taskStats, setTaskStats] = useState({ total: 0, pending: 0 });
+    const [payrollConfig, setPayrollConfig] = useState(null);
+    const [attendanceList, setAttendanceList] = useState([]);
 
     const [showPolicyModal, setShowPolicyModal] = useState(false);
     const [selectedFY, setSelectedFY] = useState("2025-26");
@@ -365,8 +367,9 @@ function ESSDashboardContent() {
                 fetch(`/api/v1/employee/payroll/investments?employeeId=${employeeId}&financialYear=2025-26`)
             ]);
 
+            let empData = null;
             if (empRes.ok && empRes.headers.get('content-type')?.includes('application/json')) {
-                const empData = await empRes.json();
+                empData = await empRes.json();
                 setEmployee(empData);
             }
             if (slipsRes.ok && slipsRes.headers.get('content-type')?.includes('application/json')) {
@@ -390,7 +393,30 @@ function ESSDashboardContent() {
                     });
                 }
             }
+
+            // Fetch Payroll settings using organizationId from employee details or user session
+            const orgId = user?.organizationId || empData?.jobDetails?.organizationId;
+            if (orgId) {
+                const settingsRes = await fetch(`/api/v1/employee/payroll/settings?orgId=${orgId}`);
+                if (settingsRes.ok && settingsRes.headers.get('content-type')?.includes('application/json')) {
+                    const settingsData = await settingsRes.json();
+                    setPayrollConfig(settingsData);
+                }
+            }
+
+            // Fetch Attendance data for the current month
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+            const attendanceRes = await fetch(`/api/v1/employee/payroll/attendance?employeeId=${employeeId}&startDate=${firstDay}&endDate=${lastDay}`);
+            if (attendanceRes.ok && attendanceRes.headers.get('content-type')?.includes('application/json')) {
+                const attData = await attendanceRes.json();
+                if (attData.success) {
+                    setAttendanceList(attData.attendance || []);
+                }
+            }
         } catch (error) {
+            console.error("Failed to load dashboard data:", error);
             toast.error("Failed to load dashboard data");
         } finally {
             setLoading(false);
@@ -418,6 +444,89 @@ function ESSDashboardContent() {
     }
 
     const latestPayslip = payslips[0] || null;
+
+    // Calculate Dynamic YTD metrics based on selectedFY
+    const activeYearPayslips = payslips.filter(slip => {
+        const fyStart = slip.month >= 4 ? slip.year : slip.year - 1;
+        const fyString = `${fyStart}-${(fyStart + 1).toString().slice(-2)}`;
+        return fyString === selectedFY;
+    });
+    const totalYTDEarnings = activeYearPayslips.reduce((acc, p) => acc + (p.netSalary || 0), 0);
+    const annualCTC = (employee?.payslipStructure?.totalEarnings || employee?.payslipStructure?.basicSalary || 0) * 12;
+    const progressPercent = annualCTC > 0 ? Math.min(Math.round((totalYTDEarnings / annualCTC) * 100), 100) : 0;
+
+    // Calculate dynamic Upcoming Payday and Countdown
+    const nextPayday = (() => {
+        const payDaySetting = payrollConfig?.paymentDay || 1;
+        const today = new Date();
+        let year = today.getFullYear();
+        let month = today.getMonth();
+
+        const getLastDay = (y, m) => new Date(y, m + 1, 0).getDate();
+
+        let currentMonthPayday = Math.min(payDaySetting, getLastDay(year, month));
+        let paydayDate = new Date(year, month, currentMonthPayday);
+        paydayDate.setHours(0, 0, 0, 0);
+
+        let todayZero = new Date(today);
+        todayZero.setHours(0, 0, 0, 0);
+
+        if (todayZero >= paydayDate) {
+            month += 1;
+            if (month > 11) {
+                month = 0;
+                year += 1;
+            }
+            let nextMonthPayday = Math.min(payDaySetting, getLastDay(year, month));
+            paydayDate = new Date(year, month, nextMonthPayday);
+        }
+        return paydayDate;
+    })();
+
+    const daysRemaining = (() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffTime = nextPayday.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, diffDays);
+    })();
+
+    // Calculate month attendance/roster stats
+    const presentDays = attendanceList.filter(a => a.status === 'Present').length;
+    const absentDays = attendanceList.filter(a => a.status === 'Absent').length;
+    const leaveDays = attendanceList.filter(a => a.status === 'Leave' || a.status === 'Half-day').length;
+    const totalLoggedDays = attendanceList.filter(a => ['Present', 'Absent', 'Leave', 'Half-day'].includes(a.status)).length;
+    const presentRatio = totalLoggedDays > 0 ? Math.round((presentDays / totalLoggedDays) * 100) : 0;
+
+    // Construct dynamic Recent Payroll Events feed
+    const dynamicEvents = (() => {
+        const list = [];
+        
+        // 1. Payslips Events
+        payslips.forEach(slip => {
+            list.push({
+                type: 'payslip',
+                title: `${getMonthName(slip.month)} ${slip.year} Payslip Generated`,
+                date: new Date(slip.paymentDate || slip.createdAt),
+                data: slip,
+                action: () => handleDownloadPDF(slip),
+                badge: slip.status || 'Published'
+            });
+        });
+
+        // 2. Investment Approvals
+        if (investments && (investments.updatedAt || investments.createdAt)) {
+            list.push({
+                type: 'investment',
+                title: `Tax Investment Declaration ${investments.status || 'Submitted'}`,
+                date: new Date(investments.updatedAt || investments.createdAt),
+                data: investments,
+                badge: investments.status || 'Pending'
+            });
+        }
+
+        return list.sort((a, b) => b.date - a.date).slice(0, 5);
+    })();
 
     const handleSaveDeclaration = async (submit = false) => {
         try {
@@ -580,13 +689,13 @@ function ESSDashboardContent() {
                                         </div>
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("totalYTDEarnings")}</span>
                                     </div>
-                                    <h3 className="text-3xl font-black text-slate-900 mb-1">₹1,24,500</h3>
-                                    <p className="text-slate-500 text-sm">{t("forFinancialYear")} 2025-26</p>
+                                    <h3 className="text-3xl font-black text-slate-900 mb-1">₹{totalYTDEarnings.toLocaleString()}</h3>
+                                    <p className="text-slate-500 text-sm">{t("forFinancialYear")} {selectedFY}</p>
                                     <div className="mt-6 pt-6 border-t border-slate-100 flex items-center gap-2">
                                         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-emerald-500 h-full w-[35%]"></div>
+                                            <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
                                         </div>
-                                        <span className="text-[10px] font-bold text-slate-400">35%</span>
+                                        <span className="text-[10px] font-bold text-slate-400">{progressPercent}%</span>
                                     </div>
                                 </Card>
 
@@ -613,34 +722,82 @@ function ESSDashboardContent() {
                                     <button onClick={() => setShowPolicyModal(true)} className="text-xs text-indigo-600 font-semibold hover:underline">{t("checkPolicy")}</button>
                                 </div>
                                 <div className="divide-y divide-slate-100">
-                                    <div className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-blue-600 shrink-0">
-                                            <FileText className="w-5 h-5" />
+                                    {dynamicEvents.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-400">
+                                            <History className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                            <p className="text-xs font-semibold">{t("noRecentEvents") || "No recent payroll events"}</p>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-slate-900">December 2025 Payslip Generated</p>
-                                            <p className="text-[10px] text-slate-500">December 31, 2025</p>
-                                        </div>
-                                        <button onClick={() => handleDownload('Payslip-Dec-2025.txt', 'Payslip Content for December 2025...')} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
-                                            <Download className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                    <div className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                                            <Percent className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-slate-900">80C Declaration Approved</p>
-                                            <p className="text-[10px] text-slate-500">December 28, 2025</p>
-                                        </div>
-                                        <div className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">Success</div>
-                                    </div>
+                                    ) : (
+                                        dynamicEvents.map((evt, idx) => (
+                                            <div key={idx} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                                    evt.type === 'payslip' 
+                                                        ? 'bg-blue-50 text-blue-600' 
+                                                        : 'bg-emerald-50 text-emerald-600'
+                                                }`}>
+                                                    {evt.type === 'payslip' ? <FileText className="w-5 h-5" /> : <Percent className="w-5 h-5" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-slate-900 truncate">{evt.title}</p>
+                                                    <p className="text-[10px] text-slate-500">{format(evt.date, 'MMMM dd, yyyy')}</p>
+                                                </div>
+                                                {evt.type === 'payslip' ? (
+                                                    <button onClick={evt.action} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                                                        <Download className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <div className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                                                        evt.badge === 'Approved' 
+                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            : evt.badge === 'Rejected' 
+                                                                ? 'bg-rose-100 text-rose-700' 
+                                                                : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                        {evt.badge}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </Card>
                         </div>
 
                         {/* Right Column: Mini Widgets */}
                         <div className="space-y-8">
+                            {/* Upcoming Payday Countdown Card */}
+                            <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100/50 shadow-sm relative overflow-hidden">
+                                <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-10">
+                                    <Wallet className="w-24 h-24 text-indigo-600" />
+                                </div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+                                        {t("nextPaydayCountdown") || "Next Payday"}
+                                    </h4>
+                                    <CalendarDays className="w-4 h-4 text-indigo-600" />
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-black text-indigo-900 tracking-tight">
+                                            {daysRemaining}
+                                        </span>
+                                        <span className="text-sm font-semibold text-indigo-600">
+                                            {daysRemaining === 1 ? t("dayRemaining") || "day left" : t("daysRemaining") || "days left"}
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 font-medium leading-none">
+                                        {t("expectedOn") || "Expected on"}: <span className="font-bold text-slate-700">{format(nextPayday, 'MMM dd, yyyy')}</span>
+                                    </p>
+                                    <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden">
+                                        <div 
+                                            className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full transition-all duration-500" 
+                                            style={{ width: `${Math.min(100, Math.max(0, ((30 - daysRemaining) / 30) * 100))}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+
                             {/* Tax Tip Widget */}
                             <Card className="p-6 bg-blue-50/50">
                                 <div className="flex items-center gap-3 mb-4">
@@ -700,85 +857,53 @@ function ESSDashboardContent() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Shift Stats Breakdown */}
+                                <div className="mt-5 pt-5 border-t border-slate-100 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                                            {format(new Date(), 'MMMM')} Attendance
+                                        </h5>
+                                        <span className="text-[10px] font-bold text-slate-400">
+                                            {totalLoggedDays} {totalLoggedDays === 1 ? 'Day' : 'Days'} Logged
+                                        </span>
+                                    </div>
+
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="p-2.5 bg-emerald-50/60 rounded-xl border border-emerald-100/50 text-center">
+                                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tight">Present</p>
+                                            <p className="text-lg font-black text-emerald-700 mt-0.5">{presentDays}</p>
+                                        </div>
+                                        <div className="p-2.5 bg-rose-50/60 rounded-xl border border-rose-100/50 text-center">
+                                            <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tight">Absent</p>
+                                            <p className="text-lg font-black text-rose-700 mt-0.5">{absentDays}</p>
+                                        </div>
+                                        <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-100/50 text-center">
+                                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">Leaves</p>
+                                            <p className="text-lg font-black text-amber-700 mt-0.5">{leaveDays}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Attendance Present Ratio Progress Bar */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                                            <span>Present Ratio</span>
+                                            <span className="text-indigo-600">{presentRatio}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative">
+                                            <div 
+                                                className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-700 ease-out" 
+                                                style={{ width: `${presentRatio}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <p className="text-[10px] text-slate-400 mt-4 text-center font-medium italic">{t("contactHRChangeRequest")}</p>
                             </Card>
 
-                            {/* Who's Away Widget (Teammates Only) */}
-                            <Card className="p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="font-bold text-slate-900 text-sm">
-                                        {t("whosAway") || "Who's Away (Team)"}
-                                    </h4>
-                                    <Users className="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <div className="space-y-4">
-                                    {loadingTeamLeaves ? (
-                                        <div className="flex justify-center p-4">
-                                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
-                                        </div>
-                                    ) : teamLeaves.length > 0 ? (
-                                        teamLeaves.map((leave, i) => (
-                                            <div key={i} className="flex items-start gap-4">
-                                                <div className={`w-1 font-bold h-10 rounded-full flex-shrink-0 ${leave.isToday ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-amber-400'}`} />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-black text-slate-900 truncate">{leave.employeeName}</p>
-                                                    <p className="text-[10px] text-slate-500 font-medium truncate">{leave.designation}</p>
-                                                    <div className="flex items-center gap-1.5 mt-1">
-                                                        <CalendarDays className="w-3 h-3 text-slate-400" />
-                                                        <p className="text-[10px] font-bold text-slate-600">
-                                                            {format(new Date(leave.startDate), 'MMM dd')} - {format(new Date(leave.endDate), 'MMM dd')}
-                                                        </p>
-                                                        {leave.isToday && (
-                                                            <span className="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Away Today</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2">
-                                                <CheckCircle2 className="w-4 h-4 text-slate-400" />
-                                            </div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("everyoneIsHere") || "Full Team Present"}</p>
-                                        </div>
-                                    )}
-                                </div>
-                                <p className="text-[10px] text-slate-400 mt-6 text-center font-medium italic">
-                                    {t("teammateLeavesOnly") || "Only approved leaves from your direct team are shown."}
-                                </p>
-                            </Card>
 
-                            {/* Profile Snapshot */}
-                            <Card className="p-6">
-                                <h4 className="font-bold text-slate-900 text-sm mb-4">{t("profileSnapshot")}</h4>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-500">Employee ID</span>
-                                        <span className="font-semibold text-slate-900 font-mono">{employee?.employeeId}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-500">Designation</span>
-                                        <span className="font-semibold text-slate-900">{employee?.jobDetails?.designation}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-500">PAN</span>
-                                        <span className="font-semibold text-slate-900 font-mono">XXXXX{String(employee?.salaryDetails?.panNumber || '').slice(-4)}</span>
-                                    </div>
-                                    {employee?.jobDetails && (
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-slate-500">Working Shift</span>
-                                            <span className="font-semibold text-indigo-600">{employee.jobDetails.defaultShift?.name || "General Shift"}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="mt-6 pt-6 border-t border-slate-100">
-                                    <div className="p-3 bg-indigo-50 rounded-xl flex items-center gap-3 text-xs text-indigo-700 font-medium">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>Next payday: Feb 01, 2026</span>
-                                    </div>
-                                </div>
-                            </Card>
                         </div>
                     </div>
                 )}

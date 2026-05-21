@@ -665,13 +665,9 @@ function DashboardLayoutContent({ children }) {
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator className="-mx-1 my-1 border-t border-slate-100" />
 
-                      <DropdownMenuItem onClick={() => router.push("/employee/dashboard")}>
+                      <DropdownMenuItem onClick={() => router.push("/employee/profile")}>
                         <User className="w-4 h-4 mr-2 text-slate-500" />
-                        {t("myPortal")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push("/employee/change-password")}>
-                        <Lock className="w-4 h-4 mr-2 text-slate-500" />
-                        {t("changePassword")}
+                        {t("myProfile") || "My Profile"}
                       </DropdownMenuItem>
 
                       <DropdownMenuSeparator className="-mx-1 my-1 border-t border-slate-100" />
