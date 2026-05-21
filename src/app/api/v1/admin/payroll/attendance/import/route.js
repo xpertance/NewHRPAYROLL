@@ -4,6 +4,7 @@ import Employee from "@/lib/db/models/payroll/Employee";
 import Attendance from "@/lib/db/models/payroll/Attendance";
 import AttendanceThreshold from "@/lib/db/models/payroll/AttendanceThreshold";
 import Notification from "@/lib/db/models/notifications/NotificationConfig";
+import Organization from "@/lib/db/models/crm/organization/Organization";
 import nodemailer from "nodemailer";
 import { sendAttendanceThresholdNotification } from "@/utils/notifications";
 
