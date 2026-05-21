@@ -1,5 +1,19 @@
 import mongoose from 'mongoose';
 
+// ───────────────────────────────────────────────────────────────
+// PRE-REGISTER commonly populated models so they are available
+// in every API route on cold starts. Without these imports,
+// .populate() calls will intermittently fail with:
+//   "Schema hasn't been registered for model X"
+// ───────────────────────────────────────────────────────────────
+import '@/lib/db/models/crm/organization/Organization';
+import '@/lib/db/models/crm/organization/BusinessUnit';
+import '@/lib/db/models/crm/organization/Team';
+import '@/lib/db/models/crm/organization/OfficeLocation';
+import '@/lib/db/models/crm/Department/department';
+import '@/lib/db/models/crm/employee/EmployeeCategory';
+import '@/lib/db/models/crm/employee/EmployeeType';
+
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {

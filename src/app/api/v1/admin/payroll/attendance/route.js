@@ -5,6 +5,7 @@ import AttendanceThreshold from "@/lib/db/models/payroll/AttendanceThreshold";
 import Notification from "@/lib/db/models/notifications/NotificationConfig";
 import Employee from "@/lib/db/models/payroll/Employee";
 import OfficeLocation from "@/lib/db/models/crm/organization/OfficeLocation";
+import Organization from "@/lib/db/models/crm/organization/Organization";
 import { sendAttendanceThresholdNotification } from "@/utils/notifications";
 import { getAuthUser, authorize } from "@/lib/auth-util";
 

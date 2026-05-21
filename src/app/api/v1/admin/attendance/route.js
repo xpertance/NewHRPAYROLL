@@ -6,6 +6,7 @@ import Notification from "@/lib/db/models/notifications/NotificationConfig";
 import Employee from "@/lib/db/models/payroll/Employee";
 import PayrollRun from "@/lib/db/models/payroll/PayrollRun";
 import OfficeLocation from "@/lib/db/models/crm/organization/OfficeLocation";
+import Organization from "@/lib/db/models/crm/organization/Organization";
 
 
 // Triggering file refresh for Next.js build watcher
@@ -755,74 +756,47 @@ export async function PUT(request) {
     const endOfDay = new Date(attendanceDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    let updatedAttendance;
+    const existingRecord = await Attendance.findOne({
+      employee,
+      date: { $gte: startOfDay, $lte: endOfDay },
+    });
 
-    // Check if this is a check-out update
-    if (checkOut) {
-      const existingRecord = await Attendance.findOne({
-        employee,
-        date: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
-      });
-
-      if (existingRecord && existingRecord.checkIn) {
-        // Calculate total hours
-        const checkInTime = new Date(existingRecord.checkIn);
-        const checkOutTime = new Date(checkOut);
-        const diffMs = checkOutTime - checkInTime;
-        const totalHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
-
-        updatedAttendance = await Attendance.findOneAndUpdate(
-          {
-            employee,
-            date: { $gte: startOfDay, $lte: endOfDay },
-          },
-          {
-            $set: {
-              checkOut: checkOutTime,
-              totalHours: totalHours,
-              status: status || "Present",
-            },
-          },
-          { new: true }
-        );
-      }
-    } else {
-      // Regular update
-      const updateData = {};
-      if (checkIn) updateData.checkIn = new Date(checkIn);
-      if (status) updateData.status = status;
-      if (overtimeHours !== undefined) updateData.overtimeHours = overtimeHours;
-      if (notes !== undefined) updateData.notes = notes;
-      if (location) updateData.location = location;
-
-      // Recalculate total hours if both times are present
-      const existingRecord = await Attendance.findOne({
-        employee,
-        date: { $gte: startOfDay, $lte: endOfDay },
-      });
-
-      if (existingRecord) {
-        const newCheckIn = checkIn ? new Date(checkIn) : existingRecord.checkIn;
-        const newCheckOut = existingRecord.checkOut;
-
-        if (newCheckIn && newCheckOut) {
-          const diffMs = new Date(newCheckOut) - new Date(newCheckIn);
-          updateData.totalHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
-        }
-      }
-
-      updatedAttendance = await Attendance.findOneAndUpdate(
-        {
-          employee,
-          date: { $gte: startOfDay, $lte: endOfDay },
-        },
-        { $set: updateData },
-        { new: true }
+    if (!existingRecord) {
+      return NextResponse.json(
+        { success: false, error: "Attendance record not found" },
+        { status: 404 }
       );
     }
+
+    const updateData = {};
+    
+    // Determine effective check-in and check-out times
+    const effectiveCheckIn = checkIn !== undefined ? (checkIn ? new Date(checkIn) : null) : existingRecord.checkIn;
+    const effectiveCheckOut = checkOut !== undefined ? (checkOut ? new Date(checkOut) : null) : existingRecord.checkOut;
+
+    if (checkIn !== undefined) updateData.checkIn = effectiveCheckIn;
+    if (checkOut !== undefined) updateData.checkOut = effectiveCheckOut;
+    if (status !== undefined) updateData.status = status;
+    if (overtimeHours !== undefined) updateData.overtimeHours = overtimeHours;
+    if (notes !== undefined) updateData.notes = notes;
+    if (location !== undefined) updateData.location = location;
+
+    // Recalculate total hours based on effective times
+    if (effectiveCheckIn && effectiveCheckOut) {
+      const diffMs = effectiveCheckOut - effectiveCheckIn;
+      updateData.totalHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
+    } else if (effectiveCheckOut === null) {
+      updateData.totalHours = 0; // Reset hours if checkout is cleared
+    }
+
+    const updatedAttendance = await Attendance.findOneAndUpdate(
+      {
+        employee,
+        date: { $gte: startOfDay, $lte: endOfDay },
+      },
+      { $set: updateData },
+      { new: true }
+    );
 
     if (!updatedAttendance) {
       return NextResponse.json(
