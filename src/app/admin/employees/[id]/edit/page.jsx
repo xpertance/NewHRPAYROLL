@@ -16,6 +16,10 @@ export default async function EmployeeEditPage({ params }) {
     .populate('jobDetails.reportingManager', 'personalDetails.firstName personalDetails.lastName employeeId')
     .populate('attendanceApproval.shift1Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
     .populate('attendanceApproval.shift2Supervisor', 'personalDetails.firstName personalDetails.lastName employeeId')
+    .populate('jobDetails.organizationId', 'name')
+    .populate('jobDetails.businessUnitId', 'name')
+    .populate('jobDetails.departmentId', 'departmentName')
+    .populate('jobDetails.teamId', 'name')
     .lean();
 
   if (!employeeDoc) {

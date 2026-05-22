@@ -45,6 +45,7 @@ import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import SimpleSelect from "./SimpleSelect";
+import SearchableSelect from "./SearchableSelect";
 import DocumentUploadSection from "./DocumentUploadSection";
 import PayslipStructureSection from "./PayslipStructureSection";
 
@@ -896,15 +897,15 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
   }, [formData.jobDetails.departmentId, formData.jobDetails.organizationId]);
 
   useEffect(() => {
-    const { organizationId, departmentId } = formData.jobDetails;
+    const { organizationId } = formData.jobDetails;
 
-    if (organizationId && departmentId) {
-      console.log("[EmployeeForm] Triggering fetchTeamLeads");
-      fetchTeamLeads(organizationId, departmentId, employeeData?._id);
+    if (organizationId) {
+      console.log("[EmployeeForm] Triggering fetchTeamLeads for entire organization");
+      fetchTeamLeads(organizationId, employeeData?._id);
     } else {
       setTeamLeads([]);
     }
-  }, [formData.jobDetails.organizationId, formData.jobDetails.departmentId, employeeData?._id]);
+  }, [formData.jobDetails.organizationId, employeeData?._id]);
 
 
 
@@ -984,6 +985,21 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       // Use defaults if jobDetails is missing to avoid crash
       const jobDetails = employeeData.jobDetails || {};
 
+      // Inject initial options for populated dropdowns so they display immediately
+      if (jobDetails.organizationId && typeof jobDetails.organizationId === 'object') {
+        setOrganizations(prev => prev.length ? prev : [{ value: String(jobDetails.organizationId._id), label: jobDetails.organizationId.name }]);
+      }
+      if (jobDetails.businessUnitId && typeof jobDetails.businessUnitId === 'object') {
+        setBusinessUnits(prev => prev.length ? prev : [{ value: String(jobDetails.businessUnitId._id), label: jobDetails.businessUnitId.name }]);
+      }
+      if (jobDetails.departmentId && typeof jobDetails.departmentId === 'object') {
+        setDepartments(prev => prev.length ? prev : [{ value: String(jobDetails.departmentId._id), label: jobDetails.departmentId.departmentName }]);
+      }
+      if (jobDetails.teamId && typeof jobDetails.teamId === 'object') {
+        setTeams(prev => prev.length ? prev : [{ value: String(jobDetails.teamId._id), label: jobDetails.teamId.name }]);
+      }
+
+
       if (jobDetails.organizationId) {
         // Handle if organizationId is an object (populated) or string
         const orgId = typeof jobDetails.organizationId === 'object' ? jobDetails.organizationId._id : jobDetails.organizationId;
@@ -1008,9 +1024,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
           if (jobDetails.employeeTypeId) {
             const empTypeId = typeof jobDetails.employeeTypeId === 'object' ? jobDetails.employeeTypeId._id : jobDetails.employeeTypeId;
 
-            if (jobDetails.category?.toLowerCase() !== "team lead") {
-              fetchTeamLeads(orgId, deptId, employeeData._id);
-            }
+            fetchTeamLeads(orgId, employeeData._id);
           }
         }
       }
@@ -1113,9 +1127,9 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
     }
   };
 
-  const fetchTeamLeads = async (organizationId, departmentId, currentEmployeeId = null) => {
+  const fetchTeamLeads = async (organizationId, currentEmployeeId = null) => {
     try {
-      if (!organizationId || !departmentId) {
+      if (!organizationId) {
         setTeamLeads([]);
         return;
       }
@@ -1123,7 +1137,6 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       // Build query parameters
       const params = new URLSearchParams();
       params.set("organizationId", organizationId);
-      params.set("departmentId", departmentId);
       params.set("status", "Active"); // Only active employees
       params.set("limit", "1000");
 
@@ -1134,7 +1147,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
         throw new Error(data.error || "Failed to fetch team leads");
       }
 
-      const teamLeadEmp = data.employees || [];
+      const teamLeadEmp = data.data || [];
 
       // Filter out current employee if in edit mode
       const filteredEmployees = teamLeadEmp.filter(
@@ -1143,7 +1156,7 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
 
       const teamLeadOptions = filteredEmployees.map((emp) => ({
         value: String(emp._id),
-        label: `${emp.personalDetails.firstName} ${emp.personalDetails.lastName} (${emp.employeeId || 'EMP'})`,
+        label: `${emp.personalDetails.firstName} ${emp.personalDetails.lastName} - ${emp.jobDetails?.designation || 'No Designation'}`,
         employeeId: emp.employeeId,
       }));
 
@@ -1233,39 +1246,49 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
       if (subField === "organizationId") {
         const selectedOrg = organizations.find((org) => org.value === value);
         newJobDetails.organization = selectedOrg ? selectedOrg.label : "";
-        newJobDetails.organizationId = value;
-        // Reset children
-        newJobDetails.businessUnitId = "";
-        newJobDetails.businessUnit = "";
-        newJobDetails.departmentId = "";
-        newJobDetails.department = "";
-        newJobDetails.teamId = "";
-        newJobDetails.team = "";
-        newJobDetails.employeeTypeId = "";
-        newJobDetails.employeeType = "";
-        newJobDetails.teamLead = "";
+        
+        // Only reset children if the organization ACTUALLY changed
+        if (prev.jobDetails?.organizationId !== value) {
+          newJobDetails.organizationId = value;
+          // Reset children
+          newJobDetails.businessUnitId = "";
+          newJobDetails.businessUnit = "";
+          newJobDetails.departmentId = "";
+          newJobDetails.department = "";
+          newJobDetails.teamId = "";
+          newJobDetails.team = "";
+          newJobDetails.employeeTypeId = "";
+          newJobDetails.employeeType = "";
+          newJobDetails.teamLead = "";
+        }
       }
 
       if (subField === "businessUnitId") {
         const selectedBU = businessUnits.find((bu) => bu.value === value);
         newJobDetails.businessUnit = selectedBU ? selectedBU.label : "";
-        newJobDetails.businessUnitId = value;
-        // Reset children
-        newJobDetails.departmentId = "";
-        newJobDetails.department = "";
-        newJobDetails.teamId = "";
-        newJobDetails.team = "";
+        
+        if (prev.jobDetails?.businessUnitId !== value) {
+          newJobDetails.businessUnitId = value;
+          // Reset children
+          newJobDetails.departmentId = "";
+          newJobDetails.department = "";
+          newJobDetails.teamId = "";
+          newJobDetails.team = "";
+        }
       }
 
       if (subField === "departmentId") {
         const selectedDept = departments.find((dept) => dept.value === value);
         newJobDetails.department = selectedDept ? selectedDept.name : "";
-        newJobDetails.departmentId = value;
-        // Reset children
-        newJobDetails.teamId = "";
-        newJobDetails.team = "";
-        newJobDetails.employeeTypeId = "";
-        newJobDetails.employeeType = "";
+        
+        if (prev.jobDetails?.departmentId !== value) {
+          newJobDetails.departmentId = value;
+          // Reset children
+          newJobDetails.teamId = "";
+          newJobDetails.team = "";
+          newJobDetails.employeeTypeId = "";
+          newJobDetails.employeeType = "";
+        }
       }
 
       if (subField === "teamId") {
@@ -2256,28 +2279,45 @@ export default function EmployeeForm({ employeeData, isEdit = false }) {
                             />
                           </div>
 
-                          {/* 7. Team Lead Dropdown */}
-                          {formData.jobDetails.categoryId &&
-                            formData.jobDetails.category?.toLowerCase() !== "team lead" && (
-                              <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-700">
-                                  Reporting Manager / Team Lead
-                                </label>
-                                <SimpleSelect
-                                  value={formData.jobDetails.teamLead || ""}
-                                  onChange={(e) =>
-                                    handleSelectChange("jobDetails.teamLead", e.target.value)
-                                  }
-                                  options={teamLeads}
-                                  placeholder={
-                                    formData.jobDetails.departmentId
-                                      ? "Select reporter"
-                                      : "Select department first"
-                                  }
-                                  disabled={!formData.jobDetails.departmentId}
-                                />
-                              </div>
-                            )}
+                          {/* 7. Reporting Person Dropdown */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-slate-700">
+                              Reporting Person
+                            </label>
+                            <SearchableSelect
+                              value={formData.jobDetails.reportingManager || ""}
+                              onChange={(val) =>
+                                handleSelectChange("jobDetails.reportingManager", val)
+                              }
+                              options={teamLeads}
+                              placeholder={
+                                formData.jobDetails.departmentId
+                                  ? "Select reporting person"
+                                  : "Select department first"
+                              }
+                              disabled={!formData.jobDetails.departmentId}
+                            />
+                          </div>
+
+                          {/* 8. Team Lead Dropdown */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-slate-700">
+                              Team Lead
+                            </label>
+                            <SearchableSelect
+                              value={formData.jobDetails.teamLead || ""}
+                              onChange={(val) =>
+                                handleSelectChange("jobDetails.teamLead", val)
+                              }
+                              options={teamLeads}
+                              placeholder={
+                                formData.jobDetails.departmentId
+                                  ? "Select team lead"
+                                  : "Select department first"
+                              }
+                              disabled={!formData.jobDetails.departmentId}
+                            />
+                          </div>
 
                           <div className="space-y-2">
                             <label className="block text-sm font-semibold text-slate-700">

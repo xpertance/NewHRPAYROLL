@@ -121,8 +121,8 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Invalid employee ID format' }, { status: 400 });
     }
 
-    // Check if employee exists
-    const existingEmployee = await Employee.findById(id);
+    // Check if employee exists and include password for fallback
+    const existingEmployee = await Employee.findById(id).select('+password');
     if (!existingEmployee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
