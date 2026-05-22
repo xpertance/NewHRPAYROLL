@@ -92,6 +92,12 @@ function DashboardLayoutContent({ children }) {
       setRole(user.role);
       setLoadingRole(false);
       fetchUnreadNotifications();
+    } else {
+      // If session check finished but there is no user, stop loading and redirect
+      setLoadingRole(false);
+      if (pathname !== "/login") {
+        router.push("/login");
+      }
     }
   }, [user, isLoading, router, pathname]);
 
