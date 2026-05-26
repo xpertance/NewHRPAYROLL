@@ -57,17 +57,23 @@
 }
 
 /* ========== Global Font System ========== */
-/* Headings: Manrope */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Manrope', sans-serif;
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-VariableFont_GRAD,opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Body: Inter (set on <body> via layout.js) */
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-Italic-VariableFont_GRAD,opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
 
-/* Labels & small UI text: Inter Medium */
-label,
-.label,
-.text-xs,
-.text-sm {
-  font-family: 'Inter', sans-serif;
+/* Apply Google Sans to all typical text elements */
+body, h1, h2, h3, h4, h5, h6, p, span, a, label, .label, .text-xs, .text-sm, div, button, input, textarea, select, table, th, td {
+  font-family: 'Google Sans', sans-serif !important;
 }
