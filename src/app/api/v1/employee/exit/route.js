@@ -6,18 +6,13 @@ import { getAuthUser, authorize } from "@/lib/auth-util";
 export async function GET(request) {
     try {
         const authUser = await getAuthUser();
-        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+        authorize(authUser, ["employee"]);
 
         await dbConnect();
         const { searchParams } = new URL(request.url);
-        const employeeId = searchParams.get("employee");
         const status = searchParams.get("status");
 
-        let query = {};
-        if (authUser.role !== "super_admin" && authUser.organizationId) {
-            // Future-proofing for SaaS scope
-        }
-        if (employeeId) query.employee = employeeId;
+        let query = { employee: authUser.id };
         if (status) query.status = status;
 
         const requests = await ExitRequest.find(query)
@@ -36,12 +31,15 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const authUser = await getAuthUser();
-        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+        authorize(authUser, ["employee"]);
 
         await dbConnect();
         const body = await request.json();
 
-        if (!body.employee || !body.resignationDate || !body.lastWorkingDate || !body.reason) {
+        // Always force the employee ID to be the logged-in user
+        body.employee = authUser.id;
+
+        if (!body.resignationDate || !body.lastWorkingDate || !body.reason) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 

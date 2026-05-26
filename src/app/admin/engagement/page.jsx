@@ -286,7 +286,7 @@ function SurveyRow({ survey, role, responseCount }) {
                     </Link>
                 ) : (
                     <Link
-                        href={`/admin/engagement/take-survey/${survey._id}`}
+                        href={`/employee/engagement/take-survey/${survey._id}`}
                         className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition-all whitespace-nowrap"
                     >
                         Take Survey

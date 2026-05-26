@@ -21,10 +21,17 @@ const assetSchema = new mongoose.Schema(
       default: "Available",
     },
 
-    // ✅ Changed here
+    // JIT: The specific employee holding this physical item
     assignedTo: {
-      type: String, // now accepts "emp001"
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
       default: null,
+    },
+    
+    // JIT: Links to the Master Vault
+    productCatalogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProductCatalog",
     },
 
     purchaseDate: Date,
@@ -45,6 +52,11 @@ const assetSchema = new mongoose.Schema(
         details: String,
       },
     ],
+
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

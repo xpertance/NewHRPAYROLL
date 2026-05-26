@@ -40,7 +40,7 @@ const SendNotificationModal = ({ isOpen, onClose, onSave }) => {
 
             if (empResponse && empResponse.ok) {
                 const data = await empResponse.json();
-                setEmployees(data.employees || data || []);
+                setEmployees(data.data || data.employees || []);
             }
             if (deptResponse && deptResponse.ok) {
                 const data = await deptResponse.json();

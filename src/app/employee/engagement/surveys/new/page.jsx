@@ -64,7 +64,7 @@ export default function NewSurvey() {
             const data = await res.json();
             if (data.success) {
                 toast.success("Survey created successfully");
-                router.push("/engagement");
+                router.push("/employee/engagement");
             } else {
                 toast.error(data.message || "Failed to create survey");
             }
@@ -78,7 +78,7 @@ export default function NewSurvey() {
     return (
         <div className="p-6 max-w-4xl mx-auto space-y-8">
             <div className="flex items-center gap-4">
-                <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Link href="/employee/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <div>

@@ -56,7 +56,7 @@ export default function SurveyStats() {
     return (
         <div className="p-6 space-y-8 max-w-6xl mx-auto">
             <div className="flex items-center gap-4">
-                <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Link href="/employee/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <div>

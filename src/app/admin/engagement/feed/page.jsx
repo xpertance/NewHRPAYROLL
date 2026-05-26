@@ -42,9 +42,9 @@ export default function SocialFeed() {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch("/api/v1/admin/payroll/employees");
-            const data = await res.json();
-            if (data.success) setEmployees(data.employees);
+            const res = await fetch("/api/v1/admin/payroll/employees?limit=1000");
+            const resData = await res.json();
+            if (resData.success) setEmployees(resData.data || resData.employees || []);
         } catch (error) {
             console.error("Failed to fetch employees", error);
         }
@@ -229,7 +229,7 @@ function PostCard({ post, user, onLike }) {
                         </div>
                         <div>
                             <p className="font-bold text-slate-900">
-                                {post.author.personalDetails.firstName} {post.author.personalDetails.lastName}
+                                {post.author ? `${post.author.personalDetails.firstName} ${post.author.personalDetails.lastName}` : 'Admin Team'}
                                 {post.announcementByAdmin && (
                                     <span className="ml-2 text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter align-middle">
                                         Admin
@@ -296,7 +296,7 @@ function PostCard({ post, user, onLike }) {
                                 </div>
                                 <div className="bg-white p-2 px-3 rounded-2xl shadow-sm border border-slate-100 flex-1">
                                     <p className="text-[10px] font-bold text-slate-400 mb-0.5">
-                                        {comment.author.personalDetails.firstName} {comment.author.personalDetails.lastName}
+                                        {comment.author ? `${comment.author.personalDetails.firstName} ${comment.author.personalDetails.lastName}` : 'Admin Team'}
                                     </p>
                                     <p className="text-xs text-slate-700 leading-tight">{comment.text}</p>
                                 </div>

@@ -1132,7 +1132,7 @@ function ESSDashboardContent() {
                 )}
 
                 {activeTab === "leaves" && (
-                    <ESSLeaveManagement employeeId={user?.id} />
+                    <ESSLeaveManagement employeeId={user?.id} payrollConfig={payrollConfig} />
                 )}
 
                 {activeTab === "talent" && (

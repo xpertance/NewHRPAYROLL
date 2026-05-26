@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import ShoutOut from '@/lib/db/models/engagement/ShoutOut';
 import Employee from '@/lib/db/models/payroll/Employee';
+import User from '@/lib/db/models/User';
 import { sendEmail } from '@/lib/email/service';
 import { getShoutOutTemplate } from '@/lib/email/templates/index';
 import { getAuthUser, authorize } from '@/lib/auth-util';
@@ -45,13 +46,20 @@ export async function POST(req) {
         // Trigger email notification for Shout-Outs
         if (post.type === 'shoutout' && post.shoutoutTo) {
             const dashboardUrl = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL;
-            const [recipient, author] = await Promise.all([
+            const [recipient, authorEmp, authorUser] = await Promise.all([
                 Employee.findById(post.shoutoutTo).select('personalDetails.email personalDetails.firstName'),
-                Employee.findById(authUser.id).select('personalDetails.firstName personalDetails.lastName')
+                Employee.findById(authUser.id).select('personalDetails.firstName personalDetails.lastName'),
+                User.findById(authUser.id).select('name')
             ]);
 
             if (recipient?.personalDetails?.email) {
-                const authorName = `${author.personalDetails.firstName} ${author.personalDetails.lastName}`;
+                let authorName = "A colleague";
+                if (authorEmp) {
+                    authorName = `${authorEmp.personalDetails.firstName} ${authorEmp.personalDetails.lastName}`;
+                } else if (authorUser) {
+                    authorName = authorUser.name;
+                }
+
                 const emailHtml = getShoutOutTemplate(authorName, post.content, dashboardUrl);
 
                 await sendEmail({

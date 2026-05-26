@@ -28,7 +28,10 @@ import {
   CheckCircle2,
   Briefcase,
   AlertCircle,
-  Zap
+  Zap,
+  Calculator,
+  Plus,
+  Minus
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -72,6 +75,7 @@ export default function MyPayslipPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedPayslip, setSelectedPayslip] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [employee, setEmployee] = useState(null);
   const [filters, setFilters] = useState({
     year: new Date().getFullYear(),
     month: "",
@@ -81,8 +85,27 @@ export default function MyPayslipPage() {
   useEffect(() => {
     if (user?.id) {
       fetchPayslips();
+      fetchEmployee(user.id);
     }
   }, [user, filters]);
+
+  const fetchEmployee = async (employeeId) => {
+    try {
+      const res = await fetch(`/api/v1/employee/payroll/employees/${employeeId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmployee(data);
+      }
+    } catch (error) {
+      console.error("Failed to load employee data", error);
+    }
+  };
+
+  const calcAmount = (item, basic) => {
+    if (item.calculationType === 'fixed') return item.fixedAmount || 0;
+    if (item.calculationType === 'percentage') return (basic * (item.percentage || 0)) / 100;
+    return 0;
+  };
 
   const fetchPayslips = async () => {
     try {
@@ -116,19 +139,36 @@ export default function MyPayslipPage() {
   }, [payslips]);
 
   const doughnutData = useMemo(() => {
-    if (!latestPayslip) return null;
-    return {
-      labels: [t("takeHome"), t("deductions")],
-      datasets: [{
-        data: [latestPayslip.netSalary, latestPayslip.totalDeductions],
-        backgroundColor: ['#4f46e5', '#f43f5e'],
-        hoverOffset: 10,
-        borderWidth: 0,
-        spacing: 5,
-        borderRadius: 10
-      }]
-    };
-  }, [latestPayslip]);
+    if (latestPayslip) {
+      return {
+        labels: [t("takeHome"), t("deductions")],
+        datasets: [{
+          data: [latestPayslip.netSalary, latestPayslip.totalDeductions],
+          backgroundColor: ['#4f46e5', '#f43f5e'],
+          hoverOffset: 10,
+          borderWidth: 0,
+          spacing: 5,
+          borderRadius: 10
+        }]
+      };
+    } else if (employee?.payslipStructure) {
+      const ps = employee.payslipStructure;
+      const totalDed = ps.deductions?.filter(d => d.enabled).reduce((sum, d) => sum + calcAmount(d, ps.basicSalary), 0) || 0;
+      const net = (ps.grossSalary || 0) - totalDed;
+      return {
+        labels: [t("takeHome"), t("deductions")],
+        datasets: [{
+          data: [net, totalDed],
+          backgroundColor: ['#4f46e5', '#f43f5e'],
+          hoverOffset: 10,
+          borderWidth: 0,
+          spacing: 5,
+          borderRadius: 10
+        }]
+      };
+    }
+    return null;
+  }, [latestPayslip, employee]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -293,7 +333,9 @@ export default function MyPayslipPage() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">{t("gross")}</p>
                     <p className="text-lg font-black text-slate-900 leading-none">
-                      {latestPayslip ? (latestPayslip.netSalary / latestPayslip.grossSalary * 100).toFixed(0) : 0}%
+                      {latestPayslip ? (latestPayslip.netSalary / latestPayslip.grossSalary * 100).toFixed(0) : 
+                       employee?.payslipStructure ? (((employee.payslipStructure.grossSalary || 0) - (employee.payslipStructure.deductions?.filter(d => d.enabled).reduce((sum, d) => sum + calcAmount(d, employee.payslipStructure.basicSalary), 0) || 0)) / (employee.payslipStructure.grossSalary || 1) * 100).toFixed(0)
+                       : 0}%
                     </p>
                   </div>
                 </>
@@ -307,11 +349,17 @@ export default function MyPayslipPage() {
             <div className="w-full mt-6 grid grid-cols-2 gap-4">
               <div className="text-left p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <p className="text-[9px] font-bold text-slate-400 uppercase">{t("earnings")}</p>
-                <p className="text-xs font-black text-slate-900">{latestPayslip ? formatCurrency(latestPayslip.grossSalary) : '₹0'}</p>
+                <p className="text-xs font-black text-slate-900">
+                    {latestPayslip ? formatCurrency(latestPayslip.grossSalary) : 
+                     employee?.payslipStructure ? formatCurrency(employee.payslipStructure.grossSalary || 0) : '₹0'}
+                </p>
               </div>
               <div className="text-left p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <p className="text-[9px] font-bold text-slate-400 uppercase">{t("taxDed")}</p>
-                <p className="text-xs font-black text-rose-500">{latestPayslip ? formatCurrency(latestPayslip.totalDeductions) : '₹0'}</p>
+                <p className="text-xs font-black text-rose-500">
+                    {latestPayslip ? formatCurrency(latestPayslip.totalDeductions) : 
+                     employee?.payslipStructure ? formatCurrency(employee.payslipStructure.deductions?.filter(d => d.enabled).reduce((sum, d) => sum + calcAmount(d, employee.payslipStructure.basicSalary), 0) || 0) : '₹0'}
+                </p>
               </div>
             </div>
           </Card>
@@ -343,8 +391,75 @@ export default function MyPayslipPage() {
 
         {/* Tab: Overview / Recent Payslips */}
         {activeTab === "overview" && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Current Salary Structure Breakdown */}
+            {employee?.payslipStructure && (employee.payslipStructure.basicSalary || employee.payslipStructure.grossSalary) && (
+                <div className="space-y-6">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <Calculator className="w-6 h-6 text-indigo-600" />
+                        Current Salary Structure
+                    </h2>
+                    <Card className="p-8 border-none shadow-lg shadow-slate-100/50">
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Basic Salary</p>
+                                    <p className="text-2xl font-black text-slate-900">₹{(employee.payslipStructure.basicSalary || 0).toLocaleString("en-IN")}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Gross Salary</p>
+                                    <p className="text-2xl font-black text-emerald-600">₹{(employee.payslipStructure.grossSalary || 0).toLocaleString("en-IN")}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                {/* Earnings */}
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                                        <Plus className="w-4 h-4 text-emerald-500" />
+                                        Monthly Earnings
+                                    </h4>
+                                    {employee.payslipStructure.earnings && employee.payslipStructure.earnings.filter(e => e.enabled).length > 0 ? (
+                                        <div className="space-y-3">
+                                            {employee.payslipStructure.earnings.filter(e => e.enabled).map((earning, i) => (
+                                                <div key={i} className="flex justify-between items-center group">
+                                                    <span className="text-sm text-slate-600 font-medium group-hover:text-slate-900 transition-colors">{earning.name}</span>
+                                                    <span className="text-sm font-black text-emerald-600">+₹{calcAmount(earning, employee.payslipStructure.basicSalary).toLocaleString("en-IN")}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic">No additional earnings.</p>
+                                    )}
+                                </div>
+
+                                {/* Deductions */}
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+                                        <Minus className="w-4 h-4 text-rose-500" />
+                                        Monthly Deductions
+                                    </h4>
+                                    {employee.payslipStructure.deductions && employee.payslipStructure.deductions.filter(d => d.enabled).length > 0 ? (
+                                        <div className="space-y-3">
+                                            {employee.payslipStructure.deductions.filter(d => d.enabled).map((deduction, i) => (
+                                                <div key={i} className="flex justify-between items-center group">
+                                                    <span className="text-sm text-slate-600 font-medium group-hover:text-slate-900 transition-colors">{deduction.name}</span>
+                                                    <span className="text-sm font-black text-rose-600">-₹{calcAmount(deduction, employee.payslipStructure.basicSalary).toLocaleString("en-IN")}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic">No deductions.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between pt-4">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t("recentPayouts")}</h2>
               <button onClick={() => setActiveTab("history")} className="text-sm font-bold text-indigo-600 flex items-center gap-1 hover:gap-2 transition-all">
                 {t("viewSelection")} <ChevronRight className="w-4 h-4" />

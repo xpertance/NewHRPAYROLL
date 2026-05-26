@@ -311,11 +311,11 @@ function DashboardLayoutContent({ children }) {
     },
     {
       name: t("engagement"),
-      href: "/admin/engagement",
+      href: "/employee/engagement",
       icon: Target,
       children: [
-        { name: t("engagementHub"), href: "/admin/engagement", icon: BarChart3 },
-        { name: t("socialFeed"), href: "/admin/engagement/feed", icon: GitGraph },
+        { name: t("engagementHub"), href: "/employee/engagement", icon: BarChart3 },
+        { name: t("socialFeed"), href: "/employee/engagement/feed", icon: GitGraph },
         { name: t("pulseSurveys"), href: "/admin/engagement/surveys", icon: MessageSquare },
       ],
     },
@@ -363,7 +363,15 @@ function DashboardLayoutContent({ children }) {
     { name: t("exitManagement"), href: "/employee/exit", icon: LogOut },
     { name: t("hrHelpdesk"), href: "/employee/helpdesk", icon: MessageSquare },
     { name: t("employeeHandbook"), href: "/employee/handbook", icon: BookOpen },
-    { name: t("myEngagement"), href: "/employee/engagement", icon: Target },
+    {
+      name: t("myEngagement"),
+      href: "/employee/engagement",
+      icon: Target,
+      children: [
+        { name: t("engagementHub"), href: "/employee/engagement", icon: BarChart3 },
+        { name: t("socialFeed"), href: "/employee/engagement/feed", icon: GitGraph }
+      ]
+    },
     { name: "Team Approvals", href: "/employee/team-approvals", icon: CheckSquare },
     { name: t("notifications"), href: "/employee/notifications", icon: Bell },
     { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
@@ -470,10 +478,8 @@ function DashboardLayoutContent({ children }) {
               }
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
-              </div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">PeopleStack</span>
+              <Image src="/name_logo.png" alt="WorkGrid Logo" width={32} height={32} className="rounded-lg shrink-0 object-contain bg-indigo-600" />
+              <span className="text-xl font-bold text-slate-900 tracking-tight">WorkGrid</span>
             </Link>
           </div>
         </div>
@@ -625,10 +631,10 @@ function DashboardLayoutContent({ children }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40 bg-white border border-slate-200 shadow-xl rounded-xl p-1 mt-2">
                     <DropdownMenuItem onClick={() => changeLanguage("en")}>English</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => changeLanguage("hi")}>हिंदी (Hindi)</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => changeLanguage("mr")}>मराठी (Marathi)</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => changeLanguage("kn")}>ಕನ್ನಡ (Kannada)</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => changeLanguage("ta")}>தமிழ் (Tamil)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => changeLanguage("hi")}>à¤¹à¤¿à¤‚à¤¦à¥€ (Hindi)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => changeLanguage("mr")}>à¤®à¤°à¤¾à¤ à¥€ (Marathi)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => changeLanguage("kn")}>à²•à²¨à³à²¨à²¡ (Kannada)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => changeLanguage("ta")}>à®¤à®®à®¿à®´à¯ (Tamil)</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -699,7 +705,7 @@ function DashboardLayoutContent({ children }) {
         />
       )}
 
-      {/* First-login Setup Wizard — only shows for admin with no org yet */}
+      {/* First-login Setup Wizard â€” only shows for admin with no org yet */}
       {role === "admin" && (
         <SetupWizard user={user} onComplete={() => {}} />
       )}

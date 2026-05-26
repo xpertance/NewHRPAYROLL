@@ -109,3 +109,27 @@ export const getCandidateStatusChangeTemplate = ({ candidateName, jobTitle, newS
         `
     };
 };
+
+export const getSystemNotificationTemplate = ({ title, message, priority, dashboardUrl }) => {
+    let color = '#4f46e5'; // default indigo
+    if (priority === 'high') color = '#ef4444'; // red
+    else if (priority === 'low') color = '#10b981'; // green
+
+    return {
+        subject: `Notification: ${title}`,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+            <div style="border-bottom: 3px solid ${color}; padding-bottom: 12px; margin-bottom: 24px;">
+                <h1 style="color: ${color}; margin: 0; font-size: 22px;">System Notification</h1>
+            </div>
+            <h2 style="color: #1e293b; margin-top: 0;">${title}</h2>
+            <p style="line-height: 1.6; white-space: pre-wrap; color: #475569;">${message}</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${dashboardUrl}/employee/dashboard" style="background-color: ${color}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">View Dashboard</a>
+            </div>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">This is an automated notification from your HR portal.</p>
+        </div>
+        `
+    };
+};

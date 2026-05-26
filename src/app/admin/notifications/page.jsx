@@ -540,12 +540,27 @@ export default function NotificationsDashboard() {
                 <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg border-2 border-indigo-200">
                   <Users className="w-4 h-4 text-indigo-600" />
                   <span className="text-sm font-medium text-slate-900">{t('audience') || 'Audience'}:</span>
-                  <span className="text-sm text-slate-700 capitalize">
-                    {selectedNotification.audienceType || 'individual'}
-                    {selectedNotification.audienceType === 'team' && selectedNotification.department ? ` (${selectedNotification.department})` : ''}
-                    {selectedNotification.audienceType === 'individual' && selectedNotification.employee ? ` - ${selectedNotification.employee}` : ''}
-                    {selectedNotification.audienceType === 'individual' && selectedNotification.employees && selectedNotification.employees.length > 0 ? ` - ${selectedNotification.employees.length} employees` : ''}
-                  </span>
+                  <div className="flex-1">
+                    <span className="text-sm text-slate-700 capitalize">
+                      {selectedNotification.audienceType || 'individual'}
+                    </span>
+                    {selectedNotification.audienceType === 'team' && selectedNotification.department && (
+                      <span className="text-sm font-semibold text-indigo-700 ml-1">
+                        ({selectedNotification.department})
+                      </span>
+                    )}
+                    {selectedNotification.audienceType === 'individual' && selectedNotification.employee && (
+                      <span className="text-sm font-semibold text-indigo-700 ml-1">
+                        - {selectedNotification.employee}
+                      </span>
+                    )}
+                    {selectedNotification.audienceType === 'individual' && selectedNotification.employees && selectedNotification.employees.length > 0 && (
+                      <div className="mt-2 text-xs text-indigo-800 bg-indigo-100/50 p-2 rounded border border-indigo-200">
+                        <span className="font-bold block mb-1">Recipients:</span>
+                        {selectedNotification.employees.join(', ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {selectedNotification.actions && selectedNotification.actions.length > 0 && (

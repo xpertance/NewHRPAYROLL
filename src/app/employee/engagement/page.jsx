@@ -76,7 +76,7 @@ export default function EngagementHub() {
                 </div>
                 {user?.role === 'admin' && (
                     <Link
-                        href="/engagement/surveys/new"
+                        href="/admin/engagement/surveys/new"
                         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
@@ -279,14 +279,14 @@ function SurveyRow({ survey, role, responseCount }) {
             <div className="flex items-center gap-3">
                 {role === 'admin' ? (
                     <Link
-                        href={`/engagement/surveys/${survey._id}`}
+                        href={`/admin/engagement/surveys/${survey._id}`}
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 bg-indigo-50 rounded-lg whitespace-nowrap"
                     >
                         View Stats
                     </Link>
                 ) : (
                     <Link
-                        href={`/engagement/take-survey/${survey._id}`}
+                        href={`/employee/engagement/take-survey/${survey._id}`}
                         className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition-all whitespace-nowrap"
                     >
                         Take Survey

@@ -31,7 +31,8 @@ export default function CreateExitRequestModal({ isOpen, onClose, onSuccess }) {
                 return;
             }
 
-            const res = await fetch("/api/exit", {
+            const endpoint = user?.role === 'employee' ? "/api/v1/employee/exit" : "/api/v1/admin/exit";
+            const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

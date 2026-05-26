@@ -24,7 +24,7 @@ export default function ExitRequestDetails() {
     const fetchRequest = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/exit/${id}`);
+            const res = await fetch(`/api/v1/admin/exit/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setRequest(data);
@@ -45,7 +45,7 @@ export default function ExitRequestDetails() {
                 ? (decision === 'approve' ? 'ManagerApprove' : 'ManagerReject')
                 : (decision === 'approve' ? 'HRApprove' : 'HRReject');
 
-            const res = await fetch(`/api/exit/${id}`, {
+            const res = await fetch(`/api/v1/admin/exit/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -71,7 +71,7 @@ export default function ExitRequestDetails() {
 
     const updateClearance = async (type, status) => {
         try {
-            const res = await fetch(`/api/exit/${id}`, {
+            const res = await fetch(`/api/v1/admin/exit/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -98,7 +98,7 @@ export default function ExitRequestDetails() {
 
     return (
         <div className="p-6 max-w-5xl mx-auto space-y-6">
-            <Link href="/exit" className="inline-flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-4">
+            <Link href="/admin/exit" className="inline-flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-4">
                 <ArrowLeft size={16} className="mr-2" /> Back to List
             </Link>
 

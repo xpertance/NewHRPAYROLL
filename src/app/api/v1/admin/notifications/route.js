@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Notification from "@/lib/db/models/notifications/NotificationConfig";
+import Employee from "@/lib/db/models/payroll/Employee";
+import { sendEmail } from "@/lib/email/service";
+import { getSystemNotificationTemplate } from "@/lib/email/templates";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -155,6 +158,41 @@ export async function POST(req) {
         }
 
         await newNotification.save();
+
+        try {
+            let targetEmails = [];
+            
+            if (audienceType === 'individual' && employees && employees.length > 0) {
+                const emps = await Employee.find({ _id: { $in: employees } }, 'contactDetails.workEmail');
+                targetEmails = emps.map(e => e.contactDetails?.workEmail).filter(Boolean);
+            } else if (audienceType === 'team' && targetId) {
+                const emps = await Employee.find({ department: targetId, status: 'Active' }, 'contactDetails.workEmail');
+                targetEmails = emps.map(e => e.contactDetails?.workEmail).filter(Boolean);
+            } else if (audienceType === 'organization') {
+                const emps = await Employee.find({ organizationId: user.organizationId, status: 'Active' }, 'contactDetails.workEmail');
+                targetEmails = emps.map(e => e.contactDetails?.workEmail).filter(Boolean);
+            }
+            
+            if (targetEmails.length > 0) {
+                const origin = req.headers.get("origin") || "http://localhost:3000";
+                const { subject, html } = getSystemNotificationTemplate({
+                    title: newNotification.title,
+                    message: newNotification.message,
+                    priority: newNotification.priority,
+                    dashboardUrl: origin
+                });
+                
+                targetEmails.forEach(email => {
+                    sendEmail({
+                        to: email,
+                        subject,
+                        html
+                    }).catch(err => console.error("Failed to send notification email to", email, err));
+                });
+            }
+        } catch (emailError) {
+            console.error("Error sending notification emails:", emailError);
+        }
 
         return NextResponse.json({
             success: true,
