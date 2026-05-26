@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback } from "react";
 import {
   Building2, Layers, Users, UserPlus, CheckCircle2,
@@ -7,15 +7,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-/* ─────────────────────────────────────────────────────────────
-   SetupWizard — Keka-style first-login onboarding overlay
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   SetupWizard â€” Keka-style first-login onboarding overlay
    Shows only for admin role; disappears once dismissed/completed.
    State is persisted in localStorage keyed by user id.
-───────────────────────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const WIZARD_KEY = (userId) => `bizmate_setup_done_${userId}`;
 
-// ── Validators ──────────────────────────────────────────────
+// â”€â”€ Validators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const validators = {
   required: (v) => !!v?.toString().trim(),
   email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
@@ -23,7 +23,7 @@ const validators = {
   url: (v) => !v || /^https?:\/\/.+\..+/.test(v),
 };
 
-// ── Progress Step Header ─────────────────────────────────────
+// â”€â”€ Progress Step Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StepHeader({ steps, current }) {
   return (
     <div className="flex items-center gap-0 px-8 pt-8 pb-6">
@@ -66,7 +66,7 @@ function StepHeader({ steps, current }) {
   );
 }
 
-// ── Field with validation ─────────────────────────────────────
+// â”€â”€ Field with validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Field({ label, required, error, hint, children }) {
   return (
     <div className="space-y-1.5">
@@ -117,7 +117,7 @@ function Select({ className = "", children, ...props }) {
   );
 }
 
-// ── Step 1: Organization ──────────────────────────────────────
+// â”€â”€ Step 1: Organization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StepOrganization({ data, setData, errors, setErrors }) {
   const handle = (field) => (e) => {
     setData((p) => ({ ...p, [field]: e.target.value }));
@@ -206,7 +206,7 @@ function StepOrganization({ data, setData, errors, setErrors }) {
   );
 }
 
-// ── Step 2: Business Unit (optional) ─────────────────────────
+// â”€â”€ Step 2: Business Unit (optional) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StepBusinessUnit({ data, setData, errors, setErrors, orgId, orgName }) {
   const [units, setUnits] = useState(data.units || [{ name: "", description: "" }]);
 
@@ -276,7 +276,7 @@ function StepBusinessUnit({ data, setData, errors, setErrors, orgId, orgName }) 
   );
 }
 
-// ── Step 3: Departments ───────────────────────────────────────
+// â”€â”€ Step 3: Departments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StepDepartments({ data, setData, errors, setErrors, orgId, orgName, businessUnits }) {
   const [depts, setDepts] = useState(data.depts || [{ name: "" }]);
 
@@ -349,7 +349,7 @@ function StepDepartments({ data, setData, errors, setErrors, orgId, orgName, bus
   );
 }
 
-// ── Step 4: Complete ─────────────────────────────────────────
+// â”€â”€ Step 4: Complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StepComplete({ orgName, buCount, deptCount, onGoToEmployees, onClose }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-6 text-center">
@@ -361,7 +361,7 @@ function StepComplete({ orgName, buCount, deptCount, onGoToEmployees, onClose })
       </div>
 
       <div>
-        <h3 className="text-2xl font-bold text-slate-800">You're all set! 🎉</h3>
+        <h3 className="text-2xl font-bold text-slate-800">You're all set! ðŸŽ‰</h3>
         <p className="text-slate-500 mt-2 text-sm max-w-sm mx-auto">
           Your workspace <strong>{orgName}</strong> is ready.
           {buCount > 0 && ` Created ${buCount} Business Unit${buCount > 1 ? "s" : ""}.`}
@@ -388,7 +388,7 @@ function StepComplete({ orgName, buCount, deptCount, onGoToEmployees, onClose })
   );
 }
 
-// ── Main Wizard Component ────────────────────────────────────
+// â”€â”€ Main Wizard Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function SetupWizard({ user, onComplete }) {
   const [show, setShow] = useState(false);
   const [step, setStep] = useState(0); // 0=org, 1=bu, 2=dept, 3=done
@@ -458,7 +458,7 @@ export default function SetupWizard({ user, onComplete }) {
     onComplete?.();
   };
 
-  // ── Validate and Submit Step ───────────────────────────────
+  // â”€â”€ Validate and Submit Step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const validateOrg = () => {
     const e = {};
     if (!validators.required(orgData.name)) e.name = "Organization name is required";
@@ -473,7 +473,7 @@ export default function SetupWizard({ user, onComplete }) {
   const validateBU = () => {
     const e = {};
     const nonEmpty = (buData.units || []).filter((u) => u.name.trim());
-    if (nonEmpty.length === 0) return true; // BU is optional — allow proceeding even if all blank
+    if (nonEmpty.length === 0) return true; // BU is optional â€” allow proceeding even if all blank
 
     nonEmpty.forEach((u, i) => {
       if (u.name.trim() && u.name.trim().length < 2) {
@@ -500,7 +500,7 @@ export default function SetupWizard({ user, onComplete }) {
     return Object.keys(e).length === 0;
   };
 
-  // ── API calls ──────────────────────────────────────────────
+  // â”€â”€ API calls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const submitOrg = async () => {
     if (!validateOrg()) return;
     setLoading(true);
@@ -618,7 +618,7 @@ export default function SetupWizard({ user, onComplete }) {
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Setup Wizard</span>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">Welcome to PeopleStack! 👋</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Welcome to WorkGrid! ðŸ‘‹</h2>
             <p className="text-slate-500 text-sm mt-1">
               Let's set up your workspace in just a few steps.
             </p>
@@ -685,7 +685,7 @@ export default function SetupWizard({ user, onComplete }) {
             <div className="text-xs text-slate-400">
               Step {step + 1} of {dynamicSteps.length - 1}
               {dynamicSteps[step]?.id === "bu" && (
-                <span className="ml-2 text-violet-500 font-medium">· Optional</span>
+                <span className="ml-2 text-violet-500 font-medium">Â· Optional</span>
               )}
             </div>
             <div className="flex items-center gap-3">

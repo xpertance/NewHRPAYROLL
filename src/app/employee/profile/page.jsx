@@ -6,7 +6,8 @@ import {
     User, Mail, Phone, MapPin, Calendar, Briefcase, Building2, Shield,
     Lock, Eye, EyeOff, Save, Loader2, ChevronRight, BadgeCheck,
     Heart, UserCheck, Users, GitGraph, Clock, CreditCard, FileText,
-    AlertTriangle, CheckCircle2, ArrowLeft, Key, Fingerprint
+    AlertTriangle, CheckCircle2, ArrowLeft, Key, Fingerprint,
+    Calculator, DollarSign, Plus, Minus, TrendingUp
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -82,6 +83,38 @@ const HierarchyPerson = ({ label, person, color = "indigo" }) => {
                 )}
             </div>
             <BadgeCheck className={`w-4 h-4 shrink-0 ${colorClasses[color].split(' ')[1]}`} />
+        </div>
+    );
+};
+
+const MaskedInfoRow = ({ label, value, icon: Icon, mono = false, visibleChars = 4 }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
+    if (!value) {
+        return <InfoRow label={label} value={value} icon={Icon} mono={mono} />;
+    }
+
+    const str = String(value);
+    const maskedValue = str.length <= visibleChars ? str : '•'.repeat(str.length - visibleChars) + str.slice(-visibleChars);
+
+    return (
+        <div className="flex items-start justify-between py-3 border-b border-slate-50 last:border-0 gap-4 group">
+            <div className="flex items-center gap-2 min-w-0">
+                {Icon && <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                <span className="text-xs font-medium text-slate-500">{label}</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold text-slate-900 text-right ${mono ? 'font-mono tracking-wider' : ''}`}>
+                    {isVisible ? value : maskedValue}
+                </span>
+                <button
+                    onClick={() => setIsVisible(!isVisible)}
+                    className="text-slate-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none"
+                    title={isVisible ? "Hide details" : "Show details"}
+                >
+                    {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+            </div>
         </div>
     );
 };
@@ -194,12 +227,7 @@ export default function EmployeeProfilePage() {
         return parts.length > 0 ? parts.join(', ') : null;
     };
 
-    const maskValue = (val, visibleChars = 4) => {
-        if (!val) return null;
-        const str = String(val);
-        if (str.length <= visibleChars) return str;
-        return '•'.repeat(str.length - visibleChars) + str.slice(-visibleChars);
-    };
+
 
     if (loading || sessionLoading) {
         return (
@@ -233,6 +261,13 @@ export default function EmployeeProfilePage() {
     const jd = employee.jobDetails || {};
     const sd = employee.salaryDetails || {};
     const ba = sd.bankAccount || {};
+    const ps = employee.payslipStructure || {};
+
+    const calcAmount = (item, basic) => {
+        if (item.calculationType === 'fixed') return item.fixedAmount || 0;
+        if (item.calculationType === 'percentage') return (basic * (item.percentage || 0)) / 100;
+        return 0;
+    };
 
     return (
         <div className="p-6 bg-slate-50 min-h-screen">
@@ -357,18 +392,79 @@ export default function EmployeeProfilePage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
                                 <div>
                                     <InfoRow label="Bank Name" value={ba.bankName} />
-                                    <InfoRow label="Account Number" value={maskValue(ba.accountNumber)} mono />
+                                    <MaskedInfoRow label="Account Number" value={ba.accountNumber} mono />
                                     <InfoRow label="IFSC Code" value={ba.ifscCode} mono />
                                     <InfoRow label="Branch" value={ba.branch} />
                                 </div>
                                 <div>
-                                    <InfoRow icon={Fingerprint} label="PAN Number" value={maskValue(sd.panNumber)} mono />
-                                    <InfoRow icon={Fingerprint} label="Aadhaar Number" value={maskValue(sd.aadharNumber)} mono />
+                                    <MaskedInfoRow icon={Fingerprint} label="PAN Number" value={sd.panNumber} mono />
+                                    <MaskedInfoRow icon={Fingerprint} label="Aadhaar Number" value={sd.aadharNumber} mono />
                                     <InfoRow label="PF Applicable" value={employee.pfApplicable === 'yes' ? 'Yes' : 'No'} />
                                     <InfoRow label="ESIC Applicable" value={employee.esicApplicable === 'yes' ? 'Yes' : 'No'} />
                                 </div>
                             </div>
                         </Card>
+
+                        {/* Salary Structure */}
+                        {ps && (ps.basicSalary || ps.grossSalary) && (
+                            <Card className="p-6">
+                                <SectionHeader icon={Calculator} title="Salary Structure" subtitle="Your approved salary breakdown" />
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Basic Salary</p>
+                                            <p className="text-lg font-bold text-slate-900">₹{(ps.basicSalary || 0).toLocaleString("en-IN")}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gross Salary</p>
+                                            <p className="text-lg font-bold text-emerald-600">₹{(ps.grossSalary || 0).toLocaleString("en-IN")}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Earnings */}
+                                        <div className="space-y-3">
+                                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                <Plus className="w-4 h-4 text-emerald-500" />
+                                                Earnings
+                                            </h4>
+                                            {ps.earnings && ps.earnings.filter(e => e.enabled).length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {ps.earnings.filter(e => e.enabled).map((earning, i) => (
+                                                        <div key={i} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
+                                                            <span className="text-xs text-slate-600 font-medium">{earning.name}</span>
+                                                            <span className="text-xs font-bold text-emerald-600">+₹{calcAmount(earning, ps.basicSalary).toLocaleString("en-IN")}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic">No additional earnings.</p>
+                                            )}
+                                        </div>
+
+                                        {/* Deductions */}
+                                        <div className="space-y-3">
+                                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                <Minus className="w-4 h-4 text-rose-500" />
+                                                Deductions
+                                            </h4>
+                                            {ps.deductions && ps.deductions.filter(d => d.enabled).length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {ps.deductions.filter(d => d.enabled).map((deduction, i) => (
+                                                        <div key={i} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
+                                                            <span className="text-xs text-slate-600 font-medium">{deduction.name}</span>
+                                                            <span className="text-xs font-bold text-rose-600">-₹{calcAmount(deduction, ps.basicSalary).toLocaleString("en-IN")}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic">No deductions.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
 
                         {/* Emergency Contact */}
                         {pd.emergencyContact && (pd.emergencyContact.name || pd.emergencyContact.phone) && (

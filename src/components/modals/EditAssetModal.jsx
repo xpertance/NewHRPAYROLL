@@ -17,20 +17,62 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [customCategory, setCustomCategory] = useState("");
+
+    const STANDARD_CATEGORIES = ["Laptop", "Desktop", "Monitor", "Mobile", "Peripheral", "Furniture", "Other"];
+
+    const [employees, setEmployees] = useState([]);
+    const [searchEmp, setSearchEmp] = useState("");
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchEmployees = async () => {
+                try {
+                    const res = await fetch("/api/v1/admin/employees");
+                    if (res.ok) {
+                        const data = await res.json();
+                        setEmployees(data.data || []);
+                    }
+                } catch (err) {}
+            };
+            fetchEmployees();
+        }
+    }, [isOpen]);
+
+    const filteredEmployees = employees.filter(emp => 
+        `${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} ${emp.employeeId}`.toLowerCase().includes(searchEmp.toLowerCase())
+    );
 
     useEffect(() => {
         isMounted.current = true;
         if (asset) {
+            const isStandard = STANDARD_CATEGORIES.includes(asset.category || "");
+            
             setFormData({
                 name: asset.name || "",
                 assetId: asset.assetId || "",
-                category: asset.category || "",
+                category: isStandard ? (asset.category || "") : "Other",
                 value: asset.value || "",
                 purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : "",
                 description: asset.description || "",
                 status: asset.status || "",
                 assignedTo: asset.assignedTo?._id || asset.assignedTo || "",
             });
+            
+            if (!isStandard && asset.category) {
+                setCustomCategory(asset.category);
+            } else {
+                setCustomCategory("");
+            }
+            if (asset.assignedTo && typeof asset.assignedTo === 'object') {
+                setSearchEmp(`${asset.assignedTo.personalDetails?.firstName || ''} ${asset.assignedTo.personalDetails?.lastName || ''} (${asset.assignedTo.employeeId || ''})`);
+            } else if (asset.assignedTo && typeof asset.assignedTo === 'string') {
+                // If it's just an ID string, we might not have the name until employees list loads
+                setSearchEmp(asset.assignedTo);
+            } else {
+                setSearchEmp("");
+            }
         }
         return () => { isMounted.current = false; };
     }, [asset]);
@@ -46,11 +88,14 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
             setIsSubmitting(true);
             setError("");
 
+            const finalCategory = formData.category === "Other" ? customCategory : formData.category;
+            const submitData = { ...formData, category: finalCategory };
+
             console.log(`Sending PUT to /api/v1/admin/assets/${asset._id}`);
             const res = await fetch(`/api/v1/admin/assets/${asset._id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(submitData),
             });
             console.log("Response received", res.status);
 
@@ -127,19 +172,31 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Category</label>
                             <select name="category" value={formData.category} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
-                                <option value="Laptop">Laptop</option>
-                                <option value="Desktop">Desktop</option>
-                                <option value="Monitor">Monitor</option>
-                                <option value="Mobile">Mobile</option>
-                                <option value="Peripheral">Peripheral</option>
-                                <option value="Furniture">Furniture</option>
-                                <option value="Other">Other</option>
+                                {STANDARD_CATEGORIES.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
                             </select>
                         </div>
+                        
+                        {formData.category === "Other" && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                                <label className="text-sm font-medium text-gray-700">Specify Category *</label>
+                                <input 
+                                    type="text" 
+                                    value={customCategory} 
+                                    onChange={(e) => setCustomCategory(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" 
+                                    placeholder="e.g. Printer" 
+                                />
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Status</label>
                             <select name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
@@ -169,11 +226,57 @@ export default function EditAssetModal({ isOpen, onClose, onSuccess, asset }) {
                         <textarea name="description" value={formData.description} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none h-24" />
                     </div>
 
-                    {/* Simple Assignment - Ideally this would be a searchable dropdown */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Assigned To (Employee ID)</label>
-                        <input name="assignedTo" value={formData.assignedTo} onChange={handleChange} placeholder="Enter Employee MongoDB ID" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                    {/* Searchable Assignment Dropdown */}
+                    <div className="space-y-2 relative">
+                        <label className="text-sm font-medium text-gray-700">Assigned To (Employee)</label>
+                        <input 
+                            type="text"
+                            value={searchEmp}
+                            onChange={(e) => {
+                                setSearchEmp(e.target.value);
+                                setShowDropdown(true);
+                                // clear assignment if user is typing
+                                if (formData.assignedTo) setFormData(p => ({ ...p, assignedTo: "" }));
+                            }}
+                            onFocus={() => setShowDropdown(true)}
+                            placeholder="Search employee..."
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        />
                         <p className="text-xs text-gray-500">Leave empty to unassign</p>
+                        {showDropdown && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                                <div 
+                                    className="px-3 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-500 font-medium border-b border-gray-100"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault(); // prevent input blur
+                                        setFormData(p => ({ ...p, assignedTo: "" }));
+                                        setSearchEmp("");
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    Unassign (Leave empty)
+                                </div>
+                                {filteredEmployees.length === 0 ? (
+                                    <div className="px-3 py-3 text-sm text-gray-500 text-center">No employees found</div>
+                                ) : (
+                                    filteredEmployees.map(emp => (
+                                        <div 
+                                            key={emp._id}
+                                            className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault(); // prevent input blur
+                                                setFormData(p => ({ ...p, assignedTo: emp._id }));
+                                                setSearchEmp(`${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} (${emp.employeeId})`);
+                                                setShowDropdown(false);
+                                            }}
+                                        >
+                                            <div className="font-medium text-gray-900">{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</div>
+                                            <div className="text-xs text-gray-500">{emp.employeeId} • {emp.department?.departmentName || "No Dept"}</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
 
                 </div>

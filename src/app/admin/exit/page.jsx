@@ -23,7 +23,7 @@ export default function ExitPage() {
             if (filterStatus) query.append("status", filterStatus);
             if (user?.role === "employee") query.append("employee", user._id || user.id);
 
-            const res = await fetch(`/api/exit?${query.toString()}`);
+            const res = await fetch(`/api/v1/admin/exit?${query.toString()}`);
             if (res.ok) {
                 const data = await res.json();
                 setRequests(data);
@@ -125,7 +125,7 @@ export default function ExitPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <Link href={`/exit/${req._id}`} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+                                            <Link href={`/admin/exit/${req._id}`} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
                                                 {t("viewDetails")}
                                             </Link>
                                         </td>

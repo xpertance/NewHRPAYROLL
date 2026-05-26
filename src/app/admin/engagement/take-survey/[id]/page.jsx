@@ -97,8 +97,8 @@ export default function TakeSurvey() {
                     <p className="text-slate-500 mt-2">Your feedback has been recorded. We appreciate your time and honesty.</p>
                 </div>
                 <Link
-                    href="/engagement"
-                    className="inline-block bg-indigo-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                    href="/admin/engagement"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors mt-6"
                 >
                     Back to Engagement Hub
                 </Link>
@@ -109,7 +109,7 @@ export default function TakeSurvey() {
     return (
         <div className="p-6 max-w-2xl mx-auto space-y-8">
             <div className="flex items-center gap-4">
-                <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Link href="/admin/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <div>

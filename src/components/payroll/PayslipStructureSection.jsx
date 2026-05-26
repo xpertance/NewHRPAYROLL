@@ -175,75 +175,22 @@ export default function PayslipStructureSection({
         return calculateTotalEarnings() - calculateTotalDeductions();
     };
 
-    const handleGrossSalaryChange = (grossSalary) => {
-        const basicSalary = parseFloat(payslipStructure.basicSalary) || 0;
-        const difference = grossSalary - basicSalary;
-        if (difference > 0 && payslipStructure.earnings.length > 0) {
-            const enabledEarnings = payslipStructure.earnings.filter((e) => e.enabled);
-            if (enabledEarnings.length > 0) {
-                const updatedEarnings = [...payslipStructure.earnings];
-                const perEarning = difference / enabledEarnings.length;
-                enabledEarnings.forEach((earning) => {
-                    const originalIndex = payslipStructure.earnings.findIndex(
-                        (e) => e.name === earning.name
-                    );
-                    if (originalIndex !== -1) {
-                        updatedEarnings[originalIndex] = {
-                            ...updatedEarnings[originalIndex],
-                            calculationType: "fixed",
-                            fixedAmount: perEarning,
-                            percentage: 0,
-                        };
-                    }
-                });
-                onStructureChange({
-                    ...payslipStructure,
-                    earnings: updatedEarnings,
-                    grossSalary: grossSalary,
-                });
-            }
-        } else if (difference < 0) {
-            onStructureChange({
-                ...payslipStructure,
-                grossSalary: grossSalary,
-            });
-        }
+    const handleBasicSalaryChange = (basicSalary) => {
+        onStructureChange({
+            ...payslipStructure,
+            basicSalary: basicSalary,
+        });
     };
 
-    const handleBasicSalaryChange = (basicSalary) => {
-        const grossSalary = payslipStructure.grossSalary || 0;
-        const difference = grossSalary - basicSalary;
-        if (difference > 0 && payslipStructure.earnings.length > 0) {
-            const enabledEarnings = payslipStructure.earnings.filter((e) => e.enabled);
-            if (enabledEarnings.length > 0) {
-                const updatedEarnings = [...payslipStructure.earnings];
-                const perEarning = difference / enabledEarnings.length;
-                enabledEarnings.forEach((earning) => {
-                    const originalIndex = payslipStructure.earnings.findIndex(
-                        (e) => e.name === earning.name
-                    );
-                    if (originalIndex !== -1) {
-                        updatedEarnings[originalIndex] = {
-                            ...updatedEarnings[originalIndex],
-                            calculationType: "fixed",
-                            fixedAmount: perEarning,
-                            percentage: 0,
-                        };
-                    }
-                });
-                onStructureChange({
-                    ...payslipStructure,
-                    basicSalary: basicSalary,
-                    earnings: updatedEarnings,
-                });
-            }
-        } else {
+    useEffect(() => {
+        const totalGross = calculateTotalEarnings();
+        if (payslipStructure.grossSalary !== totalGross) {
             onStructureChange({
                 ...payslipStructure,
-                basicSalary: basicSalary,
+                grossSalary: totalGross,
             });
         }
-    };
+    }, [payslipStructure.basicSalary, payslipStructure.earnings]);
 
     useEffect(() => {
         const hasPT = payslipStructure.deductions.some(
@@ -417,19 +364,17 @@ export default function PayslipStructureSection({
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="number"
-                        value={payslipStructure.grossSalary || ""}
-                        onChange={(e) => handleGrossSalaryChange(parseFloat(e.target.value) || 0)}
-                        placeholder={payslipStructure.salaryType === "monthly" ? "60000" : "3000"}
-                        step="0.01"
-                        className={`w-full pl-8 pr-3 py-2.5 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors["payslipStructure.grossSalary"]
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-slate-300"
+                        value={calculateTotalEarnings() || ""}
+                        readOnly
+                        placeholder="0"
+                        className={`w-full pl-8 pr-3 py-2.5 border-2 rounded-lg text-sm bg-slate-100 cursor-not-allowed text-slate-700 transition-colors ${errors["payslipStructure.grossSalary"]
+                            ? "border-red-300"
+                            : "border-slate-200"
                             }`}
                     />
                 </div>
                 <p className="text-xs text-slate-500">
-                    Enter Gross Salary. The difference between Gross and Basic will be
-                    automatically distributed among earning components.
+                    Gross Salary is automatically calculated as the sum of Basic Salary and all Earnings.
                 </p>
                 {errors["payslipStructure.grossSalary"] && (
                     <div className="flex items-center space-x-1 text-red-600 text-xs">

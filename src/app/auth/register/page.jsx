@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
 
-// ── Tiny reusable input field ────────────────────────────────
+// â”€â”€ Tiny reusable input field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Field({ label, required, error, children }) {
   return (
     <div className="space-y-1.5">
@@ -47,7 +47,7 @@ function Input({ icon: Icon, error, className = "", ...props }) {
   );
 }
 
-// ── Password strength indicator ───────────────────────────────
+// â”€â”€ Password strength indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PasswordStrength({ password }) {
   const checks = [
     { label: "8+ characters", ok: password.length >= 8 },
@@ -91,11 +91,11 @@ function PasswordStrength({ password }) {
   );
 }
 
-// ── Feature bullets for hero panel ───────────────────────────
+// â”€â”€ Feature bullets for hero panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const features = [
   { icon: Users,     text: "Manage unlimited employees across departments" },
   { icon: BarChart3, text: "Automated payroll with statutory compliance" },
-  { icon: Shield,    text: "Role-based access — admin, supervisor, employee" },
+  { icon: Shield,    text: "Role-based access â€” admin, supervisor, employee" },
   { icon: Sparkles,  text: "14-day free trial. No credit card required." },
 ];
 
@@ -107,7 +107,7 @@ const INDUSTRIES = [
   "Education", "Hospitality", "Construction", "Other"
 ];
 
-// ── Main Component ────────────────────────────────────────────
+// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function RegisterPage() {
   const router = useRouter();
 
@@ -185,7 +185,7 @@ export default function RegisterPage() {
     }
   };
 
-  // ── Success State ─────────────────────────────────────────
+  // â”€â”€ Success State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-slate-100 p-4">
@@ -193,7 +193,7 @@ export default function RegisterPage() {
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">Request Submitted! 🎉</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Request Submitted! ðŸŽ‰</h2>
           <p className="text-slate-500 text-sm leading-relaxed">
             Your registration request has been submitted for review. Our team will review your information and get back to you shortly.
           </p>
@@ -211,23 +211,19 @@ export default function RegisterPage() {
     );
   }
 
-  // ── Main Form ─────────────────────────────────────────────
+  // â”€â”€ Main Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="min-h-screen flex bg-white font-sans text-slate-800">
       <Toaster position="top-center" />
 
-      {/* ── Left: Form ──────────────────────────────────────── */}
+      {/* â”€â”€ Left: Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="w-full lg:w-[55%] flex flex-col justify-center px-6 sm:px-12 lg:px-16 xl:px-20 py-10 overflow-y-auto">
         <div className="max-w-lg w-full mx-auto">
 
           {/* Brand */}
           <Link href="/login" className="flex items-center gap-2 mb-8 w-fit">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">PeopleStack</span>
+            <img src="/name_logo.png" alt="WorkGrid Logo" width="32" height="32" className="rounded-lg object-contain bg-indigo-600" />
+            <span className="text-xl font-bold text-slate-900 tracking-tight">WorkGrid</span>
           </Link>
 
           {/* Header */}
@@ -428,7 +424,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* ── Right: Hero Panel ─────────────────────────────────── */}
+      {/* â”€â”€ Right: Hero Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="hidden lg:flex lg:w-[45%] flex-col justify-center bg-indigo-600 relative overflow-hidden px-12 xl:px-16">
         {/* Blobs */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -444,7 +440,7 @@ export default function RegisterPage() {
               Everything your HR team needs, in one platform.
             </h2>
             <p className="text-indigo-100 text-base">
-              From onboarding to payslips — built for modern Indian businesses.
+              From onboarding to payslips â€” built for modern Indian businesses.
             </p>
           </div>
 
@@ -463,7 +459,7 @@ export default function RegisterPage() {
           {/* Testimonial card */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
             <p className="text-white text-sm leading-relaxed italic mb-4">
-              "Switched from spreadsheets to PeopleStack in a day. Payroll now takes 10 minutes instead of 2 days."
+              "Switched from spreadsheets to WorkGrid in a day. Payroll now takes 10 minutes instead of 2 days."
             </p>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -479,7 +475,7 @@ export default function RegisterPage() {
           {/* Trial badge */}
           <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 border border-white/20 w-fit">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span className="text-white text-sm font-medium">Free 14-day trial · No credit card · Cancel anytime</span>
+            <span className="text-white text-sm font-medium">Free 14-day trial Â· No credit card Â· Cancel anytime</span>
           </div>
         </div>
       </div>

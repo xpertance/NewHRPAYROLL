@@ -1,9 +1,13 @@
-import dbConnect from "@/lib/dbConnect";
+import dbConnect from "@/lib/db/connect";
 import ExitRequest from "@/lib/db/models/ExitRequest";
 import { NextResponse } from "next/server";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function GET(request, { params }) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+
         await dbConnect();
         const { id } = await params;
         const exitRequest = await ExitRequest.findById(id).populate("employee", "personalDetails jobDetails");
@@ -18,6 +22,9 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     try {
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "hr", "company_admin", "super_admin"]);
+
         await dbConnect();
         const { id } = await params;
         const body = await request.json();

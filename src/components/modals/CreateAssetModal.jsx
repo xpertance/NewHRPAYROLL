@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Save, Box, AlertCircle, Loader2 } from "lucide-react";
 
 export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
@@ -14,6 +14,30 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [customCategory, setCustomCategory] = useState("");
+
+    const [employees, setEmployees] = useState([]);
+    const [searchEmp, setSearchEmp] = useState("");
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchEmployees = async () => {
+                try {
+                    const res = await fetch("/api/v1/admin/employees");
+                    if (res.ok) {
+                        const data = await res.json();
+                        setEmployees(data.data || []);
+                    }
+                } catch (err) {}
+            };
+            fetchEmployees();
+        }
+    }, [isOpen]);
+
+    const filteredEmployees = employees.filter(emp => 
+        `${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} ${emp.employeeId}`.toLowerCase().includes(searchEmp.toLowerCase())
+    );
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -25,16 +49,20 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
             setIsSubmitting(true);
             setError("");
 
-            if (!formData.name || !formData.assetId || !formData.category) {
+            const finalCategory = formData.category === "Other" ? customCategory : formData.category;
+
+            if (!formData.name || !formData.assetId || !finalCategory) {
                 setError("Please fill in all required fields.");
                 setIsSubmitting(false);
                 return;
             }
 
+            const submitData = { ...formData, category: finalCategory };
+
             const res = await fetch("/api/v1/admin/assets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(submitData),
             });
 
             if (!res.ok) {
@@ -45,6 +73,8 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
             onSuccess();
             onClose();
             setFormData({ name: "", assetId: "", category: "", value: "", purchaseDate: "", description: "", assignedTo: "" });
+            setSearchEmp("");
+            setCustomCategory("");
         } catch (err) {
             setError(err.message);
         } finally {
@@ -88,18 +118,33 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Category *</label>
-                        <select name="category" value={formData.category} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
-                            <option value="">Select Category</option>
-                            <option value="Laptop">Laptop</option>
-                            <option value="Desktop">Desktop</option>
-                            <option value="Monitor">Monitor</option>
-                            <option value="Mobile">Mobile</option>
-                            <option value="Peripheral">Peripheral</option>
-                            <option value="Furniture">Furniture</option>
-                            <option value="Other">Other</option>
-                        </select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Category *</label>
+                            <select name="category" value={formData.category} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
+                                <option value="">Select Category</option>
+                                <option value="Laptop">Laptop</option>
+                                <option value="Desktop">Desktop</option>
+                                <option value="Monitor">Monitor</option>
+                                <option value="Mobile">Mobile</option>
+                                <option value="Peripheral">Peripheral</option>
+                                <option value="Furniture">Furniture</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        {formData.category === "Other" && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                                <label className="text-sm font-medium text-gray-700">Specify Category *</label>
+                                <input 
+                                    type="text" 
+                                    value={customCategory} 
+                                    onChange={(e) => setCustomCategory(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" 
+                                    placeholder="e.g. Printer" 
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -113,9 +158,55 @@ export default function CreateAssetModal({ isOpen, onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Assigned To (Employee ID)</label>
-                        <input name="assignedTo" value={formData.assignedTo} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="Optional: Enter Employee ID" />
+                    <div className="space-y-2 relative">
+                        <label className="text-sm font-medium text-gray-700">Assigned To (Employee)</label>
+                        <input 
+                            type="text"
+                            value={searchEmp}
+                            onChange={(e) => {
+                                setSearchEmp(e.target.value);
+                                setShowDropdown(true);
+                                // clear assignment if user is typing
+                                if (formData.assignedTo) setFormData(p => ({ ...p, assignedTo: "" }));
+                            }}
+                            onFocus={() => setShowDropdown(true)}
+                            placeholder="Search employee..."
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        />
+                        {showDropdown && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                                <div 
+                                    className="px-3 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-500 font-medium border-b border-gray-100"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault(); // prevent input blur
+                                        setFormData(p => ({ ...p, assignedTo: "" }));
+                                        setSearchEmp("");
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    Unassign (Leave empty)
+                                </div>
+                                {filteredEmployees.length === 0 ? (
+                                    <div className="px-3 py-3 text-sm text-gray-500 text-center">No employees found</div>
+                                ) : (
+                                    filteredEmployees.map(emp => (
+                                        <div 
+                                            key={emp._id}
+                                            className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault(); // prevent input blur
+                                                setFormData(p => ({ ...p, assignedTo: emp._id }));
+                                                setSearchEmp(`${emp.personalDetails?.firstName} ${emp.personalDetails?.lastName} (${emp.employeeId})`);
+                                                setShowDropdown(false);
+                                            }}
+                                        >
+                                            <div className="font-medium text-gray-900">{emp.personalDetails?.firstName} {emp.personalDetails?.lastName}</div>
+                                            <div className="text-xs text-gray-500">{emp.employeeId} • {emp.department?.departmentName || "No Dept"}</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">

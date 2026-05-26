@@ -8,7 +8,8 @@ import {
     Save,
     ArrowLeft,
     Settings2,
-    Calendar
+    Calendar,
+    Target
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -46,8 +47,7 @@ export default function NewSurvey() {
         setFormData({ ...formData, questions: newQuestions });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const submitSurvey = async (status) => {
         if (formData.questions.some(q => !q.text)) {
             toast.error("All questions must have text");
             return;
@@ -55,16 +55,17 @@ export default function NewSurvey() {
 
         try {
             setLoading(true);
+            const finalData = { ...formData, status };
             const res = await fetch("/api/v1/admin/engagement/surveys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(finalData),
             });
 
             const data = await res.json();
             if (data.success) {
-                toast.success("Survey created successfully");
-                router.push("/engagement");
+                toast.success(`Survey ${status === 'Published' ? 'published' : 'saved as draft'} successfully`);
+                router.push("/admin/engagement");
             } else {
                 toast.error(data.message || "Failed to create survey");
             }
@@ -87,7 +88,7 @@ export default function NewSurvey() {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
                     <div className="space-y-2">
                         <label className="text-sm font-semibold text-slate-700">Survey Title</label>
@@ -209,22 +210,23 @@ export default function NewSurvey() {
                 <div className="flex justify-end gap-3 pt-6">
                     <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, status: "Draft" })}
+                        onClick={() => submitSurvey("Draft")}
+                        disabled={loading}
                         className={`px-6 py-2 rounded-lg font-medium transition-colors ${formData.status === 'Draft' ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                     >
                         Save as Draft
                     </button>
                     <button
-                        type="submit"
+                        type="button"
                         disabled={loading}
-                        onClick={() => setFormData({ ...formData, status: "Published" })}
+                        onClick={() => submitSurvey("Published")}
                         className="px-8 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-md shadow-indigo-100 disabled:opacity-50 transition-all flex items-center gap-2"
                     >
                         <Save className="w-4 h-4" />
                         {loading ? "Publishing..." : "Publish Survey"}
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }

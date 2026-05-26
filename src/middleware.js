@@ -32,6 +32,7 @@ const protectedRoutes = [
   { path: '/api/v1/admin/finance/cost-centers', roles: ['admin', 'super_admin', 'employee'], isApi: true },
   { path: '/api/v1/admin/crm/business-units', roles: ['admin', 'super_admin', 'employee'], isApi: true },
   { path: '/api/v1/admin/crm/teams', roles: ['admin', 'super_admin', 'employee'], isApi: true },
+  { path: '/api/v1/admin/engagement', roles: ['admin', 'super_admin', 'employee'], isApi: true },
   
   { path: '/api/v1/admin', roles: ['admin', 'super_admin'], isApi: true },
   { path: '/api/v1/employee', roles: ['employee', 'attendance_only', 'admin', 'super_admin'], isApi: true },

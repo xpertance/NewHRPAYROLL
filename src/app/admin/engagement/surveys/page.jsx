@@ -37,8 +37,22 @@ export default function SurveyList() {
 
     const deleteSurvey = async (id) => {
         if (!confirm("Are you sure you want to delete this survey?")) return;
-        // Implement delete API if needed, for now just UI mock
-        toast.success("Survey deleted successfully");
+        
+        try {
+            const res = await fetch(`/api/v1/admin/engagement/surveys/${id}`, {
+                method: "DELETE"
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setSurveys(surveys.filter(s => s._id !== id));
+                toast.success("Survey deleted successfully");
+            } else {
+                toast.error(data.message || "Failed to delete survey");
+            }
+        } catch (error) {
+            toast.error("An error occurred while deleting the survey");
+        }
     };
 
     if (loading) return <div className="p-8 text-center text-slate-500">Loading surveys...</div>;

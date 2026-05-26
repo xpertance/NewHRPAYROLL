@@ -1,4 +1,4 @@
-// src/app/layout.js
+﻿// src/app/layout.js
 import { SessionProvider } from '@/context/SessionContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { Toaster } from 'sonner';
@@ -7,8 +7,8 @@ import Script from "next/script";
 
 export const metadata = {
   title: {
-    default: "PeopleStack",
-    template: "PeopleStack | %s",
+    default: "WorkGrid",
+    template: "WorkGrid | %s",
   },
   description: "XperHR - Efficient HR and Operations Management",
 };

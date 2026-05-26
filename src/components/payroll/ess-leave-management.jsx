@@ -10,11 +10,14 @@ import {
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 
-export default function ESSLeaveManagement({ employeeId }) {
+export default function ESSLeaveManagement({ employeeId, payrollConfig }) {
     const [activeView, setActiveView] = useState('list'); // 'list' or 'apply'
     const [loading, setLoading] = useState(true);
     const [applications, setApplications] = useState([]);
     const [submitLoading, setSubmitLoading] = useState(false);
+    
+    // Determine leave quota from payroll config, defaulting to 20
+    const leaveQuota = payrollConfig?.annualPaidLeaveQuota || 20;
     
     // New Calculation State
     const [calculationResult, setCalculationResult] = useState(null);
@@ -801,7 +804,77 @@ export default function ESSLeaveManagement({ employeeId }) {
 
             {/* Application List View */}
             {activeView === 'list' && (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {/* LEAVE BALANCES WIDGETS */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-slate-50 rounded-xl">
+                                    <CalendarDays className="w-5 h-5 text-slate-400" />
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Paid Quota</p>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-black text-slate-900">{leaveQuota}</p>
+                                <p className="text-xs text-slate-400 font-medium mt-1">Allocated for this year</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-3xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-indigo-100 rounded-xl">
+                                    <CheckCircle2 className="w-5 h-5 text-indigo-500" />
+                                </div>
+                                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Leaves Taken</p>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-black text-indigo-700">
+                                    {applications.filter(a => a.status === 'Approved' && a.leaveType !== 'Unpaid').reduce((acc, curr) => acc + curr.totalDays, 0)}
+                                </p>
+                                <p className="text-xs text-indigo-500/80 font-medium mt-1">Approved paid leaves</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-emerald-100 rounded-xl">
+                                    <Calendar className="w-5 h-5 text-emerald-500" />
+                                </div>
+                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Remaining Balance</p>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-black text-emerald-700">
+                                    {leaveQuota - applications.filter(a => a.status === 'Approved' && a.leaveType !== 'Unpaid').reduce((acc, curr) => acc + curr.totalDays, 0)}
+                                </p>
+                                <p className="text-xs text-emerald-600/80 font-medium mt-1">Available to use</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-amber-100 rounded-xl">
+                                    <AlertCircle className="w-5 h-5 text-amber-500" />
+                                </div>
+                                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Unpaid Leaves</p>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-black text-amber-700">
+                                    {applications.filter(a => a.status === 'Approved' && a.leaveType === 'Unpaid').reduce((acc, curr) => acc + curr.totalDays, 0)}
+                                </p>
+                                <p className="text-xs text-amber-600/80 font-medium mt-1">Loss of pay days</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-lg font-black text-slate-900">Leave History</h3>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1 bg-slate-50 text-slate-500 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-slate-200">
+                                    Total: {applications.length}
+                                </span>
+                            </div>
+                        </div>
                     {loading ? (
                         <div className="p-20 flex flex-col items-center justify-center space-y-4">
                             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
@@ -872,8 +945,9 @@ export default function ESSLeaveManagement({ employeeId }) {
                             </tbody>
                         </table>
                     </div>
-                )}
-            </div>
+                    )}
+                </div>
+                </div>
             )}
             {/* Action Modal */}
             {showActionModal && (

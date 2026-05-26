@@ -47,7 +47,7 @@ export default function SurveyList() {
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <Link href="/employee/engagement" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-500" />
                     </Link>
                     <div>
@@ -56,7 +56,7 @@ export default function SurveyList() {
                     </div>
                 </div>
                 <Link
-                    href="/engagement/surveys/new"
+                    href="/employee/engagement/surveys/new"
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-4 h-4" />
