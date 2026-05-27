@@ -192,15 +192,6 @@ export default function TimesheetsPage() {
     return (
         <div className="p-6 bg-slate-50 min-h-screen">
             <div className="max-w-7xl mx-auto space-y-8">
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-200">
-                        <ListTodo className="w-8 h-8" />
-                    </div>
-                    <div>
-                        <h3 className="text-2xl font-bold text-slate-900">My Timesheets</h3>
-                        <p className="text-slate-500">Log your project hours and tasks</p>
-                    </div>
-                </div>
 
                 <div className="flex justify-between items-center bg-white p-4 filter drop-shadow-sm rounded-xl border border-slate-200">
                     <div className="flex items-center gap-4">

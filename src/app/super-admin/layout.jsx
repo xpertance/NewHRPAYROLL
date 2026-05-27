@@ -342,7 +342,6 @@ function DashboardLayoutContent({ children }) {
 
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
-    { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
     { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
     { name: t("myTimesheet"), href: "/employee/timesheets", icon: ListTodo },
     { name: t("myProjects"), href: "/admin/tasks/projects", icon: Briefcase },
@@ -354,7 +353,6 @@ function DashboardLayoutContent({ children }) {
     { name: t("employeeHandbook"), href: "/admin/handbook", icon: BookOpen },
     { name: t("myEngagement"), href: "/admin/engagement", icon: Target },
     { name: t("notifications"), href: "/admin/notifications", icon: Bell },
-    { name: t("changePassword"), href: "/admin/change-password", icon: Lock },
   ];
 
   // Attendance-only user navigation - minimal access
@@ -364,13 +362,13 @@ function DashboardLayoutContent({ children }) {
       href: "/admin/attendance",
       icon: UserCheck,
     },
-    { name: t("changePassword"), href: "/change-password", icon: Lock },
   ];
 
   const superAdminNavigation = [
     { name: "Admin Dashboard", href: "/super-admin/dashboard", icon: Home },
     { name: "Client Approvals", href: "/super-admin/approvals", icon: Clock },
     { name: "Organizations", href: "/super-admin/organizations", icon: Building2 },
+    { name: "Demo Requests", href: "/super-admin/demo-requests", icon: MessageSquare },
     { name: "System Logs", href: "/super-admin/audit-logs", icon: List },
   ];
 

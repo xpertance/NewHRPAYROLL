@@ -3,10 +3,13 @@ import dbConnect from "@/lib/db/connect";
 import CostCenter from "@/lib/db/models/finance/CostCenter";
 import JournalEntry from "@/lib/db/models/finance/JournalEntry";
 import { logActivity } from "@/lib/logger";
+import { getAuthUser, authorize } from "@/lib/auth-util";
 
 export async function POST(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         const body = await request.json();
 
         if (!body.code || !body.name) {
@@ -57,6 +60,8 @@ export async function POST(request) {
 export async function GET(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         const { searchParams } = new URL(request.url);
         const page = Number(searchParams.get("page")) || 1;
         const limit = Number(searchParams.get("limit")) || 100; // Increased limit for manager view
@@ -121,6 +126,8 @@ export async function GET(request) {
 export async function PUT(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         const { searchParams } = new URL(request.url);
         const id = searchParams.get("id");
 
@@ -172,6 +179,8 @@ export async function PUT(request) {
 export async function DELETE(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         const { searchParams } = new URL(request.url);
         const id = searchParams.get("id");
 

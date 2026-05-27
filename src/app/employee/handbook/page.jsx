@@ -58,12 +58,8 @@ export default function HandbookPage() {
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t("employeeHandbook")}</h1>
-                    <p className="text-slate-500">{t("handbookSubtitle")}</p>
-                </div>
-                {isAdmin && (
+            {isAdmin && (
+                <div className="flex justify-end">
                     <button
                         onClick={() => setIsUploadModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium shadow-sm hover:shadow-indigo-200"
@@ -71,8 +67,8 @@ export default function HandbookPage() {
                         <Plus size={18} />
                         {t("uploadDocument")}
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
                 <div className="relative">

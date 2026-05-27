@@ -13,6 +13,7 @@ import '@/lib/db/models/crm/organization/OfficeLocation';
 import '@/lib/db/models/crm/Department/department';
 import '@/lib/db/models/crm/employee/EmployeeCategory';
 import '@/lib/db/models/crm/employee/EmployeeType';
+import '@/lib/db/models/DemoRequest';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

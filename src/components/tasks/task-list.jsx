@@ -119,23 +119,23 @@ const TaskList = () => {
     return (
         <div className="p-6 space-y-8 animate-in fade-in duration-700">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        <Target className="w-8 h-8 text-indigo-600" />
-                        {t("taskManagement") || "Task Management"}
-                    </h1>
-                    <p className="text-slate-500 text-sm font-medium pl-11">{t("monitorTeamOperations") || "Monitor and coordinate team operations"}</p>
-                </div>
-                {isAdmin && (
+            {isAdmin && (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                            <Target className="w-8 h-8 text-indigo-600" />
+                            {t("taskManagement") || "Task Management"}
+                        </h1>
+                        <p className="text-slate-500 text-sm font-medium pl-11">{t("monitorTeamOperations") || "Monitor and coordinate team operations"}</p>
+                    </div>
                     <button
                         onClick={() => router.push(`${basePath}/create`)}
                         className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 ring-offset-2 focus:ring-2 focus:ring-indigo-600 active:scale-95"
                     >
                         <Plus size={18} /> {t("createNewTask") || "Create New Task"}
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Filters Bar */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50 backdrop-blur-xl">

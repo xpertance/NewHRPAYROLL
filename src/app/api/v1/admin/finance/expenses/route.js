@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db/connect';
 import Expense from '@/lib/db/models/finance/Expense';
 import { z } from 'zod';
 import mongoose from 'mongoose';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 const expenseSchema = z.object({
     employee: z.string().optional(),
@@ -29,6 +30,9 @@ import Employee from '@/lib/db/models/payroll/Employee';
 export async function GET(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         const { searchParams } = new URL(request.url);
         const employeeId = searchParams.get('employeeId');
         const status = searchParams.get('status');
@@ -36,9 +40,22 @@ export async function GET(request) {
         const endDate = searchParams.get('endDate');
         const search = searchParams.get('search');
         const claimType = searchParams.get('claimType');
-
+        const pageParam = searchParams.get('page');
+        const limitParam = searchParams.get('limit');
         let query = {};
+
+        // SaaS Tenant Isolation
+        let myOrgEmployeeIds = null;
+        if (authUser.role !== 'super_admin') {
+            const myOrgEmployees = await Employee.find({ 'jobDetails.organizationId': authUser.organizationId }).select('_id');
+            myOrgEmployeeIds = myOrgEmployees.map(e => e._id.toString());
+            query.employee = { $in: myOrgEmployees.map(e => e._id) };
+        }
+
         if (employeeId) {
+            if (myOrgEmployeeIds && !myOrgEmployeeIds.includes(employeeId)) {
+                return NextResponse.json({ error: "Forbidden: Access is denied" }, { status: 403 });
+            }
             const employee = await Employee.findById(employeeId).populate('jobDetails.departmentId jobDetails.teamId');
             if (employee) {
                 const deptName = employee.jobDetails?.departmentId?.departmentName || employee.jobDetails?.department;
@@ -62,7 +79,12 @@ export async function GET(request) {
                     visibilityFilter.$or.push({ status: 'Draft', claimType: 'Team', teamMembers: teamName });
                 }
 
-                query.$and = [visibilityFilter];
+                // If query.employee was set, we make sure both conditions are met
+                if (query.employee) {
+                    query.$and = [{ employee: query.employee }, visibilityFilter];
+                } else {
+                    query.$and = [visibilityFilter];
+                }
 
                 // Add additional filters if present
                 if (status && status !== 'all') query.$and.push({ status });
@@ -108,6 +130,31 @@ export async function GET(request) {
             query.date = {};
             if (startDate) query.date.$gte = new Date(startDate);
             if (endDate) query.date.$lte = new Date(endDate);
+        }
+
+        // Pagination
+        if (pageParam || limitParam) {
+            const page = parseInt(pageParam) || 1;
+            const limit = parseInt(limitParam) || 10;
+            const skip = (page - 1) * limit;
+
+            const total = await Expense.countDocuments(query);
+            const expenses = await Expense.find(query)
+                .populate('employee', 'personalDetails employeeId')
+                .populate('costCenter', 'name code')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit);
+
+            return NextResponse.json({
+                expenses,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    pages: Math.ceil(total / limit)
+                }
+            });
         }
 
         const expenses = await Expense.find(query)

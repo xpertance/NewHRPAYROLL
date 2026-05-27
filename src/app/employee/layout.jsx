@@ -39,7 +39,6 @@ import {
   CalendarRange,
   Receipt,
   Clock,
-  Lock,
   GitGraph,
   Settings2,
   Briefcase,
@@ -343,7 +342,6 @@ function DashboardLayoutContent({ children }) {
 
   // Employee navigation with only Dashboard and My Payslip
   let employeeNavigation = [
-    { name: t("dashboard"), href: "/admin/dashboard", icon: Home },
     { name: t("myPortal"), href: "/employee/dashboard", icon: Eye },
     { name: t("myTimesheet"), href: "/employee/timesheets", icon: ListTodo },
     {
@@ -372,9 +370,6 @@ function DashboardLayoutContent({ children }) {
         { name: t("socialFeed"), href: "/employee/engagement/feed", icon: GitGraph }
       ]
     },
-    { name: "Team Approvals", href: "/employee/team-approvals", icon: CheckSquare },
-    { name: t("notifications"), href: "/employee/notifications", icon: Bell },
-    { name: t("changePassword"), href: "/employee/change-password", icon: Lock },
   ];
 
   if (role === 'admin' || role === 'super_admin') {
@@ -390,7 +385,6 @@ function DashboardLayoutContent({ children }) {
       href: "/admin/attendance",
       icon: UserCheck,
     },
-    { name: t("changePassword"), href: "/admin/change-password", icon: Lock },
   ];
 
   const superAdminNavigation = [

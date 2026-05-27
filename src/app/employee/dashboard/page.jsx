@@ -40,45 +40,64 @@ import ESSTalentDashboard from "@/components/talent/ess-talent-dashboard";
 import MyTasks from "@/components/tasks/my-tasks";
 import { CheckSquare } from "lucide-react";
 
+/* ─── Premium Tab Button ─── */
 const TabButton = ({ active, label, icon: Icon, onClick }) => (
     <button
         type="button"
         onClick={onClick}
-        className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all duration-300 border-b-2 ${active
-            ? 'border-indigo-600 text-indigo-600'
-            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+        className={`group relative flex items-center gap-2.5 px-5 py-3.5 text-[13px] font-bold tracking-wide transition-all duration-300 rounded-xl whitespace-nowrap ${active
+            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-200/60'
+            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/80'
             }`}
     >
-        <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
+        <Icon className={`w-4 h-4 transition-transform duration-300 ${active ? 'text-white scale-110' : 'text-slate-400 group-hover:text-indigo-500 group-hover:scale-110'}`} />
         {label}
     </button>
 );
 
+/* ─── Glass Card ─── */
 const Card = ({ children, className = "" }) => (
-    <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300 ${className}`}>
+    <div className={`bg-white/80 backdrop-blur-xl rounded-[1.5rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_48px_rgba(0,0,0,0.1)] transition-all duration-500 ${className}`}>
         {children}
     </div>
 );
 
+/* ─── Premium Stat Card ─── */
 const StatCard = ({ title, value, sub, icon: Icon, color = "indigo" }) => {
-    const colors = {
-        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-100/50",
-        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100/50",
-        amber: "bg-amber-50 text-amber-600 border-amber-100 shadow-amber-100/50",
+    const configs = {
+        indigo: { bg: "from-indigo-500/10 to-violet-500/10", icon: "bg-indigo-100 text-indigo-600 shadow-indigo-100", ring: "ring-indigo-500/10" },
+        emerald: { bg: "from-emerald-500/10 to-teal-500/10", icon: "bg-emerald-100 text-emerald-600 shadow-emerald-100", ring: "ring-emerald-500/10" },
+        amber: { bg: "from-amber-500/10 to-orange-500/10", icon: "bg-amber-100 text-amber-600 shadow-amber-100", ring: "ring-amber-500/10" },
     };
+    const c = configs[color];
     return (
-        <Card className="p-6 border-none shadow-lg">
-            <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl ${colors[color]} border`}>
+        <Card className={`p-7 bg-gradient-to-br ${c.bg} border-none ring-1 ${c.ring}`}>
+            <div className="flex items-center gap-5">
+                <div className={`p-4 rounded-2xl ${c.icon} shadow-lg`}>
                     <Icon className="w-6 h-6" />
                 </div>
                 <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</h4>
-                    <p className="text-2xl font-black text-slate-900 leading-tight mt-0.5">{value}</p>
-                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">{sub}</p>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">{title}</h4>
+                    <p className="text-3xl font-black text-slate-900 leading-tight mt-1">{value}</p>
+                    <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{sub}</p>
                 </div>
             </div>
         </Card>
+    );
+};
+
+/* ─── Circular Progress Ring ─── */
+const CircularProgress = ({ percent, size = 80, stroke = 6, color = "#6366f1" }) => {
+    const r = (size - stroke) / 2;
+    const circ = 2 * Math.PI * r;
+    const offset = circ - (percent / 100) * circ;
+    return (
+        <svg width={size} height={size} className="transform -rotate-90">
+            <circle cx={size / 2} cy={size / 2} r={r} stroke="#e2e8f0" strokeWidth={stroke} fill="none" />
+            <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+                strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+                className="transition-all duration-1000 ease-out" />
+        </svg>
     );
 };
 
@@ -301,7 +320,7 @@ function ESSDashboardContent() {
             // Header
             doc.setFontSize(18);
             doc.setTextColor(79, 70, 229);
-            doc.text("PAYROLL SYSTEM", 105, 15, { align: "center" }); // Generic name if company unknown
+            doc.text("PAYROLL SYSTEM", 105, 15, { align: "center" });
 
             doc.setFontSize(14);
             doc.setTextColor(15, 23, 42);
@@ -337,10 +356,10 @@ function ESSDashboardContent() {
 
             // Net Pay
             const finalY = doc.lastAutoTable.finalY + 15;
-            doc.setFillColor(240, 253, 244); // Light green bg
+            doc.setFillColor(240, 253, 244);
             doc.rect(14, finalY, 182, 15, 'F');
             doc.setFontSize(12);
-            doc.setTextColor(21, 128, 61); // Green 700
+            doc.setTextColor(21, 128, 61);
             doc.setFont("helvetica", "bold");
             doc.text(`Net Payable: Rs. ${slip.netSalary?.toLocaleString()}`, 105, finalY + 10, { align: "center" });
 
@@ -438,7 +457,14 @@ function ESSDashboardContent() {
     if (loading || sessionLoading) {
         return (
             <div className="flex h-[80vh] items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                            <LayoutDashboard className="w-4 h-4 text-indigo-600" />
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -571,182 +597,143 @@ function ESSDashboardContent() {
 
     const StatusBadge = ({ status, label }) => {
         const styles = {
-            'Pending': 'bg-amber-50 text-amber-700 border-amber-200',
-            'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'Rejected': 'bg-rose-50 text-rose-700 border-rose-200',
-            'Earn': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'Use': 'bg-indigo-50 text-indigo-700 border-indigo-200'
+            'Pending': 'bg-amber-50 text-amber-700 border-amber-200 shadow-amber-100/50',
+            'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100/50',
+            'Rejected': 'bg-rose-50 text-rose-700 border-rose-200 shadow-rose-100/50',
+            'Earn': 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100/50',
+            'Use': 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-indigo-100/50'
         };
         return (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${styles[status]}`}>
+            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm ${styles[status]}`}>
                 {label || status}
             </span>
         );
     };
 
     return (
-        <div className="p-6 bg-slate-50 min-h-screen">
-            <div className="max-w-7xl mx-auto space-y-8">
-                {/* Header Welcome Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                            {t("welcomeBack")}, {employee?.personalDetails?.firstName}! 👋
-                        </h1>
-                        <p className="text-slate-500 mt-2 flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                            {t("payrollTaxCompliant") || "Your payroll and tax profile is compliant for FY 2025-26"}
-                        </p>
-                    </div>
-                </div>
+        <div className="p-4 md:p-8 bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 min-h-screen">
+            <div className="max-w-7xl mx-auto space-y-6">
 
-                {/* Main Navigation Tabs */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-                    <nav className="flex px-2 overflow-x-auto no-scrollbar">
-                        <TabButton
-                            active={activeTab === "overview"}
-                            label={t("overview")}
-                            icon={LayoutDashboard}
-                            onClick={() => setActiveTab("overview")}
-                        />
-                        <TabButton
-                            active={activeTab === "payslips"}
-                            label={t("payslipsGallery")}
-                            icon={FileText}
-                            onClick={() => setActiveTab("payslips")}
-                        />
-                        <TabButton
-                            active={activeTab === "tax"}
-                            label={t("taxAndInvestments")}
-                            icon={ShieldCheck}
-                            onClick={() => setActiveTab("tax")}
-                        />
-                        <TabButton
-                            active={activeTab === "projection"}
-                            label={t("salaryProjection")}
-                            icon={Calculator}
-                            onClick={() => setActiveTab("projection")}
-                        />
-                        <TabButton
-                            active={activeTab === "leaves"}
-                            label={t("myLeaves")}
-                            icon={Calendar}
-                            onClick={() => setActiveTab("leaves")}
-                        />
-                        <TabButton
-                            active={activeTab === "talent"}
-                            label={t("talentMatrix")}
-                            icon={Trophy}
-                            onClick={() => setActiveTab("talent")}
-                        />
-                        <TabButton
-                            active={activeTab === 'shifts'}
-                            onClick={() => setActiveTab('shifts')}
-                            icon={Clock}
-                            label={t("myShifts")}
-                        />
-                        <TabButton
-                            active={activeTab === 'ot-coff'}
-                            onClick={() => setActiveTab('ot-coff')}
-                            icon={History}
-                            label={t("otAndCOff")}
-                        />
-                        <TabButton
-                            active={activeTab === 'tasks'}
-                            onClick={() => setActiveTab('tasks')}
-                            icon={CheckSquare}
-                            label={t("myTasks") || "My Tasks"}
-                        />
+                {/* ═══ Premium Tab Navigation ═══ */}
+                <div className="bg-white/60 backdrop-blur-xl rounded-[1.5rem] border border-white/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-2">
+                    <nav className="flex gap-1.5 px-1 overflow-x-auto no-scrollbar">
+                        <TabButton active={activeTab === "overview"} label={t("overview")} icon={LayoutDashboard} onClick={() => setActiveTab("overview")} />
+                        <TabButton active={activeTab === "payslips"} label={t("payslipsGallery")} icon={FileText} onClick={() => setActiveTab("payslips")} />
+                        <TabButton active={activeTab === "tax"} label={t("taxAndInvestments")} icon={ShieldCheck} onClick={() => setActiveTab("tax")} />
+                        <TabButton active={activeTab === "projection"} label={t("salaryProjection")} icon={Calculator} onClick={() => setActiveTab("projection")} />
+                        <TabButton active={activeTab === "leaves"} label={t("myLeaves")} icon={Calendar} onClick={() => setActiveTab("leaves")} />
+                        <TabButton active={activeTab === "talent"} label={t("talentMatrix")} icon={Trophy} onClick={() => setActiveTab("talent")} />
+                        <TabButton active={activeTab === 'shifts'} onClick={() => setActiveTab('shifts')} icon={Clock} label={t("myShifts")} />
+                        <TabButton active={activeTab === 'ot-coff'} onClick={() => setActiveTab('ot-coff')} icon={History} label={t("otAndCOff")} />
+                        <TabButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={CheckSquare} label={t("myTasks") || "My Tasks"} />
                     </nav>
                 </div>
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*              OVERVIEW TAB                   */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "overview" && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* Left Column: Key Stats */}
-                        <div className="md:col-span-2 space-y-8">
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <Card className="p-6 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border-none shadow-indigo-100">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-2 bg-white/20 rounded-lg">
-                                            <Wallet className="w-5 h-5 text-white" />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* ─── Left Column ─── */}
+                        <div className="lg:col-span-2 space-y-5">
+                            {/* Summary Cards Row */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Latest Pay Card */}
+                                <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-7 text-white shadow-2xl shadow-indigo-200/50 sm:col-span-2">
+                                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-12 -mb-12 blur-2xl"></div>
+                                    <div className="relative z-10">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="p-3 bg-white/15 backdrop-blur-sm rounded-2xl">
+                                                <Wallet className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full">{t("latestPay")}</span>
                                         </div>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded">{t("latestPay")}</span>
+                                        <h3 className="text-4xl font-black tracking-tight">₹{latestPayslip?.netSalary?.toLocaleString() || '0'}</h3>
+                                        <p className="text-indigo-200 text-sm font-medium mt-1">{t("disbursedFor")} {latestPayslip ? safeFormatDate(latestPayslip.year, latestPayslip.month) : 'N/A'}</p>
+                                        <div className="mt-8 pt-5 border-t border-white/15 flex justify-between items-center text-xs">
+                                            <span className="text-indigo-200 font-semibold">{t("gross")}: ₹{latestPayslip?.grossSalary?.toLocaleString() || '0'}</span>
+                                            <button type="button" onClick={() => setActiveTab("payslips")} className="flex items-center gap-1.5 font-bold hover:underline bg-white/10 px-3 py-1.5 rounded-full transition-all hover:bg-white/20">{t("viewBreakdown")} <ChevronRight className="w-3 h-3" /></button>
+                                        </div>
                                     </div>
+                                </div>
 
-                                    <h3 className="text-3xl font-black mb-1">₹{latestPayslip?.netSalary?.toLocaleString() || '0'}</h3>
-                                    <p className="text-indigo-100 text-sm">{t("disbursedFor")} {latestPayslip ? safeFormatDate(latestPayslip.year, latestPayslip.month) : 'N/A'}</p>
-                                    <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-xs">
-                                        <span className="opacity-80">{t("gross")}: ₹{latestPayslip?.grossSalary?.toLocaleString() || '0'}</span>
-                                        <button type="button" onClick={() => setActiveTab("payslips")} className="flex items-center gap-1 hover:underline">{t("viewBreakdown")} <ChevronRight className="w-3 h-3" /></button>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-6">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-2 bg-emerald-50 rounded-lg">
+                                {/* YTD Earnings Card */}
+                                <Card className="p-7">
+                                    <div className="flex justify-between items-start mb-5">
+                                        <div className="p-3 bg-emerald-50 rounded-2xl shadow-sm">
                                             <TrendingUp className="w-5 h-5 text-emerald-600" />
                                         </div>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("totalYTDEarnings")}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{t("totalYTDEarnings")}</span>
                                     </div>
-                                    <h3 className="text-3xl font-black text-slate-900 mb-1">₹{totalYTDEarnings.toLocaleString()}</h3>
-                                    <p className="text-slate-500 text-sm">{t("forFinancialYear")} {selectedFY}</p>
-                                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center gap-2">
-                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                    <div className="flex items-center gap-5">
+                                        <div className="flex-1">
+                                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">₹{totalYTDEarnings.toLocaleString()}</h3>
+                                            <p className="text-slate-500 text-sm font-medium mt-1">{t("forFinancialYear")} {selectedFY}</p>
                                         </div>
-                                        <span className="text-[10px] font-bold text-slate-400">{progressPercent}%</span>
+                                        <div className="relative">
+                                            <CircularProgress percent={progressPercent} size={72} stroke={5} color="#10b981" />
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-xs font-black text-emerald-600">{progressPercent}%</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </Card>
 
-                                <Card className="p-6 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setActiveTab('tasks')}>
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-2 bg-rose-50 rounded-lg">
+                                {/* Active Tasks Card */}
+                                <Card className="p-7 cursor-pointer group hover:ring-2 hover:ring-indigo-200 transition-all" onClick={() => setActiveTab('tasks')}>
+                                    <div className="flex justify-between items-start mb-5">
+                                        <div className="p-3 bg-rose-50 rounded-2xl shadow-sm group-hover:shadow-md transition-shadow">
                                             <CheckSquare className="w-5 h-5 text-rose-600" />
                                         </div>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("activeTasks")}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{t("activeTasks")}</span>
                                     </div>
-                                    <h3 className="text-3xl font-black text-slate-900 mb-1">{taskStats.pending}</h3>
-                                    <p className="text-slate-500 text-sm">{t("pendingTasks") || "Pending Tasks"}</p>
-                                    <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between items-center text-xs">
-                                        <span className="opacity-80">{t("totalTasks") || "Total"}: {taskStats.total}</span>
-                                        <span className="flex items-center gap-1 text-indigo-600 font-bold">{t("viewAll")} <ChevronRight className="w-3 h-3" /></span>
+                                    <h3 className="text-3xl font-black text-slate-900">{taskStats.pending}</h3>
+                                    <p className="text-slate-500 text-sm font-medium">{t("pendingTasks") || "Pending Tasks"}</p>
+                                    <div className="mt-6 pt-5 border-t border-slate-100/80 flex justify-between items-center text-xs">
+                                        <span className="text-slate-400 font-semibold">{t("totalTasks") || "Total"}: {taskStats.total}</span>
+                                        <span className="flex items-center gap-1.5 text-indigo-600 font-bold group-hover:gap-2.5 transition-all">{t("viewAll")} <ChevronRight className="w-3 h-3" /></span>
                                     </div>
                                 </Card>
                             </div>
 
-                            {/* Recent Activity / Announcements */}
-                            <Card className="p-0 overflow-hidden">
-                                <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                                    <h3 className="font-bold text-slate-900">{t("recentPayrollEvents")}</h3>
-                                    <button onClick={() => setShowPolicyModal(true)} className="text-xs text-indigo-600 font-semibold hover:underline">{t("checkPolicy")}</button>
+                            {/* Recent Payroll Events */}
+                            <Card className="overflow-hidden">
+                                <div className="p-6 border-b border-slate-100/80 flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-indigo-50 rounded-xl">
+                                            <History className="w-4 h-4 text-indigo-600" />
+                                        </div>
+                                        <h3 className="font-black text-slate-900">{t("recentPayrollEvents")}</h3>
+                                    </div>
+                                    <button onClick={() => setShowPolicyModal(true)} className="text-xs text-indigo-600 font-bold hover:underline px-3 py-1.5 bg-indigo-50 rounded-full transition-colors hover:bg-indigo-100">{t("checkPolicy")}</button>
                                 </div>
-                                <div className="divide-y divide-slate-100">
+                                <div className="divide-y divide-slate-50">
                                     {dynamicEvents.length === 0 ? (
-                                        <div className="p-8 text-center text-slate-400">
-                                            <History className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                            <p className="text-xs font-semibold">{t("noRecentEvents") || "No recent payroll events"}</p>
+                                        <div className="p-12 text-center text-slate-400">
+                                            <History className="w-10 h-10 mx-auto mb-3 text-slate-200" />
+                                            <p className="text-sm font-bold">{t("noRecentEvents") || "No recent payroll events"}</p>
                                         </div>
                                     ) : (
                                         dynamicEvents.map((evt, idx) => (
-                                            <div key={idx} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                            <div key={idx} className="p-5 flex items-center gap-4 hover:bg-slate-50/50 transition-all duration-200 group">
+                                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
                                                     evt.type === 'payslip' 
-                                                        ? 'bg-blue-50 text-blue-600' 
-                                                        : 'bg-emerald-50 text-emerald-600'
+                                                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600' 
+                                                        : 'bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-600'
                                                 }`}>
                                                     {evt.type === 'payslip' ? <FileText className="w-5 h-5" /> : <Percent className="w-5 h-5" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-slate-900 truncate">{evt.title}</p>
-                                                    <p className="text-[10px] text-slate-500">{format(evt.date, 'MMMM dd, yyyy')}</p>
+                                                    <p className="text-sm font-bold text-slate-900 truncate">{evt.title}</p>
+                                                    <p className="text-[11px] text-slate-500 font-medium">{format(evt.date, 'MMMM dd, yyyy')}</p>
                                                 </div>
                                                 {evt.type === 'payslip' ? (
-                                                    <button onClick={evt.action} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                                                    <button onClick={evt.action} className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
                                                         <Download className="w-4 h-4" />
                                                     </button>
                                                 ) : (
-                                                    <div className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                                                    <div className={`px-3 py-1 text-[10px] font-black rounded-full tracking-wider ${
                                                         evt.badge === 'Approved' 
                                                             ? 'bg-emerald-100 text-emerald-700' 
                                                             : evt.badge === 'Rejected' 
@@ -763,85 +750,91 @@ function ESSDashboardContent() {
                             </Card>
                         </div>
 
-                        {/* Right Column: Mini Widgets */}
-                        <div className="space-y-8">
-                            {/* Upcoming Payday Countdown Card */}
-                            <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100/50 shadow-sm relative overflow-hidden">
-                                <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-10">
-                                    <Wallet className="w-24 h-24 text-indigo-600" />
+                        {/* ─── Right Column ─── */}
+                        <div className="space-y-4">
+                            {/* Payday Countdown */}
+                            <Card className="p-7 bg-gradient-to-br from-indigo-50/80 via-violet-50/50 to-purple-50/30 border-indigo-100/50 relative overflow-hidden">
+                                <div className="absolute -right-6 -bottom-6 opacity-[0.04]">
+                                    <Wallet className="w-36 h-36 text-indigo-900" />
                                 </div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
-                                        {t("nextPaydayCountdown") || "Next Payday"}
-                                    </h4>
-                                    <CalendarDays className="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-black text-indigo-900 tracking-tight">
-                                            {daysRemaining}
-                                        </span>
-                                        <span className="text-sm font-semibold text-indigo-600">
-                                            {daysRemaining === 1 ? t("dayRemaining") || "day left" : t("daysRemaining") || "days left"}
-                                        </span>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <h4 className="font-black text-slate-900 text-sm flex items-center gap-2.5">
+                                            <span className="relative flex h-2.5 w-2.5">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-600"></span>
+                                            </span>
+                                            {t("nextPaydayCountdown") || "Next Payday"}
+                                        </h4>
+                                        <CalendarDays className="w-4 h-4 text-indigo-500" />
                                     </div>
-                                    <p className="text-[11px] text-slate-500 font-medium leading-none">
-                                        {t("expectedOn") || "Expected on"}: <span className="font-bold text-slate-700">{format(nextPayday, 'MMM dd, yyyy')}</span>
-                                    </p>
-                                    <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                            className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full transition-all duration-500" 
-                                            style={{ width: `${Math.min(100, Math.max(0, ((30 - daysRemaining) / 30) * 100))}%` }}
-                                        />
+                                    <div className="flex items-center gap-5">
+                                        <div className="relative">
+                                            <CircularProgress percent={Math.min(100, ((30 - daysRemaining) / 30) * 100)} size={80} stroke={6} color="#6366f1" />
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-xl font-black text-indigo-900">{daysRemaining}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-indigo-600">
+                                                {daysRemaining === 1 ? t("dayRemaining") || "day left" : t("daysRemaining") || "days left"}
+                                            </p>
+                                            <p className="text-[11px] text-slate-500 font-medium mt-1">
+                                                {t("expectedOn") || "Expected on"}: <span className="font-bold text-slate-700">{format(nextPayday, 'MMM dd, yyyy')}</span>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </Card>
 
                             {/* Tax Tip Widget */}
-                            <Card className="p-6 bg-blue-50/50">
+                            <Card className="p-7 bg-gradient-to-br from-blue-50/60 to-sky-50/40">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <AlertTriangle className="w-5 h-5 text-blue-600" />
-                                    <h4 className="font-bold text-slate-900 text-sm">{t("taxSeasonReminder")}</h4>
+                                    <div className="p-2 bg-blue-100 rounded-xl shadow-sm">
+                                        <AlertTriangle className="w-4 h-4 text-blue-600" />
+                                    </div>
+                                    <h4 className="font-black text-slate-900 text-sm">{t("taxSeasonReminder")}</h4>
                                 </div>
-                                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                                <p className="text-xs text-slate-600 leading-relaxed mb-5">
                                     {t("taxSeasonReminderSub")}
                                 </p>
                                 <button
                                     onClick={() => setActiveTab("tax")}
-                                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
                                 >
                                     {t("uploadProofs")} <ArrowUpRight className="w-3 h-3" />
                                 </button>
                             </Card>
 
-                            {/* My Shifts Widget */}
-                            <Card className="p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="font-bold text-slate-900 text-sm">
+                            {/* My Shifts / Schedule Widget */}
+                            <Card className="p-7">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h4 className="font-black text-slate-900 text-sm">
                                         {userRoster.length > 0 ? t("myUpcomingShifts") : t("standardSchedule")}
                                     </h4>
-                                    <Clock className="w-4 h-4 text-indigo-600" />
+                                    <div className="p-1.5 bg-indigo-50 rounded-lg">
+                                        <Clock className="w-4 h-4 text-indigo-600" />
+                                    </div>
                                 </div>
                                 <div className="space-y-3">
                                     {userRoster.length > 0 ? (
                                         userRoster.slice(0, 3).map((r, i) => (
-                                            <div key={i} className="flex items-center gap-3 p-2 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
-                                                <div className="w-8 h-8 rounded-lg flex flex-col items-center justify-center bg-slate-100 text-[10px] font-bold">
-                                                    <span className="text-slate-400 leading-none">{format(new Date(r.date), 'MMM')}</span>
-                                                    <span className="text-slate-700 leading-none mt-0.5">{format(new Date(r.date), 'dd')}</span>
+                                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100/80 hover:bg-slate-50/50 transition-all group">
+                                                <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50 text-[10px] font-bold border border-indigo-100/50">
+                                                    <span className="text-indigo-400 leading-none">{format(new Date(r.date), 'MMM')}</span>
+                                                    <span className="text-indigo-700 leading-none mt-0.5">{format(new Date(r.date), 'dd')}</span>
                                                 </div>
                                                 <div className="flex-1">
                                                     <p className="text-xs font-bold text-slate-900">{r.shiftId?.name}</p>
                                                     <p className="text-[10px] text-slate-500 font-medium">{r.shiftId?.startTime} - {r.shiftId?.endTime}</p>
                                                 </div>
-                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: r.shiftId?.color || '#4f46e5' }} />
+                                                <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: r.shiftId?.color || '#4f46e5' }} />
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                        <div className="p-5 bg-gradient-to-br from-indigo-50/60 to-violet-50/40 rounded-2xl border border-indigo-100/50">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                                <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-sm border border-indigo-100/50">
                                                     <Calendar className="w-5 h-5 text-indigo-600" />
                                                 </div>
                                                 <div>
@@ -851,118 +844,124 @@ function ESSDashboardContent() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <p className="text-[10px] text-indigo-600 font-medium mt-3 bg-white/50 p-1.5 rounded-lg text-center">
+                                            <p className="text-[10px] text-indigo-600 font-semibold mt-3 bg-white/60 p-2 rounded-lg text-center">
                                                 {employee?.jobDetails?.defaultShift ? t("defaultShiftAssigned") : t("standardWorkingHours")}
                                             </p>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Shift Stats Breakdown */}
-                                <div className="mt-5 pt-5 border-t border-slate-100 space-y-4">
+                                {/* Attendance Stats */}
+                                <div className="mt-6 pt-6 border-t border-slate-100/80 space-y-4">
                                     <div className="flex justify-between items-center">
-                                        <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                                        <h5 className="font-black text-slate-700 text-xs uppercase tracking-[0.1em]">
                                             {format(new Date(), 'MMMM')} Attendance
                                         </h5>
-                                        <span className="text-[10px] font-bold text-slate-400">
-                                            {totalLoggedDays} {totalLoggedDays === 1 ? 'Day' : 'Days'} Logged
+                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full">
+                                            {totalLoggedDays} {totalLoggedDays === 1 ? 'Day' : 'Days'}
                                         </span>
                                     </div>
 
-                                    {/* Stats Grid */}
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="p-2.5 bg-emerald-50/60 rounded-xl border border-emerald-100/50 text-center">
-                                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tight">Present</p>
-                                            <p className="text-lg font-black text-emerald-700 mt-0.5">{presentDays}</p>
+                                    <div className="grid grid-cols-3 gap-2.5">
+                                        <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50/50 rounded-xl border border-emerald-100/60 text-center">
+                                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Present</p>
+                                            <p className="text-xl font-black text-emerald-700 mt-0.5">{presentDays}</p>
                                         </div>
-                                        <div className="p-2.5 bg-rose-50/60 rounded-xl border border-rose-100/50 text-center">
-                                            <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tight">Absent</p>
-                                            <p className="text-lg font-black text-rose-700 mt-0.5">{absentDays}</p>
+                                        <div className="p-3 bg-gradient-to-br from-rose-50 to-pink-50/50 rounded-xl border border-rose-100/60 text-center">
+                                            <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">Absent</p>
+                                            <p className="text-xl font-black text-rose-700 mt-0.5">{absentDays}</p>
                                         </div>
-                                        <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-100/50 text-center">
-                                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">Leaves</p>
-                                            <p className="text-lg font-black text-amber-700 mt-0.5">{leaveDays}</p>
+                                        <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-xl border border-amber-100/60 text-center">
+                                            <p className="text-[9px] font-black text-amber-600 uppercase tracking-wider">Leaves</p>
+                                            <p className="text-xl font-black text-amber-700 mt-0.5">{leaveDays}</p>
                                         </div>
                                     </div>
 
-                                    {/* Attendance Present Ratio Progress Bar */}
-                                    <div className="space-y-1.5">
+                                    {/* Present Ratio */}
+                                    <div className="space-y-2">
                                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
                                             <span>Present Ratio</span>
-                                            <span className="text-indigo-600">{presentRatio}%</span>
+                                            <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{presentRatio}%</span>
                                         </div>
-                                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative">
+                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                                             <div 
-                                                className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-700 ease-out" 
+                                                className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-1000 ease-out" 
                                                 style={{ width: `${presentRatio}%` }}
                                             />
                                         </div>
                                     </div>
                                 </div>
 
-                                <p className="text-[10px] text-slate-400 mt-4 text-center font-medium italic">{t("contactHRChangeRequest")}</p>
+                                <p className="text-[10px] text-slate-400 mt-5 text-center font-medium italic">{t("contactHRChangeRequest")}</p>
                             </Card>
-
-
                         </div>
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*              TASKS TAB                      */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'tasks' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <MyTasks />
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*           PAYSLIPS GALLERY TAB              */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "payslips" && (
-                    <div className="space-y-8">
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-slate-900">{t("historicPayslips")}</h2>
-                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1.5 shadow-sm">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t("historicPayslips")}</h2>
+                                <p className="text-sm text-slate-500 font-medium mt-1">Download and preview your salary slips</p>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl p-1.5 shadow-sm">
                                 <select
                                     value={selectedFY}
                                     onChange={(e) => setSelectedFY(e.target.value)}
-                                    className="text-xs bg-transparent border-none focus:ring-0 pr-8"
+                                    className="text-xs font-bold bg-transparent border-none focus:ring-0 pr-8 text-slate-700"
                                 >
-                                    <option value="2025-26">2025-26</option>
-                                    <option value="2024-25">2024-25</option>
+                                    <option value="2025-26">FY 2025-26</option>
+                                    <option value="2024-25">FY 2024-25</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {payslips.filter(slip => {
                                 const fyStart = slip.month >= 4 ? slip.year : slip.year - 1;
                                 const fyString = `${fyStart}-${(fyStart + 1).toString().slice(-2)}`;
                                 return fyString === selectedFY;
                             }).map((slip, idx) => (
-                                <Card key={slip._id} className="p-0 overflow-hidden group">
-                                    <div className={`h-2 ${idx === 0 ? 'bg-indigo-600' : 'bg-slate-200'} group-hover:h-3 transition-all duration-300`}></div>
-                                    <div className="p-5">
-                                        <div className="flex justify-between items-start mb-4">
+                                <Card key={slip._id} className="overflow-hidden group hover:-translate-y-1 transition-all duration-300">
+                                    <div className={`h-1.5 ${idx === 0 ? 'bg-gradient-to-r from-indigo-500 to-violet-500' : 'bg-gradient-to-r from-slate-200 to-slate-300'} group-hover:h-2 transition-all duration-300`}></div>
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-5">
                                             <div>
-                                                <h4 className="font-bold text-slate-900">{getMonthName(slip.month)} {slip.year}</h4>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono mt-1">{slip.payslipId}</p>
+                                                <h4 className="font-black text-slate-900 text-lg">{getMonthName(slip.month)} {slip.year}</h4>
+                                                <p className="text-[10px] text-slate-400 uppercase tracking-[0.15em] font-mono mt-1">{slip.payslipId}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-lg font-black text-slate-900">₹{slip.netSalary?.toLocaleString()}</p>
-                                                <p className="text-[10px] text-emerald-600 font-bold">DISBURSED</p>
+                                                <p className="text-xl font-black text-slate-900">₹{slip.netSalary?.toLocaleString()}</p>
+                                                <p className="text-[10px] text-emerald-600 font-black tracking-wider">DISBURSED</p>
                                             </div>
                                         </div>
-                                        <div className="py-4 border-y border-slate-50 flex justify-between items-center text-xs">
-                                            <span className="text-slate-500">Basic: ₹{slip.basicSalary?.toLocaleString()}</span>
-                                            <span className="text-slate-500">Tax Paid: ₹{slip.taxDeduction || 0}</span>
+                                        <div className="py-4 border-y border-slate-100/60 flex justify-between items-center text-xs">
+                                            <span className="text-slate-500 font-medium">Basic: ₹{slip.basicSalary?.toLocaleString()}</span>
+                                            <span className="text-slate-500 font-medium">Tax: ₹{slip.taxDeduction || 0}</span>
                                         </div>
-                                        <div className="mt-5 flex gap-2">
+                                        <div className="mt-5 flex gap-2.5">
                                             <button
                                                 onClick={() => setPreviewSlip(slip)}
-                                                className="flex-1 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                                                className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-slate-200/60"
                                             >
-                                                <Eye className="w-3 h-3" /> View
+                                                <Eye className="w-3.5 h-3.5" /> View
                                             </button>
                                             <button
                                                 onClick={() => handleDownloadPDF(slip)}
-                                                className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                className="p-2.5 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-indigo-600 transition-all border border-indigo-100/60"
                                             >
                                                 <Download className="w-4 h-4" />
                                             </button>
@@ -975,130 +974,143 @@ function ESSDashboardContent() {
                                 const fyString = `${fyStart}-${(fyStart + 1).toString().slice(-2)}`;
                                 return fyString === selectedFY;
                             }).length === 0 && (
-                                    <div className="col-span-full p-12 text-center text-slate-400">
-                                        <p>No payslips found for {selectedFY}</p>
+                                    <div className="col-span-full p-16 text-center">
+                                        <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                        <p className="text-slate-400 font-bold">No payslips found for {selectedFY}</p>
                                     </div>
                                 )}
                         </div>
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*         TAX & INVESTMENTS TAB               */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "tax" && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <Card className="p-8 md:p-10">
+                            <div className="flex items-center gap-5 mb-10">
+                                <div className="p-4 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl text-indigo-600 shadow-lg shadow-indigo-100/50">
                                     <ShieldCheck className="w-8 h-8" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-900">{t("declarationForFY")} 2025-26</h2>
-                                    <p className="text-slate-500 text-sm">{t("submitTaxInvestmentsSub")}</p>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t("declarationForFY")} 2025-26</h2>
+                                    <p className="text-slate-500 text-sm font-medium">{t("submitTaxInvestmentsSub")}</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                                 {/* Form Left */}
                                 <div className="space-y-8">
                                     <div>
-                                        <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">Section 80C <span className="text-[10px] font-medium text-slate-400 font-mono">(Max ₹1.5L)</span></h4>
+                                        <h4 className="font-black text-slate-900 mb-5 flex items-center gap-2.5">
+                                            Section 80C 
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-full">(Max ₹1.5L)</span>
+                                        </h4>
                                         <div className="space-y-4">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Provider Fund (PPF)</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Provider Fund (PPF)</label>
                                                 <input
                                                     type="number"
                                                     value={form80C.ppf || 0}
                                                     onChange={(e) => setForm80C({ ...form80C, ppf: parseInt(e.target.value) || 0 })}
                                                     placeholder="0"
-                                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">ELSS Mutual Funds</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">ELSS Mutual Funds</label>
                                                 <input
                                                     type="number"
                                                     value={form80C.elss || 0}
                                                     onChange={(e) => setForm80C({ ...form80C, elss: parseInt(e.target.value) || 0 })}
                                                     placeholder="0"
-                                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">LIC/Life Insurance</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">LIC/Life Insurance</label>
                                                 <input
                                                     type="number"
                                                     value={form80C.lic || 0}
                                                     onChange={(e) => setForm80C({ ...form80C, lic: parseInt(e.target.value) || 0 })}
                                                     placeholder="0"
-                                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">Section 80D <span className="text-[10px] font-medium text-slate-400 font-mono">(Health Ins.)</span></h4>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase">Mediclaim (Self/Family)</label>
+                                        <h4 className="font-black text-slate-900 mb-5 flex items-center gap-2.5">
+                                            Section 80D 
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-full">(Health Ins.)</span>
+                                        </h4>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Mediclaim (Self/Family)</label>
                                             <input
                                                 type="number"
                                                 value={form80D.mediclaimSelf || 0}
                                                 onChange={(e) => setForm80D({ ...form80D, mediclaimSelf: parseInt(e.target.value) || 0 })}
                                                 placeholder="0"
-                                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Form Right */}
-                                <div className="space-y-8 border-l border-slate-100 md:pl-12">
+                                <div className="space-y-8 lg:border-l lg:border-slate-100 lg:pl-12">
                                     <div>
-                                        <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">HRA Exemption <span className="text-[10px] font-medium text-slate-400 font-mono">(House Rent)</span></h4>
+                                        <h4 className="font-black text-slate-900 mb-5 flex items-center gap-2.5">
+                                            HRA Exemption 
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-full">(House Rent)</span>
+                                        </h4>
                                         <div className="space-y-4">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Annual House Rent Paid</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Annual House Rent Paid</label>
                                                 <input
                                                     type="number"
                                                     value={hraData.annualRent || 0}
                                                     onChange={(e) => setHraData({ ...hraData, annualRent: parseInt(e.target.value) || 0 })}
                                                     placeholder="0"
-                                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Landlord PAN</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Landlord PAN</label>
                                                 <input
                                                     type="text"
                                                     value={hraData.landlordPan || ''}
                                                     onChange={(e) => setHraData({ ...hraData, landlordPan: e.target.value })}
                                                     placeholder="ABCDE1234F"
-                                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm uppercase focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm uppercase font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                                        <h4 className="font-black text-slate-900 mb-4 text-center">Summary</h4>
+                                    <div className="p-7 bg-gradient-to-br from-slate-50 to-indigo-50/30 rounded-2xl border border-slate-200/60">
+                                        <h4 className="font-black text-slate-900 mb-5 text-center">Summary</h4>
                                         <div className="space-y-4">
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-slate-500">Total Declared</span>
-                                                <span className="font-bold text-slate-900">₹{((form80C.ppf || 0) + (form80C.elss || 0) + (form80C.lic || 0) + (form80C.others || 0) + (form80D.mediclaimSelf || 0) + (hraData.annualRent || 0)).toLocaleString()}</span>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-500 font-medium">Total Declared</span>
+                                                <span className="font-black text-slate-900">₹{((form80C.ppf || 0) + (form80C.elss || 0) + (form80C.lic || 0) + (form80C.others || 0) + (form80D.mediclaimSelf || 0) + (hraData.annualRent || 0)).toLocaleString()}</span>
                                             </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-slate-500">Status</span>
-                                                <span className={`font-bold ${investments?.status === 'Approved' ? 'text-emerald-600' : 'text-amber-600'}`}>{investments?.status || t("notStarted")}</span>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-500 font-medium">Status</span>
+                                                <span className={`font-black ${investments?.status === 'Approved' ? 'text-emerald-600' : 'text-amber-600'}`}>{investments?.status || t("notStarted")}</span>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-3 pt-3">
                                                 <button
                                                     onClick={() => handleSaveDeclaration(false)}
-                                                    className="flex-1 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                                                    className="flex-1 py-3.5 bg-white border border-slate-200/80 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
                                                 >
                                                     {t("saveDraft")}
                                                 </button>
                                                 <button
                                                     onClick={() => handleSaveDeclaration(true)}
-                                                    className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2"
+                                                    className="flex-[2] py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-sm font-black shadow-lg shadow-indigo-200/50 transition-all flex items-center justify-center gap-2"
                                                 >
                                                     {t("submit")} <ArrowUpRight className="w-4 h-4" />
                                                 </button>
@@ -1107,41 +1119,53 @@ function ESSDashboardContent() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*          SALARY PROJECTION TAB              */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "projection" && (
-                    <div className="max-w-4xl mx-auto py-12 text-center space-y-6">
-                        <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 mx-auto">
-                            <Calculator className="w-10 h-10" />
+                    <div className="max-w-4xl mx-auto py-16 text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-[2rem] flex items-center justify-center text-indigo-600 mx-auto shadow-lg shadow-indigo-100/50">
+                            <Calculator className="w-12 h-12" />
                         </div>
-                        <h2 className="text-2xl font-black text-slate-900 italic">{t("comingSoon")}</h2>
-                        <p className="text-slate-500 max-w-md mx-auto">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t("comingSoon")}</h2>
+                        <p className="text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
                             {t("whatIfCalculatorSub")}
                         </p>
-                        <div className="flex justify-center gap-4 pt-6">
-                            <div className="px-4 py-2 bg-white rounded-full border border-slate-200 text-xs font-bold text-slate-400 flex items-center gap-2">
+                        <div className="flex justify-center gap-4 pt-4">
+                            <div className="px-5 py-2.5 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200/60 text-xs font-bold text-slate-400 flex items-center gap-2 shadow-sm">
                                 <PlusCircle className="w-4 h-4" /> {t("newTaxRegime")}
                             </div>
-                            <div className="px-4 py-2 bg-white rounded-full border border-slate-200 text-xs font-bold text-slate-400 flex items-center gap-2">
+                            <div className="px-5 py-2.5 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200/60 text-xs font-bold text-slate-400 flex items-center gap-2 shadow-sm">
                                 <PlusCircle className="w-4 h-4" /> {t("oldTaxRegime")}
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*              LEAVES TAB                     */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "leaves" && (
                     <ESSLeaveManagement employeeId={user?.id} payrollConfig={payrollConfig} />
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*           TALENT MATRIX TAB                 */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === "talent" && (
                     <ESSTalentDashboard employeeId={user?.id} />
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*             OT & C-OFF TAB                  */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'ot-coff' && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <StatCard
                                 title={t("coffBalance")}
                                 value={`${employee?.compOffBalance || 0} Days`}
@@ -1165,78 +1189,78 @@ function ESSDashboardContent() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* OT Requests Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            {/* OT Requests */}
                             <Card className="p-8">
                                 <div className="flex items-center justify-between mb-8">
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-900">{t("overtimeRequests")}</h3>
-                                        <p className="text-sm text-slate-500">{t("trackRequestExtraHours")}</p>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{t("overtimeRequests")}</h3>
+                                        <p className="text-sm text-slate-500 font-medium">{t("trackRequestExtraHours")}</p>
                                     </div>
                                     <button
                                         onClick={() => window.openOTModal()}
-                                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-bold hover:from-indigo-700 hover:to-violet-700 transition-all shadow-lg shadow-indigo-200/50"
                                     >
                                         <FilePlus2 size={16} /> {t("requestOT")}
                                     </button>
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {otRequests.length > 0 ? otRequests.map((r, i) => (
-                                        <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                        <div key={i} className="p-4 bg-gradient-to-r from-slate-50/80 to-white rounded-2xl border border-slate-100/80 flex items-center justify-between hover:shadow-sm transition-all">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-200 shadow-sm">
+                                                <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center border border-slate-200/60 shadow-sm">
                                                     <Clock className="w-5 h-5 text-indigo-600" />
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-slate-900">{format(new Date(r.date), 'MMM dd, yyyy')}</p>
-                                                    <p className="text-[10px] text-slate-500 font-medium">{r.hours} Hours • {r.reason}</p>
+                                                    <p className="text-[11px] text-slate-500 font-medium">{r.hours} Hours • {r.reason}</p>
                                                 </div>
                                             </div>
                                             <StatusBadge status={r.status === 'Pending' ? 'Half Day' : r.status === 'Approved' ? 'Present' : 'Absent'} label={r.status} />
                                         </div>
                                     )) : (
-                                        <div className="text-center py-12 text-slate-400">
-                                            <History className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                            <p className="text-sm">{t("noOTFound")}</p>
+                                        <div className="text-center py-16 text-slate-400">
+                                            <History className="w-14 h-14 mx-auto mb-4 text-slate-200" />
+                                            <p className="text-sm font-bold">{t("noOTFound")}</p>
                                         </div>
                                     )}
                                 </div>
                             </Card>
 
-                            {/* C-Off Requests Section */}
+                            {/* C-Off Requests */}
                             <Card className="p-8">
                                 <div className="flex items-center justify-between mb-8">
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-900">{t("compensatoryOffs")}</h3>
-                                        <p className="text-sm text-slate-500">{t("earnAndUseCOff")}</p>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{t("compensatoryOffs")}</h3>
+                                        <p className="text-sm text-slate-500 font-medium">{t("earnAndUseCOff")}</p>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => window.openCOModal('Earn')}
-                                            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all"
+                                            className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl text-xs font-bold hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-100/50"
                                         >
                                             {t("earn")}
                                         </button>
                                         <button
                                             onClick={() => window.openCOModal('Use')}
-                                            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all"
+                                            className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-bold hover:from-indigo-700 hover:to-violet-700 transition-all shadow-lg shadow-indigo-100/50"
                                         >
                                             {t("use")}
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {coRequests.length > 0 ? coRequests.map((r, i) => (
-                                        <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                        <div key={i} className="p-4 bg-gradient-to-r from-slate-50/80 to-white rounded-2xl border border-slate-100/80 flex items-center justify-between hover:shadow-sm transition-all">
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm ${r.type === 'Earn' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'}`}>
+                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center border shadow-sm ${r.type === 'Earn' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'}`}>
                                                     <Calendar className="w-5 h-5" />
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-slate-900">{format(new Date(r.date), 'MMM dd, yyyy')}</p>
-                                                    <p className="text-[10px] text-slate-500 font-medium">
+                                                    <p className="text-[11px] text-slate-500 font-medium">
                                                         <span className={`font-bold ${r.type === 'Earn' ? 'text-emerald-600' : 'text-indigo-600'}`}>[{r.type}]</span> {r.days} Day • {r.reason}
                                                     </p>
                                                 </div>
@@ -1244,9 +1268,9 @@ function ESSDashboardContent() {
                                             <StatusBadge status={r.status === 'Pending' ? 'Half Day' : r.status === 'Approved' ? 'Present' : 'Absent'} label={r.status} />
                                         </div>
                                     )) : (
-                                        <div className="text-center py-12 text-slate-400">
-                                            <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                            <p className="text-sm">{t("noCOffFound")}</p>
+                                        <div className="text-center py-16 text-slate-400">
+                                            <Calendar className="w-14 h-14 mx-auto mb-4 text-slate-200" />
+                                            <p className="text-sm font-bold">{t("noCOffFound")}</p>
                                         </div>
                                     )}
                                 </div>
@@ -1255,49 +1279,52 @@ function ESSDashboardContent() {
                     </div>
                 )}
 
+                {/* ═══════════════════════════════════════════ */}
+                {/*             MY SHIFTS TAB                   */}
+                {/* ═══════════════════════════════════════════ */}
                 {activeTab === 'shifts' && (
-                    <div className="space-y-6">
-                        <Card className="p-8">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-200">
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <Card className="p-8 md:p-10">
+                            <div className="flex items-center gap-5 mb-10">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white shadow-xl shadow-indigo-200/50">
                                     <Clock className="w-8 h-8" />
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-slate-900">{t("shiftInformation")}</h3>
-                                    <p className="text-slate-500">{t("assignedWorkingHoursSub")}</p>
+                                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">{t("shiftInformation")}</h3>
+                                    <p className="text-slate-500 font-medium">{t("assignedWorkingHoursSub")}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-6">
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t("defaultShift")}</h4>
+                                    <div className="p-7 bg-gradient-to-br from-slate-50 to-indigo-50/20 rounded-2xl border border-slate-200/50">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-5">{t("defaultShift")}</h4>
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center border border-slate-200 shadow-sm">
+                                            <div className="w-14 h-14 rounded-xl bg-white flex items-center justify-center border border-slate-200/60 shadow-sm">
                                                 <Building className="w-6 h-6 text-indigo-600" />
                                             </div>
                                             <div>
-                                                <p className="text-lg font-bold text-slate-900">{employee?.jobDetails?.defaultShift?.name || t("generalShift")}</p>
-                                                <p className="text-sm font-medium text-slate-500">
+                                                <p className="text-lg font-black text-slate-900">{employee?.jobDetails?.defaultShift?.name || t("generalShift")}</p>
+                                                <p className="text-sm font-semibold text-slate-500">
                                                     {employee?.jobDetails?.defaultShift?.startTime || "09:00 AM"} - {employee?.jobDetails?.defaultShift?.endTime || "06:00 PM"}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-6 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                                        <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-4">{t("shiftDetails")}</h4>
+                                    <div className="p-7 bg-gradient-to-br from-indigo-50/60 to-violet-50/40 rounded-2xl border border-indigo-100/50">
+                                        <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.15em] mb-5">{t("shiftDetails")}</h4>
                                         <div className="space-y-4">
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-slate-500">{t("weeklyOffs")}</span>
+                                                <span className="text-slate-500 font-medium">{t("weeklyOffs")}</span>
                                                 <span className="font-bold text-slate-900">Saturday, Sunday</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-slate-500">{t("workingDays")}</span>
+                                                <span className="text-slate-500 font-medium">{t("workingDays")}</span>
                                                 <span className="font-bold text-slate-900">9 Hours / Day</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-slate-500">{t("gracePeriod")}</span>
+                                                <span className="text-slate-500 font-medium">{t("gracePeriod")}</span>
                                                 <span className="font-bold text-slate-900">15 Minutes</span>
                                             </div>
                                         </div>
@@ -1305,13 +1332,13 @@ function ESSDashboardContent() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t("upcomingRoster")}</h4>
+                                    <div className="p-7 bg-white rounded-2xl border border-slate-200/50 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-5">{t("upcomingRoster")}</h4>
                                         {userRoster.length > 0 ? (
                                             <div className="space-y-3">
                                                 {userRoster.slice(0, 5).map((r, i) => (
-                                                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-all">
-                                                        <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center bg-indigo-50 text-[10px] font-bold">
+                                                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100/80 hover:bg-slate-50/50 transition-all">
+                                                        <div className="w-11 h-11 rounded-xl flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50 text-[10px] font-bold border border-indigo-100/50">
                                                             <span className="text-indigo-400 leading-none">{format(new Date(r.date), 'MMM')}</span>
                                                             <span className="text-indigo-700 leading-none mt-0.5">{format(new Date(r.date), 'dd')}</span>
                                                         </div>
@@ -1319,15 +1346,15 @@ function ESSDashboardContent() {
                                                             <p className="text-xs font-bold text-slate-900">{r.shiftId?.name}</p>
                                                             <p className="text-[10px] text-slate-500 font-medium">{r.shiftId?.startTime} - {r.shiftId?.endTime}</p>
                                                         </div>
-                                                        <div className="px-2 py-1 bg-green-50 text-green-600 rounded text-[10px] font-bold">Confirmed</div>
+                                                        <div className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black border border-emerald-100/60">Confirmed</div>
                                                     </div>
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="text-center py-8">
-                                                <CalendarDays className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                                                <p className="text-sm font-medium text-slate-400">{t("noRosterAssigned")}</p>
-                                                <p className="text-[10px] text-slate-400 mt-1">{t("followingStandardSchedule")}</p>
+                                            <div className="text-center py-10">
+                                                <CalendarDays className="w-14 h-14 text-slate-200 mx-auto mb-3" />
+                                                <p className="text-sm font-bold text-slate-400">{t("noRosterAssigned")}</p>
+                                                <p className="text-[11px] text-slate-400 mt-1 font-medium">{t("followingStandardSchedule")}</p>
                                             </div>
                                         )}
                                     </div>
@@ -1338,30 +1365,32 @@ function ESSDashboardContent() {
                 )}
             </div>
 
-            {/* Policy Modal */}
+            {/* ═══════════════════════════════════════════ */}
+            {/*           POLICY MODAL                      */}
+            {/* ═══════════════════════════════════════════ */}
             {showPolicyModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden scale-in duration-300">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50/30">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">{t("payrollPolicy")} 2025-26</h3>
-                                <p className="text-xs text-slate-500">{t("effectiveFrom")} April 1st, 2025</p>
+                                <h3 className="text-lg font-black text-slate-900">{t("payrollPolicy")} 2025-26</h3>
+                                <p className="text-xs text-slate-500 font-medium">{t("effectiveFrom")} April 1st, 2025</p>
                             </div>
-                            <button onClick={() => setShowPolicyModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                            <button onClick={() => setShowPolicyModal(false)} className="p-2.5 hover:bg-slate-200/60 rounded-xl transition-colors">
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                         </div>
-                        <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 text-sm text-slate-600 leading-relaxed">
+                        <div className="p-7 max-h-[60vh] overflow-y-auto space-y-5 text-sm text-slate-600 leading-relaxed">
                             <p><strong className="text-slate-900">1. {t("paymentCycle")}:</strong> Salaries are processed on the last working day of every month. Pay slips are available for download by the 1st of the following month.</p>
                             <p><strong className="text-slate-900">2. {t("taxDeductionsTDS")}:</strong> TDS is deducted based on the investment declaration submitted by the employee. You can switch between Old and New Tax Regimes at the start of the financial year.</p>
                             <p><strong className="text-slate-900">3. {t("reimbursements")}:</strong> All expense claims must be submitted by the 20th of the month to be included in that month's payout. Late submissions will be processed in the subsequent cycle.</p>
                             <p><strong className="text-slate-900">4. {t("leavesAndLOP")}:</strong> Unpaid leaves (Loss of Pay) will be deducted from the gross salary on a pro-rata basis. Leave balances are updated daily.</p>
                             <p><strong className="text-slate-900">5. {t("variablePay")}:</strong> Performance bonuses and incentives are disbursed quarterly based on the company's performance appraisal policy.</p>
                         </div>
-                        <div className="p-6 border-t border-slate-100 bg-slate-50 text-right">
+                        <div className="p-7 border-t border-slate-100 bg-slate-50/50 text-right">
                             <button
                                 onClick={() => handleDownload('Payroll_Policy_2025.txt', 'Full Payroll Policy Content...')}
-                                className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-colors"
+                                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl text-xs hover:from-indigo-700 hover:to-violet-700 transition-all shadow-lg shadow-indigo-200/50"
                             >
                                 {t("downloadPolicy")}
                             </button>
@@ -1370,50 +1399,52 @@ function ESSDashboardContent() {
                 </div>
             )}
 
-            {/* Payslip Preview Modal */}
+            {/* ═══════════════════════════════════════════ */}
+            {/*         PAYSLIP PREVIEW MODAL               */}
+            {/* ═══════════════════════════════════════════ */}
             {previewSlip && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden scale-in duration-300">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50/30">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">{t("payslipPreview")}</h3>
-                                <p className="text-xs text-slate-500">{getMonthName(previewSlip.month)} {previewSlip.year}</p>
+                                <h3 className="text-lg font-black text-slate-900">{t("payslipPreview")}</h3>
+                                <p className="text-xs text-slate-500 font-medium">{getMonthName(previewSlip.month)} {previewSlip.year}</p>
                             </div>
-                            <button onClick={() => setPreviewSlip(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                            <button onClick={() => setPreviewSlip(null)} className="p-2.5 hover:bg-slate-200/60 rounded-xl transition-colors">
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-6">
-                            <div className="text-center p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                                <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1">{t("netPay")}</p>
-                                <h2 className="text-3xl font-black text-indigo-900">₹{previewSlip.netSalary?.toLocaleString()}</h2>
-                                <p className="text-[10px] text-slate-400 mt-2 font-mono">ID: {previewSlip.payslipId}</p>
+                        <div className="p-7 space-y-6">
+                            <div className="text-center p-7 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100/50">
+                                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2">{t("netPay")}</p>
+                                <h2 className="text-4xl font-black text-indigo-900 tracking-tight">₹{previewSlip.netSalary?.toLocaleString()}</h2>
+                                <p className="text-[10px] text-slate-400 mt-3 font-mono bg-white/60 inline-block px-3 py-1 rounded-full">ID: {previewSlip.payslipId}</p>
                             </div>
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm p-3 bg-slate-50 rounded-lg">
-                                    <span className="text-slate-600">{t("basicSalary")}</span>
-                                    <span className="font-bold text-slate-900">₹{previewSlip.basicSalary?.toLocaleString()}</span>
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between text-sm p-4 bg-slate-50/80 rounded-xl">
+                                    <span className="text-slate-600 font-medium">{t("basicSalary")}</span>
+                                    <span className="font-black text-slate-900">₹{previewSlip.basicSalary?.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-sm p-3 bg-slate-50 rounded-lg">
-                                    <span className="text-slate-600">{t("taxDeduction")}</span>
-                                    <span className="font-bold text-rose-600">- ₹{previewSlip.taxDeduction?.toLocaleString() || 0}</span>
+                                <div className="flex justify-between text-sm p-4 bg-slate-50/80 rounded-xl">
+                                    <span className="text-slate-600 font-medium">{t("taxDeduction")}</span>
+                                    <span className="font-black text-rose-600">- ₹{previewSlip.taxDeduction?.toLocaleString() || 0}</span>
                                 </div>
-                                <div className="flex justify-between text-sm p-3 bg-slate-50 rounded-lg border-t-2 border-slate-200">
-                                    <span className="font-bold text-slate-900">{t("grossEarnings")}</span>
-                                    <span className="font-bold text-slate-900">₹{((previewSlip.basicSalary || 0)).toLocaleString()}</span>
+                                <div className="flex justify-between text-sm p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100/50">
+                                    <span className="font-black text-slate-900">{t("grossEarnings")}</span>
+                                    <span className="font-black text-emerald-700">₹{((previewSlip.basicSalary || 0)).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                        <div className="p-7 border-t border-slate-100 bg-slate-50/50 flex gap-3">
                             <button
                                 onClick={() => setPreviewSlip(null)}
-                                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
+                                className="flex-1 py-3 bg-white border border-slate-200/80 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-all shadow-sm"
                             >
                                 {t("close")}
                             </button>
                             <button
                                 onClick={() => handleDownloadPDF(previewSlip)}
-                                className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl text-xs hover:from-indigo-700 hover:to-violet-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200/50"
                             >
                                 <Download className="w-4 h-4" /> {t("download")}
                             </button>
@@ -1432,7 +1463,9 @@ export default function ESSDashboard() {
     return (
         <Suspense fallback={
             <div className="flex h-[80vh] items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                </div>
             </div>
         }>
             <ESSDashboardContent />
@@ -1495,27 +1528,27 @@ const OTRequestModal = ({ employeeId, onSuccess }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-900">{t("requestOT")}</h3>
-                    <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50/30">
+                    <h3 className="text-lg font-black text-slate-900">{t("requestOT")}</h3>
+                    <button onClick={() => setIsOpen(false)} className="p-2.5 hover:bg-slate-200/60 rounded-xl transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Date</label>
+                <form onSubmit={handleSubmit} className="p-7 space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Date</label>
                         <input
                             type="date"
                             required
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Hours</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Hours</label>
                         <input
                             type="number"
                             required
@@ -1523,23 +1556,23 @@ const OTRequestModal = ({ employeeId, onSuccess }) => {
                             step="0.5"
                             value={formData.hours}
                             onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Reason</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Reason</label>
                         <textarea
                             required
                             value={formData.reason}
                             onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none h-24 resize-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none h-24 resize-none transition-all"
                             placeholder={t("whyWorkLate")}
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all disabled:opacity-50"
+                        className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black rounded-xl text-sm hover:from-indigo-700 hover:to-violet-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-200/50"
                     >
                         {loading ? t("submitting") : t("submitRequest")}
                     </button>
@@ -1594,30 +1627,30 @@ const CORequestModal = ({ employeeId, onSuccess, balance }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center text-slate-900">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50/30">
                     <div>
-                        <h3 className="text-lg font-bold">{type === 'Earn' ? t("earnCompOff") : t("useCompOff")}</h3>
-                        <p className="text-xs text-slate-500">{type === 'Earn' ? t("workedHolidayWeekend") : `${t("currentBalance")}: ${balance} Days`}</p>
+                        <h3 className="text-lg font-black text-slate-900">{type === 'Earn' ? t("earnCompOff") : t("useCompOff")}</h3>
+                        <p className="text-xs text-slate-500 font-medium">{type === 'Earn' ? t("workedHolidayWeekend") : `${t("currentBalance")}: ${balance} Days`}</p>
                     </div>
-                    <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={() => setIsOpen(false)} className="p-2.5 hover:bg-slate-200/60 rounded-xl transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Date</label>
+                <form onSubmit={handleSubmit} className="p-7 space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Date</label>
                         <input
                             type="date"
                             required
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Days</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Days</label>
                         <input
                             type="number"
                             required
@@ -1626,23 +1659,23 @@ const CORequestModal = ({ employeeId, onSuccess, balance }) => {
                             step="0.5"
                             value={formData.days}
                             onChange={(e) => setFormData({ ...formData, days: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Reason</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Reason</label>
                         <textarea
                             required
                             value={formData.reason}
                             onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none h-24 resize-none"
+                            className="w-full p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none h-24 resize-none transition-all"
                             placeholder={type === 'Earn' ? t("mentionHolidayWorked") : t("reasonForLeave")}
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full py-3 text-white font-bold rounded-xl text-sm transition-all disabled:opacity-50 ${type === 'Earn' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                        className={`w-full py-3.5 text-white font-black rounded-xl text-sm transition-all disabled:opacity-50 shadow-lg ${type === 'Earn' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-200/50' : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-indigo-200/50'}`}
                     >
                         {loading ? t("submitting") : t("submitRequest")}
                     </button>
@@ -1651,4 +1684,3 @@ const CORequestModal = ({ employeeId, onSuccess, balance }) => {
         </div>
     );
 };
-

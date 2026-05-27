@@ -110,9 +110,6 @@ export default function EmployeeHolidaysPage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-900 to-indigo-600 bg-clip-text text-transparent mb-2">
-                            My Holidays
-                        </h1>
                         <p className="text-slate-500 flex items-center gap-2 text-sm">
                             <MapPin className="w-4 h-4" /> 
                             Showing holidays for <span className="font-semibold text-slate-700">{data.holidayList.name}</span>

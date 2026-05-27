@@ -869,19 +869,23 @@ export default function AttendanceDashboard() {
         {/* Header */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Calendar className="w-8 h-8 text-white" />
+            {user?.role !== 'employee' ? (
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 mb-1">
+                    Attendance Management
+                  </h1>
+                  <p className="text-slate-600">
+                    Track and manage employee attendance records
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">
-                  Attendance Management
-                </h1>
-                <p className="text-slate-600">
-                  Track and manage employee attendance records
-                </p>
-              </div>
-            </div>
+            ) : (
+              <div className="flex-1" />
+            )}
             <div className="flex flex-wrap gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

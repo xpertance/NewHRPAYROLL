@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import { Vendor, VendorInvoice } from '@/lib/db/models/finance/Vendor';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET() {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
         
         const totalVendors = await Vendor.countDocuments();
         

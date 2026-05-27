@@ -105,6 +105,17 @@ export async function POST(req) {
         return NextResponse.json({ message: 'Account has no password set' }, { status: 500 });
       }
 
+      // SaaS: Check trial expiration
+      if (user.role !== 'super_admin' && user.plan === 'trial' && user.planExpiresAt && new Date() > new Date(user.planExpiresAt)) {
+        if (user.isActive !== false || user.status !== 'suspended') {
+          user.isActive = false;
+          user.status = 'suspended';
+          await user.save();
+        }
+        console.log('Trial expired for user:', emailOrUsername);
+        return NextResponse.json({ message: 'Your trial period has expired. Please contact support or upgrade.' }, { status: 403 });
+      }
+
       // SaaS: Check if account is active/approved
       if (user.isActive === false) {
         if (user.status === 'pending') {
@@ -122,6 +133,43 @@ export async function POST(req) {
         return NextResponse.json({ message: 'Password does not match' }, { status: 401 });
       }
       console.log('Admin password matched');
+
+      // Fallback: If a trial user logs in but has no organization or data, seed it on the fly
+      if (user.plan === 'trial') {
+        try {
+          const Organization = (await import('@/lib/db/models/crm/organization/Organization')).default;
+          let organization;
+          
+          if (user.organizationId) {
+            organization = await Organization.findById(user.organizationId);
+          }
+
+          if (!organization) {
+            const orgId = `ORG${Math.floor(100 + Math.random() * 900)}`;
+            organization = await Organization.create({
+              orgId,
+              name: user.companyName || 'Trial Sandbox Corp',
+              email: user.email,
+              phone: user.phone || "",
+              status: "Active",
+              createdBy: user._id,
+              updatedBy: user._id
+            });
+
+            user.organizationId = organization._id;
+            await user.save();
+          }
+
+          const EmployeeModel = (await import('@/lib/db/models/payroll/Employee')).default;
+          const employeeCount = await EmployeeModel.countDocuments({ "jobDetails.organizationId": organization._id });
+          if (employeeCount === 0) {
+            const { seedDemoSandbox } = await import('@/lib/db/seedDemoData');
+            await seedDemoSandbox(organization._id, user._id, user.companyName || 'Trial Sandbox Corp', user.email, user.phone || "");
+          }
+        } catch (seedErr) {
+          console.error('Failed to auto-seed sandbox on login:', seedErr);
+        }
+      }
 
       // Use the ACTUAL role from DB (admin or super_admin)
       const actualRole = user.role || 'admin';

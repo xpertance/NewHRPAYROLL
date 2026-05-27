@@ -4,17 +4,15 @@ import Project from '@/lib/db/models/tasks/Project';
 import Task from '@/lib/db/models/tasks/Task';
 import Timesheet from '@/lib/db/models/tasks/Timesheet';
 import Employee from '@/lib/db/models/payroll/Employee';
-import { getAuthUser } from '@/lib/auth-util';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 import TimesheetEntry from '@/lib/db/models/tasks/TimesheetEntry';
 import ActivityLog from '@/lib/db/models/ActivityLog';
 
 export async function GET(request) {
     try {
         await dbConnect();
-        const authUser = await getAuthUser(request);
-        if (!authUser) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
 
         const organizationId = authUser.organizationId;
 

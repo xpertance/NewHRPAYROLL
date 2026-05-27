@@ -91,11 +91,11 @@ function PasswordStrength({ password }) {
   );
 }
 
-// â”€â”€ Feature bullets for hero panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Feature bullets for hero panel —————————————————————————————————————————
 const features = [
   { icon: Users,     text: "Manage unlimited employees across departments" },
   { icon: BarChart3, text: "Automated payroll with statutory compliance" },
-  { icon: Shield,    text: "Role-based access â€” admin, supervisor, employee" },
+  { icon: Shield,    text: "Role-based access — admin, employee" },
   { icon: Sparkles,  text: "14-day free trial. No credit card required." },
 ];
 

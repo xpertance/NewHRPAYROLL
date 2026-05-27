@@ -471,7 +471,7 @@ export async function GET(request) {
         const halfDayCutoffStr = shift?.halfDayCutoffTime || "12:30";
         const minHours = shift?.halfDayMinHours || 4;
 
-        if (rec.checkIn && rec.status === 'Present') {
+        if (rec.checkIn && rec.status !== 'Absent' && rec.status !== 'On Leave') {
           const checkInTime = new Date(rec.checkIn);
           
           // Parse lateCutoffTime to Date
@@ -881,14 +881,30 @@ export async function DELETE(request) {
       );
     }
 
-    const deletedAttendance = await Attendance.findByIdAndDelete(id);
+    const record = await Attendance.findById(id).populate({
+      path: 'employee',
+      select: 'jobDetails.organizationId'
+    });
 
-    if (!deletedAttendance) {
+    if (!record) {
       return NextResponse.json(
         { success: false, error: "Attendance record not found" },
         { status: 404 }
       );
     }
+
+    // Tenant Isolation Check
+    if (authUser.role !== 'super_admin') {
+      const recordOrgId = record.employee?.jobDetails?.organizationId?.toString();
+      if (recordOrgId !== authUser.organizationId) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden: Access is denied" },
+          { status: 403 }
+        );
+      }
+    }
+
+    await Attendance.findByIdAndDelete(id);
 
     return NextResponse.json({
       success: true,

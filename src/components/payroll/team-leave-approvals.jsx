@@ -135,11 +135,7 @@ export default function TeamLeaveApprovals() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900">Team Approvals</h1>
-                    <p className="text-sm text-slate-500 mt-1">Review leaves and attendance updates from your team</p>
-                </div>
+            <div className="flex justify-end gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2 bg-indigo-50/50 p-1 rounded-xl self-end">
                         <button

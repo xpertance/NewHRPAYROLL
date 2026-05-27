@@ -83,11 +83,7 @@ export default function LoanManagementPage() {
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t("loansAdvances")}</h1>
-                    <p className="text-slate-500">{t("loansSubtitle")}</p>
-                </div>
+            <div className="flex justify-end">
                 <button
                     onClick={() => setIsRequestModalOpen(true)}
                     className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"

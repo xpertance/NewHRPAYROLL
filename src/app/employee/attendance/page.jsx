@@ -1,5 +1,5 @@
-import AttendanceDashboard from '@/components/payroll/attendance-dashboard';
+import EmployeeAttendanceView from "@/components/payroll/EmployeeAttendanceView";
 
 export default function AttendancePage() {
-  return <AttendanceDashboard />;
+  return <EmployeeAttendanceView />;
 }

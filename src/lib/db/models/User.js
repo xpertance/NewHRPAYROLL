@@ -63,7 +63,10 @@ const userSchema = new mongoose.Schema(
     },
     planExpiresAt: {
       type: Date,
-      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14-day trial
+      default: () => {
+        const days = parseInt(process.env.DEMO_TRIAL_DURATION_DAYS || "14", 10);
+        return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      },
     },
     isEmailVerified: {
       type: Boolean,

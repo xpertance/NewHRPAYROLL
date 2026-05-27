@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import { VendorInvoice } from '@/lib/db/models/finance/Vendor';
+import { getAuthUser, authorize } from '@/lib/auth-util';
 
 export async function GET(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         const { searchParams } = new URL(request.url);
         const vendorId = searchParams.get('vendorId');
         const status = searchParams.get('status');
@@ -26,6 +30,9 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         const body = await request.json();
 
         // Basic validation
@@ -43,6 +50,9 @@ export async function POST(request) {
 export async function PUT(request) {
     try {
         await dbConnect();
+        const authUser = await getAuthUser();
+        authorize(authUser, ["admin", "super_admin"]);
+
         const body = await request.json();
         const { id, ...updateData } = body;
 

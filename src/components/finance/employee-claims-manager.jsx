@@ -158,16 +158,7 @@ export default function EmployeeClaimsManager({ employeeId }) {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
             
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-bold text-slate-900">Expense Claims</h1>
-                        <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-md border border-slate-200 uppercase tracking-widest">
-                            ID: {employeeId}
-                        </span>
-                    </div>
-                    <p className="text-slate-500 text-sm mt-1">Submit and track your expense claims</p>
-                </div>
+            <div className="flex justify-end mb-8">
                 <button 
                     onClick={() => { setEditData(null); setShowModal(true); }}
                     className="bg-[#2563eb] hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
